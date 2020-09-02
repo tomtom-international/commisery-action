@@ -1,0 +1,14 @@
+name: 'Commisery'
+description: 'Conventional Commit Message Checker'
+inputs:
+  token: 
+    description: 'GitHub token used to access (automatically set)'
+    required: true
+
+  pull-request-id:
+    description: 'Pull Request number (automatically set)'
+    required: true
+
+runs:
+  using: 'node12'
+  main: 'index.js'
