@@ -1,5 +1,22 @@
+# Copyright (C) 2020-2020, TomTom (http://tomtom.com).
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 name: Commisery
-on: pull_request
+on: 
+  pull_request:
+    types: [opened, synchronize, reopened]
+
 jobs:
   commit-message:
     name: Conventional Commit Message Checker (Commisery)
@@ -8,19 +25,11 @@ jobs:
     - name: Check-out the repo under $GITHUB_WORKSPACE
       uses: actions/checkout@v2
       with:
-        # ensure we retrieve the full history as we need to check all commits in push
+        # ensure we retrieve the full history as we need to check all commits in the provided Pull Request
         fetch-depth: 0
-
-    - name: Set up Python 3.8
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.8'
-
-    - name: Install Commisery
-      run: pip install commisery
 
     - name: Run Commisery
       uses: ./
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
-        pull-request-id: ${{ github.event.number }}
+        pull_request: ${{ github.event.number }}
