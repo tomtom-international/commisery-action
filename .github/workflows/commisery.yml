@@ -1,0 +1,26 @@
+name: Commisery
+on: pull_request
+jobs:
+  commit-message:
+    name: Conventional Commit Message Checker (Commisery)
+    runs-on: ubuntu-latest
+    steps:       
+    - name: Check-out the repo under $GITHUB_WORKSPACE
+      uses: actions/checkout@v2
+      with:
+        # ensure we retrieve the full history as we need to check all commits in push
+        fetch-depth: 0
+
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+
+    - name: Install Commisery
+      run: pip install commisery
+
+    - name: Run Commisery
+      uses: ./
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        pull-request-id: ${{ github.event.number }}
