@@ -37,8 +37,8 @@ The workflow, usually declared in `.github/workflows/build.yml`, looks like:
             token: ${{ secrets.GITHUB_TOKEN }}
             pull_request: ${{ github.event.number }}
 
-Secrets
-^^^^^^^
+Inputs
+^^^^^^
 
 - **token**: GitHub Token provided by GitHub, see `Authenticating with the GITHUB_TOKEN`_
 - **pull_request**: Pull Request number, provided by the `GitHub context`_.

@@ -13,17 +13,18 @@
 # limitations under the License.
 
 name: 'Commisery'
+author: 'Kevin de Jong'
 description: >
   Scan your commits in your Pull Request against the Conventional
   Commits standard using Commisery
 
 inputs:
   token: 
-    description: 'GitHub token used to access GitHub'
+    description: 'GitHub token used to access GitHub (eg. secrets.GITHUB_TOKEN)'
     required: true
 
   pull_request:
-    description: 'Pull Request number'
+    description: 'Pull Request number (eg. github.event.number)'
     required: true
 
 runs:
