@@ -17,23 +17,23 @@ The workflow, usually declared in `.github/workflows/build.yml`, looks like:
 
     name: Commisery
     on: 
-    pull_request:
+      pull_request:
         types: [opened, synchronize, reopened]
 
     jobs:
-    commit-message:
+      commit-message:
         name: Conventional Commit Message Checker (Commisery)
         runs-on: ubuntu-latest
         steps:       
         - name: Check-out the repo under $GITHUB_WORKSPACE
-        uses: actions/checkout@v2
-        with:
+          uses: actions/checkout@v2
+          with:
             # ensure we retrieve the full history as we need to check all commits in the provided Pull Request
             fetch-depth: 0
 
         - name: Run Commisery
-        uses: ./
-        with:
+          uses: KevinDeJong-TomTom/commisery-action@master
+          with:
             token: ${{ secrets.GITHUB_TOKEN }}
             pull_request: ${{ github.event.number }}
 
