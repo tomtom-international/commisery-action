@@ -16,7 +16,7 @@
 
 echo "Running Commisery for ${GITHUB_REPOSITORY}, Pull Request #${INPUT_PULL_REQUEST}"
 
-OUTPUT="$(python3 commisery_action.py --token=${INPUT_TOKEN} --repository=${GITHUB_REPOSITORY} --pull-request-id=${INPUT_PULL_REQUEST} 2>&1)"
+OUTPUT="$(python3 /commisery_action.py --token=${INPUT_TOKEN} --repository=${GITHUB_REPOSITORY} --pull-request-id=${INPUT_PULL_REQUEST} 2>&1)"
 echo "$OUTPUT"
 
 if [ -n "$OUTPUT" ]
