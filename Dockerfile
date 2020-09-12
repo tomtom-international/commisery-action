@@ -24,6 +24,10 @@ RUN apt-get update \
 # Install commisery
 RUN pip install commisery==0.1.1 PyGithub==1.53 Click==7.1.2
 
+# Copy action
+COPY commisery_action.py /commisery_action.py
+RUN chmod +x /commisery_action.py
+
 # Prepare entrypoint
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
