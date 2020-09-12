@@ -16,14 +16,5 @@
 
 echo "Running Commisery for ${GITHUB_REPOSITORY}, Pull Request #${INPUT_PULL_REQUEST}"
 
-OUTPUT="$(python3 /commisery_action.py --token=${INPUT_TOKEN} --repository=${GITHUB_REPOSITORY} --pull-request-id=${INPUT_PULL_REQUEST} 2>&1)"
-echo "$OUTPUT"
-
-if [ -n "$OUTPUT" ]
-then
-    # 1. Remove ANSI Color codes
-    # 2. Replace \n with %0A to allow new lines in annotations
-    ANNOTATION=`echo "$OUTPUT" | sed 's/\x1b\[[0-9;]*m//g' | sed ':a;N;$!ba;s/\n/%0A/g'`
-    echo "::error ::$ANNOTATION"
-    exit 1
-fi
+python /commisery_action.py --token=${INPUT_TOKEN} --repository=${GITHUB_REPOSITORY} --pull-request-id=${INPUT_PULL_REQUEST}
+exit $?
