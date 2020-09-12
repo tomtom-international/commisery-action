@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Copyright (C) 2020-2020, TomTom (http://tomtom.com).
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,23 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: 'Commisery'
-description: >
-  Scan your commits in your Pull Request against the Conventional
-  Commits standard using Commisery
+echo "Running Commisery for ${GITHUB_REPOSITORY}, Pull Request #${INPUT_PULL_REQUEST}"
 
-inputs:
-  token: 
-    description: 'GitHub token used to access GitHub'
-    required: true
+OUTPUT="$(python3 commisery_action.py --token=${INPUT_TOKEN} --repository=${GITHUB_REPOSITORY} --pull-request-id=${INPUT_PULL_REQUEST} 2>&1)"
+echo "$OUTPUT"
 
-  pull_request:
-    description: 'Pull Request number'
-    required: true
-
-runs:
-  using: docker
-  image: Dockerfile
-  args:
-    - ${{ inputs.token }}
-    - ${{ inputs.pull_request }}
+if [ -n "$OUTPUT" ]
+then
+    # 1. Remove ANSI Color codes
+    # 2. Replace \n with %0A to allow new lines in annotations
+    ANNOTATION=`echo "$OUTPUT" | sed 's/\x1b\[[0-9;]*m//g' | sed ':a;N;$!ba;s/\n/%0A/g'`
+    echo "::error ::$ANNOTATION"
+    exit 1
+fi
