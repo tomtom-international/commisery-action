@@ -2,8 +2,8 @@
 Check your commits against Conventional Commits using Commisery
 ===============================================================
 
-Using this GitHub action, scan your commits in your Pull Request against the `Conventional Commits`_ standard
-using `Commisery`_ 
+Using this GitHub action, scan your Pull Request title and all commits in your Pull Request against 
+the `Conventional Commits`_ standard using `Commisery`_ 
 
 .. _`Conventional Commits`: https://www.conventionalcommits.org/en/v1.0.0/
 .. _`Commisery`: https://pypi.org/project/commisery/
@@ -18,7 +18,7 @@ The workflow, usually declared in `.github/workflows/build.yml`, looks like:
     name: Commisery
     on: 
       pull_request:
-        types: [opened, synchronize, reopened]
+        types: [edited, opened, synchronize, reopened]
 
     jobs:
       commit-message:
