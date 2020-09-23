@@ -27,9 +27,6 @@ The workflow, usually declared in `.github/workflows/build.yml`, looks like:
         steps:       
         - name: Check-out the repo under $GITHUB_WORKSPACE
           uses: actions/checkout@v2
-          with:
-            # ensure we retrieve the full history as we need to check all commits in the provided Pull Request
-            fetch-depth: 0
 
         - name: Run Commisery
           uses: KevinDeJong-TomTom/commisery-action@master
