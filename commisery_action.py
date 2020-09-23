@@ -15,21 +15,60 @@
 # limitations under the License.
 
 import click
+import re
+import subprocess
 
 from github import Github
-from commisery import checking
+
+
+def convert_to_multiline(text: str) -> str:
+    return text.replace('\n', '%0A')
+
+
+def strip_ansicolors(text: str) -> str:
+    return re.sub('\x1b\\[(K|.*?m)', '', text)
+
+
+def error_message(message: str, options: dict = {}):
+    error = '::error '
+
+    for key, value in options.items():
+        error += f'{key}={value},'
+
+    error = error[:-1]
+    message = strip_ansicolors(convert_to_multiline(message))
+    error += f'::{message}'
+
+    print(error)
 
 
 @click.command()
-@click.option('-t', '--token', required=True, help='GitHub Token')
-@click.option('-r', '--repository', required=True,  help='GitHub repository')
-@click.option('-p', '--pull-request-id', required=True, help='Pull Request identifier')
+@click.option('-t', '--token',
+              required=True, help='GitHub Token')
+@click.option('-r', '--repository',
+              required=True,  help='GitHub repository')
+@click.option('-p', '--pull-request-id',
+              required=True, help='Pull Request identifier')
 def main(token: str, repository: str, pull_request_id: int) -> int:
+    errors = 0
+
     repo = Github(token).get_repo(repository)
-    commits = repo.get_pull(int(pull_request_id)).get_commits()
+    pr = repo.get_pull(int(pull_request_id))
+    commits = pr.get_commits()
 
     for commit in commits:
-        checking.main(argv=[1, commit.sha])
+        proc = subprocess.Popen(
+            ["commisery-verify-msg", commit.sha],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        stdout, stderr = proc.communicate()
+
+        if proc.returncode > 0:
+            error_message(stderr.decode("utf-8"))
+            errors += 1
+
+    exit(1 if errors else 0)
 
 
 if __name__ == '__main__':
