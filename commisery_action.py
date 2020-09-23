@@ -34,19 +34,19 @@ def error_message(message: str):
     print(f'::error ::{message}')
 
 
-def create_pr_file(pull_request: object) -> str:
+def message_to_file(message: str) -> str:
     filename = 'commit_message'
 
     f = open(filename, 'w+')
-    f.write(pull_request.title)
+    f.write(message)
     f.close()
 
     return filename
 
 
-def check_message(argument: str) -> bool:
+def check_message(message: str) -> bool:
     proc = subprocess.Popen(
-        ["commisery-verify-msg", argument],
+        ["commisery-verify-msg", message_to_file(message)],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE
     )
@@ -72,13 +72,13 @@ def main(token: str, repository: str, pull_request_id: int) -> int:
     repo = Github(token).get_repo(repository)
     pr = repo.get_pull(int(pull_request_id))
 
-    if not check_message(create_pr_file(pr)):
+    if not check_message(pr.title):
         errors += 1
 
     commits = pr.get_commits()
 
     for commit in commits:
-        if not check_message(commit.sha):
+        if not check_message(commit.commit.message):
             errors += 1
 
     exit(1 if errors else 0)
