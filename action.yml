@@ -18,6 +18,10 @@ description: >
   Scan your commits in your Pull Request against the Conventional
   Commits standard using Commisery
 
+branding:
+  icon: 'code'  
+  color: 'white'
+
 inputs:
   token: 
     description: 'GitHub token used to access GitHub (eg. secrets.GITHUB_TOKEN)'
