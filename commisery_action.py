@@ -29,17 +29,9 @@ def strip_ansicolors(text: str) -> str:
     return re.sub('\x1b\\[(K|.*?m)', '', text)
 
 
-def error_message(message: str, options: dict = {}):
-    error = '::error '
-
-    for key, value in options.items():
-        error += f'{key}={value},'
-
-    error = error[:-1]
+def error_message(message: str):
     message = strip_ansicolors(convert_to_multiline(message))
-    error += f'::{message}'
-
-    print(error)
+    print(f'::error ::{message}')
 
 
 @click.command()
