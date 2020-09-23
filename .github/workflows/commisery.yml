@@ -15,7 +15,7 @@
 name: Commisery
 on: 
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [edited, opened, synchronize, reopened]
 
 jobs:
   commit-message:

@@ -34,6 +34,31 @@ def error_message(message: str):
     print(f'::error ::{message}')
 
 
+def create_pr_file(pull_request: object) -> str:
+    filename = 'commit_message'
+
+    f = open(filename, 'w+')
+    f.write(pull_request.title)
+    f.close()
+
+    return filename
+
+
+def check_message(argument: str) -> bool:
+    proc = subprocess.Popen(
+        ["commisery-verify-msg", argument],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
+    )
+    stdout, stderr = proc.communicate()
+
+    if proc.returncode > 0:
+        error_message(stderr.decode("utf-8"))
+        return False
+
+    return True
+
+
 @click.command()
 @click.option('-t', '--token',
               required=True, help='GitHub Token')
@@ -46,18 +71,14 @@ def main(token: str, repository: str, pull_request_id: int) -> int:
 
     repo = Github(token).get_repo(repository)
     pr = repo.get_pull(int(pull_request_id))
+
+    if not check_message(create_pr_file(pr)):
+        errors += 1
+
     commits = pr.get_commits()
 
     for commit in commits:
-        proc = subprocess.Popen(
-            ["commisery-verify-msg", commit.sha],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        stdout, stderr = proc.communicate()
-
-        if proc.returncode > 0:
-            error_message(stderr.decode("utf-8"))
+        if not check_message(commit.sha):
             errors += 1
 
     exit(1 if errors else 0)
