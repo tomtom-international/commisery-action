@@ -29,17 +29,34 @@ def strip_ansicolors(text: str) -> str:
     return re.sub('\x1b\\[(K|.*?m)', '', text)
 
 
-def error_message(message: str, options: dict = {}):
-    error = '::error '
-
-    for key, value in options.items():
-        error += f'{key}={value},'
-
-    error = error[:-1]
+def error_message(message: str):
     message = strip_ansicolors(convert_to_multiline(message))
-    error += f'::{message}'
+    print(f'::error ::{message}')
 
-    print(error)
+
+def create_pr_file(pull_request: object) -> str:
+    filename = 'commit_message'
+
+    f = open(filename, 'w+')
+    f.write(pull_request.title)
+    f.close()
+
+    return filename
+
+
+def check_message(argument: str) -> bool:
+    proc = subprocess.Popen(
+        ["commisery-verify-msg", argument],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
+    )
+    stdout, stderr = proc.communicate()
+
+    if proc.returncode > 0:
+        error_message(stderr.decode("utf-8"))
+        return False
+
+    return True
 
 
 @click.command()
@@ -54,18 +71,14 @@ def main(token: str, repository: str, pull_request_id: int) -> int:
 
     repo = Github(token).get_repo(repository)
     pr = repo.get_pull(int(pull_request_id))
+
+    if not check_message(create_pr_file(pr)):
+        errors += 1
+
     commits = pr.get_commits()
 
     for commit in commits:
-        proc = subprocess.Popen(
-            ["commisery-verify-msg", commit.sha],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        stdout, stderr = proc.communicate()
-
-        if proc.returncode > 0:
-            error_message(stderr.decode("utf-8"))
+        if not check_message(commit.sha):
             errors += 1
 
     exit(1 if errors else 0)
