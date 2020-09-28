@@ -29,7 +29,7 @@ The workflow, usually declared in `.github/workflows/build.yml`, looks like:
           uses: actions/checkout@v2
 
         - name: Run Commisery
-          uses: KevinDeJong-TomTom/commisery-action@master
+          uses: tomtom-international/commisery-action@master
           with:
             token: ${{ secrets.GITHUB_TOKEN }}
             pull_request: ${{ github.event.number }}
