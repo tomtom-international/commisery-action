@@ -42,7 +42,7 @@ def error_message(message: str):
     """Reports and error according to GitHub Workflow command syntax"""
 
     message = strip_ansicolors(convert_to_multiline(message))
-    print(f"::error ::{message}")
+    print(f"::error::{message}")
 
 
 def message_to_file(message: str) -> str:
