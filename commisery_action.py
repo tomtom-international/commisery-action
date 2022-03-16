@@ -38,11 +38,11 @@ def strip_ansicolors(text: str) -> str:
     return re.sub("\x1b\\[(K|.*?m)", "", text)
 
 
-def error_message(message: str):
+def error_message(title: str, message: str):
     """Reports and error according to GitHub Workflow command syntax"""
 
     message = strip_ansicolors(convert_to_multiline(message))
-    print(f"::error::{message}")
+    print(f"::error title={title}::{message}")
 
 
 def message_to_file(message: str) -> str:
@@ -56,7 +56,7 @@ def message_to_file(message: str) -> str:
     return filename
 
 
-def check_message(message: str) -> bool:
+def check_message(message: str, title: str) -> bool:
     """Uses commisery to verify the commit message for compliance"""
 
     with subprocess.Popen(
@@ -67,7 +67,10 @@ def check_message(message: str) -> bool:
         _, stderr = proc.communicate()
 
     if proc.returncode > 0:
-        error_message(stderr.decode("utf-8"))
+        error_message(
+            title=title,
+            message=stderr.decode("utf-8")
+        )
         return False
 
     return True
@@ -90,13 +93,19 @@ def main(token: str, repository: str, pull_request_id: int) -> int:
     repo = Github(token).get_repo(repository)
     pullrequest = repo.get_pull(int(pull_request_id))
 
-    if not check_message(pullrequest.title):
+    if not check_message(
+        title="Pull Request Description",
+        message=pullrequest.title
+    ):
         errors += 1
 
     commits = pullrequest.get_commits()
 
     for commit in commits:
-        if not check_message(commit.commit.message):
+        if not check_message(
+            title=f"{commit.commit.message} (SHA: {commit.commit.tree.sha})",
+            message=commit.commit.message
+        ):
             errors += 1
 
     sys.exit(1 if errors else 0)
