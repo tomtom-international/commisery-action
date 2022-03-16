@@ -12,28 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: 'Commisery'
-author: 'Kevin de Jong'
-description: >
-  Scan your commits in your Pull Request against the Conventional
-  Commits standard using Commisery
-
-branding:
-  icon: 'code'  
-  color: 'white'
-
-inputs:
-  token: 
-    description: 'GitHub token used to access GitHub (eg. secrets.GITHUB_TOKEN)'
-    required: true
-
-  pull_request:
-    description: 'Pull Request number (eg. github.event.number)'
-    required: true
-
-runs:
-  using: docker
-  image: Dockerfile
-  args:
-    - ${{ inputs.token }}
-    - ${{ inputs.pull_request }}
+commisery==0.9.0
+PyGithub>=1.54,<2
+Click>=7.1.2,<9

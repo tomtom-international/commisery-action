@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020-2020, TomTom (http://tomtom.com).
+# Copyright (C) 2020-2022, TomTom (http://tomtom.com).
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,43 +14,57 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import click
+"""Commisery Action"""
+
+import os
 import re
 import subprocess
+import sys
+
+import click
 
 from github import Github
 
 
 def convert_to_multiline(text: str) -> str:
-    return text.replace('\n', '%0A')
+    """Converts string to multiline GitHub message"""
+
+    return text.replace(os.linesep, "%0A")
 
 
 def strip_ansicolors(text: str) -> str:
-    return re.sub('\x1b\\[(K|.*?m)', '', text)
+    """Strip all ANSIC codes from string"""
+
+    return re.sub("\x1b\\[(K|.*?m)", "", text)
 
 
 def error_message(message: str):
+    """Reports and error according to GitHub Workflow command syntax"""
+
     message = strip_ansicolors(convert_to_multiline(message))
-    print(f'::error ::{message}')
+    print(f"::error ::{message}")
 
 
 def message_to_file(message: str) -> str:
-    filename = 'commit_message'
+    """Converts commit message to file"""
 
-    f = open(filename, 'w+')
-    f.write(message)
-    f.close()
+    filename = "commit_message"
+
+    with open(filename, "w+", encoding="UTF-8") as file_obj:
+        file_obj.write(message)
 
     return filename
 
 
 def check_message(message: str) -> bool:
-    proc = subprocess.Popen(
+    """Uses commisery to verify the commit message for compliance"""
+
+    with subprocess.Popen(
         ["commisery-verify-msg", message_to_file(message)],
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
-    )
-    stdout, stderr = proc.communicate()
+        stderr=subprocess.PIPE,
+    ) as proc:
+        _, stderr = proc.communicate()
 
     if proc.returncode > 0:
         error_message(stderr.decode("utf-8"))
@@ -60,29 +74,33 @@ def check_message(message: str) -> bool:
 
 
 @click.command()
-@click.option('-t', '--token',
-              required=True, help='GitHub Token')
-@click.option('-r', '--repository',
-              required=True,  help='GitHub repository')
-@click.option('-p', '--pull-request-id',
-              required=True, help='Pull Request identifier')
+@click.option("-t", "--token", required=True, help="GitHub Token")
+@click.option("-r", "--repository", required=True, help="GitHub Repository")
+@click.option(
+    "-p",
+    "--pull-request-id",
+    required=True,
+    help="Pull Request identifier",
+)
 def main(token: str, repository: str, pull_request_id: int) -> int:
+    """Command Line Interface"""
+
     errors = 0
 
     repo = Github(token).get_repo(repository)
-    pr = repo.get_pull(int(pull_request_id))
+    pullrequest = repo.get_pull(int(pull_request_id))
 
-    if not check_message(pr.title):
+    if not check_message(pullrequest.title):
         errors += 1
 
-    commits = pr.get_commits()
+    commits = pullrequest.get_commits()
 
     for commit in commits:
         if not check_message(commit.commit.message):
             errors += 1
 
-    exit(1 if errors else 0)
+    sys.exit(1 if errors else 0)
 
 
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    main()  # pylint: disable=E1120
