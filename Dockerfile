@@ -1,6 +1,6 @@
 # ./Dockerfile
 
-# Copyright (C) 2020-2020, TomTom (http://tomtom.com).
+# Copyright (C) 2020-2022, TomTom (http://tomtom.com).
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM python:3.8-slim
+FROM python:3.9-slim
 
 RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -22,7 +22,8 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 # Install commisery
-RUN pip install commisery==0.1.1 PyGithub==1.53 Click==7.1.2
+COPY requirements.txt /requirements.txt
+RUN pip install -r /requirements.txt
 
 # Copy action
 COPY commisery_action.py /commisery_action.py
