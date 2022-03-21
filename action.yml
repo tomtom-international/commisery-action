@@ -44,7 +44,7 @@ runs:
     
     - name: Run Commisery
       run: |
-        python /commisery_action.py \
+        python commisery_action.py \
           --token=${{ inputs.token }} \
           --repository=$GITHUB_REPOSITORY \
           --pull-request-id=${{ inputs.pull_request }}
