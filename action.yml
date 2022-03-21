@@ -32,8 +32,20 @@ inputs:
     required: true
 
 runs:
-  using: docker
-  image: Dockerfile
-  args:
-    - ${{ inputs.token }}
-    - ${{ inputs.pull_request }}
+  using: composite
+  steps:
+    - name: Setup Python 3.9
+      uses: actions/setup-python@v3
+      with: { python-version: '3.9' }
+
+    - name: Install dependencies
+      run: python3 -m pip install -r /requirements.txt
+      shell: bash
+    
+    - name: Run Commisery
+      run: |
+        python /commisery_action.py \
+          --token=${{ inputs.token }} \
+          --repository=$GITHUB_REPOSITORY \
+          --pull-request-id=${{ inputs.pull_request }}
+      shell: bash
