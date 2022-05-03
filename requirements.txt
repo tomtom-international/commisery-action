@@ -12,6 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-commisery==0.9.0
+commisery==0.9.1
 PyGithub>=1.54,<2
 Click>=7.1.2,<9
