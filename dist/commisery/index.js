@@ -9916,7 +9916,7 @@ function strip_ansicolor(message) {
  * @param message
  * @returns multiline message
  */
-function get_error_subjects(message, sha) {
+function get_error_subjects(message) {
     let errors = [];
     for (var line of strip_ansicolor(message).split("\n")) {
         if (line.startsWith(".commit-message") && (line.indexOf(": error:") > -1)) {
@@ -9929,14 +9929,36 @@ function get_error_subjects(message, sha) {
     return errors;
 }
 /**
+ * Confirms whether Python >=3.8 and pip are present on the runner
+ */
+function check_prerequisites() {
+    return __awaiter(this, void 0, void 0, function* () {
+        const python_version_re = /Python\s*(\d+)\.(\d+)\.(\d+)/;
+        const { stdout: python_version } = yield exec.getExecOutput("python", ["--version"], { silent: true });
+        const match = python_version_re.exec(python_version);
+        if (!match || match.length != 4) {
+            throw new Error("Unable to determine the installed Python version.");
+        }
+        if (!(parseInt(match[1]) == 3 && parseInt(match[2]) >= 8)) {
+            throw new Error(`Incorrect Python version installed; found ${match[1]}.${match[2]}.${match[3]}, expected >= 3.8.0`);
+        }
+        try {
+            const { stdout: pip_version } = yield exec.getExecOutput("python", ["-m", "pip", "--version"], { silent: true });
+        }
+        catch (_a) {
+            throw new Error("Unable to determine the installed Pip version.");
+        }
+    });
+}
+/**
  * Installs the latest version of commisery
  */
 function prepare_environment() {
     return __awaiter(this, void 0, void 0, function* () {
-        // Upgrade pip to the latest version
-        yield exec.exec("python -m pip install --upgrade pip");
+        // Ensure Python (>= 3.8) and pip are installed
+        yield check_prerequisites();
         // Install latest version of commisery
-        yield exec.exec("python -m pip install --upgrade commisery");
+        yield exec.exec("python", ["-m", "pip", "install", "--upgrade", "commisery"]);
     });
 }
 /**
@@ -9981,33 +10003,38 @@ function is_commit_valid(commit) {
         catch (error) {
             core.debug("Error detected while executing commisery");
         }
-        return [stderr == "", get_error_subjects(stderr, commit.sha)];
+        return [stderr == "", get_error_subjects(stderr)];
     });
 }
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         // Ensure that commisery is installed
-        yield prepare_environment();
-        let [owner, repo] = (process.env.GITHUB_REPOSITORY || "").split("/");
-        // Validate each commit against Conventional Commit standard
-        let commits = yield get_commits(owner, repo, core.getInput("pull_request"));
-        let success = true;
-        for (const commit of commits) {
-            let [valid, errors] = yield is_commit_valid(commit);
-            if (!valid) {
-                core.summary
-                    .addHeading(commit.commit.message, 2)
-                    .addRaw(`<b>SHA:</b> <a href="${commit.html_url}"><code>${commit.sha}</code></a>`);
-                for (var error of errors) {
-                    core.summary.addCodeBlock(error);
+        try {
+            yield prepare_environment();
+            let [owner, repo] = (process.env.GITHUB_REPOSITORY || "").split("/");
+            // Validate each commit against Conventional Commit standard
+            let commits = yield get_commits(owner, repo, core.getInput("pull_request"));
+            let success = true;
+            for (const commit of commits) {
+                let [valid, errors] = yield is_commit_valid(commit);
+                if (!valid) {
+                    core.summary
+                        .addHeading(commit.commit.message, 2)
+                        .addRaw(`<b>SHA:</b> <a href="${commit.html_url}"><code>${commit.sha}</code></a>`);
+                    for (var error of errors) {
+                        core.summary.addCodeBlock(error);
+                    }
+                    success = false;
                 }
-                success = false;
+            }
+            if (!success) {
+                core.setFailed(`Commits in your Pull Request are not compliant to Conventional Commits`);
+                // Post summary
+                core.summary.write();
             }
         }
-        if (!success) {
-            core.setFailed(`Commits in your Pull Request are not compliant to Conventional Commits`);
-            // Post summary
-            core.summary.write();
+        catch (ex) {
+            core.setFailed(ex.message);
         }
     });
 }
