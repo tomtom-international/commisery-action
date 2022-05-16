@@ -58,7 +58,7 @@
  async function check_prerequisites() {
    const python_version_re = /Python\s*(\d+)\.(\d+)\.(\d+)/;
    const { stdout: python_version } = await exec.getExecOutput(
-     "python",
+     "python3",
      ["--version"],
      { silent: true }
    );
@@ -76,7 +76,7 @@
  
    try {
      const { stdout: pip_version } = await exec.getExecOutput(
-       "python",
+       "python3",
        ["-m", "pip", "--version"],
        { silent: true }
      );
@@ -93,7 +93,7 @@
    await check_prerequisites();
  
    // Install latest version of commisery
-   await exec.exec("python", ["-m", "pip", "install", "--upgrade", "commisery"]);
+   await exec.exec("python3", ["-m", "pip", "install", "--upgrade", "commisery"]);
  }
  
  /**
