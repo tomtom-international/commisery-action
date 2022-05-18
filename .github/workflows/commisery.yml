@@ -22,11 +22,26 @@ jobs:
     name: Conventional Commit Message Checker (Commisery)
     runs-on: ubuntu-latest
     steps:       
-    - name: Check-out the repo under $GITHUB_WORKSPACE
-      uses: actions/checkout@v3
+      - name: Check-out the repo under $GITHUB_WORKSPACE
+        uses: actions/checkout@v3
+
+      - name: Setup Python v3.8
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.8'
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - name: Install Node modules and Build project
+        run: |
+          npm ci
+          npm run build
 
     - name: Run Commisery
       uses: ./
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ github.token }}
         pull_request: ${{ github.event.number }}
