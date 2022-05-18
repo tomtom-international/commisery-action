@@ -10011,7 +10011,7 @@ function strip_ansicolor(message) {
 function get_error_subjects(message) {
     let errors = [];
     for (var line of strip_ansicolor(message).split("\n")) {
-        if (line.startsWith(".commit-message") && (line.indexOf(": error:") > -1)) {
+        if (line.startsWith(".commit-message") && line.indexOf(": error:") > -1) {
             errors.push(line);
         }
         else if (line.length > 0) {
@@ -10050,7 +10050,14 @@ function prepare_environment() {
         // Ensure Python (>= 3.8) and pip are installed
         yield check_prerequisites();
         // Install latest version of commisery
-        yield exec.exec("python3", ["-m", "pip", "install", "--upgrade", "commisery"]);
+        yield exec.exec("python3", [
+            "-m",
+            "pip",
+            "install",
+            "--upgrade",
+            "--requirement",
+            "requirements.txt",
+        ]);
     });
 }
 /**

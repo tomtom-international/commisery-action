@@ -1,0 +1,2 @@
+-i https://artifactory.navkit-pipeline.tt3.com/artifactory/api/pypi/pypi-virtual/simple
+blackducktools
