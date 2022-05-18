@@ -1,2 +1,1 @@
--i https://artifactory.navkit-pipeline.tt3.com/artifactory/api/pypi/pypi-virtual/simple
 commisery>=0.9.1,<1
