@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Fixed
-- The requirements.txt file is now properly included in the npm package"
+- The requirements.txt file is now properly included in the npm package
 
 ## [1.0.0] - 2022-05-18
 ### Added
