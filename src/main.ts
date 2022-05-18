@@ -19,6 +19,8 @@ const exec = require("@actions/exec");
 const github = require("@actions/github");
 const fs = require("fs");
 
+import * as path from "path";
+
 /**
  * Strips ANSI color codes from the provided message
  * @param message
@@ -99,7 +101,7 @@ async function prepare_environment() {
     "install",
     "--upgrade",
     "--requirement",
-    "requirements.txt",
+    path.join(__dirname, "requirements.txt"),
   ]);
 }
 
