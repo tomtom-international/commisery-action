@@ -30,18 +30,8 @@ jobs:
         with:
           python-version: '3.8'
 
-      - name: Setup Node
-        uses: actions/setup-node@v3
+      - name: Run Commisery
+        uses: ./
         with:
-          node-version: 16
-
-      - name: Install Node modules and Build project
-        run: |
-          npm ci
-          npm run build
-
-    - name: Run Commisery
-      uses: ./
-      with:
-        token: ${{ github.token }}
-        pull_request: ${{ github.event.number }}
+          token: ${{ github.token }}
+          pull_request: ${{ github.event.number }}
