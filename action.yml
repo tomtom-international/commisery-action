@@ -24,7 +24,7 @@ branding:
 
 inputs:
   token: 
-    description: 'GitHub token used to access GitHub (eg. secrets.GITHUB_TOKEN)'
+    description: 'GitHub token used to access GitHub (eg. github.token)'
     required: true
 
   pull_request:
@@ -33,4 +33,4 @@ inputs:
 
 runs:
   using: 'node16'
-  main: 'dist/commisery/index.js'
+  main: 'dist/index.js'
