@@ -30,4 +30,4 @@ jobs:
         uses: tomtom-international/keepachangelog-action@v0
         with:
           deploy: draft
-          token: ${{ github.token }}
+          token: ${{ secrets.GITHUB_TOKEN }}

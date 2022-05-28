@@ -41,7 +41,8 @@ jobs:
 
       - name: Validate CHANGELOG.md
         uses: tomtom-international/keepachangelog-action@v0
-        with: { token: ${{ github.token }} }
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   prettier:
     name: Check for Coding Standards (Typescript)
