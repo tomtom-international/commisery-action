@@ -9958,7 +9958,122 @@ function wrappy (fn, cb) {
 
 /***/ }),
 
-/***/ 399:
+/***/ 8604:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+/**
+ * Copyright (C) 2020-2022, TomTom (http://tomtom.com).
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.is_commit_valid = exports.get_commits = void 0;
+const core = __nccwpck_require__(2186);
+const exec = __nccwpck_require__(1514);
+const github = __nccwpck_require__(5438);
+const fs = __nccwpck_require__(7147);
+/**
+ * Strips ANSI color codes from the provided message
+ * @param message
+ * @returns message without ANSI color codes
+ */
+function strip_ansicolor(message) {
+    const pattern = [
+        "[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]+)*|[a-zA-Z\\d]+(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)",
+        "(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-nq-uy=><~]))",
+    ].join("|");
+    return message.replace(new RegExp(pattern, "g"), "");
+}
+/**
+ * Converts error message into GitHub accepted format
+ * @param message
+ * @returns multiline message
+ */
+function get_error_subjects(message) {
+    let errors = [];
+    for (var line of strip_ansicolor(message).split("\n")) {
+        if (line.startsWith(".commit-message") && line.indexOf(": error:") > -1) {
+            errors.push(line);
+        }
+        else if (line.length > 0) {
+            errors[errors.length - 1] += `\n${line}`;
+        }
+    }
+    return errors;
+}
+/**
+ * Retrieves a list of commits associated with the specified Pull Request
+ * @param owner GitHub owner
+ * @param repo GitHub repository
+ * @param pullrequest_id GitHub Pullrequest ID
+ * @returns List of commit objects
+ */
+function get_commits(owner, repo, pullrequest_id) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const github_token = core.getInput("token");
+        const octokit = github.getOctokit(github_token);
+        // Retrieve commits from provided Pull Request
+        const { data: commits } = yield octokit.rest.pulls.listCommits({
+            owner: owner,
+            repo: repo,
+            pull_number: pullrequest_id,
+        });
+        return commits;
+    });
+}
+exports.get_commits = get_commits;
+/**
+ * Validates the commit object against the Conventional Commit convention
+ * @param commit
+ * @returns
+ */
+function is_commit_valid(commit) {
+    return __awaiter(this, void 0, void 0, function* () {
+        // Provide the commit message as file
+        yield fs.writeFileSync(".commit-message", commit.commit.message);
+        let stderr = "";
+        try {
+            yield exec.exec("commisery-verify-msg", [".commit-message"], {
+                ignoreReturnCode: true,
+                silent: true,
+                listeners: {
+                    stderr: (data) => (stderr += data.toString()),
+                },
+            });
+        }
+        catch (error) {
+            core.debug("Error detected while executing commisery");
+        }
+        return [stderr == "", get_error_subjects(stderr)];
+    });
+}
+exports.is_commit_valid = is_commit_valid;
+
+
+/***/ }),
+
+/***/ 6869:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -10011,44 +10126,16 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-const core = __nccwpck_require__(2186);
+exports.prepare_environment = void 0;
 const exec = __nccwpck_require__(1514);
-const github = __nccwpck_require__(5438);
-const fs = __nccwpck_require__(7147);
 const path = __importStar(__nccwpck_require__(1017));
 /**
- * Strips ANSI color codes from the provided message
- * @param message
- * @returns message without ANSI color codes
+ * Checks whether the provided Python version is present
+ *
+ * @param major Major version
+ * @param minor Minor version
  */
-function strip_ansicolor(message) {
-    const pattern = [
-        "[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]+)*|[a-zA-Z\\d]+(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)",
-        "(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-nq-uy=><~]))",
-    ].join("|");
-    return message.replace(new RegExp(pattern, "g"), "");
-}
-/**
- * Converts error message into GitHub accepted format
- * @param message
- * @returns multiline message
- */
-function get_error_subjects(message) {
-    let errors = [];
-    for (var line of strip_ansicolor(message).split("\n")) {
-        if (line.startsWith(".commit-message") && line.indexOf(": error:") > -1) {
-            errors.push(line);
-        }
-        else if (line.length > 0) {
-            errors[errors.length - 1] += `\n${line}`;
-        }
-    }
-    return errors;
-}
-/**
- * Confirms whether Python >=3.8 and pip are present on the runner
- */
-function check_prerequisites() {
+function check_python_prerequisites(major, minor) {
     return __awaiter(this, void 0, void 0, function* () {
         const python_version_re = /Python\s*(\d+)\.(\d+)\.(\d+)/;
         const { stdout: python_version } = yield exec.getExecOutput("python3", ["--version"], { silent: true });
@@ -10056,8 +10143,8 @@ function check_prerequisites() {
         if (!match || match.length != 4) {
             throw new Error("Unable to determine the installed Python version.");
         }
-        if (!(parseInt(match[1]) == 3 && parseInt(match[2]) >= 8)) {
-            throw new Error(`Incorrect Python version installed; found ${match[1]}.${match[2]}.${match[3]}, expected >= 3.8.0`);
+        if (!(parseInt(match[1]) == major && parseInt(match[2]) >= minor)) {
+            throw new Error(`Incorrect Python version installed; found ${match[1]}.${match[2]}.${match[3]}, expected >= ${major}.${minor}.0`);
         }
         try {
             const { stdout: pip_version } = yield exec.getExecOutput("python3", ["-m", "pip", "--version"], { silent: true });
@@ -10068,12 +10155,12 @@ function check_prerequisites() {
     });
 }
 /**
- * Installs the latest version of commisery
+ * Prepares the environment for using commisery
  */
 function prepare_environment() {
     return __awaiter(this, void 0, void 0, function* () {
         // Ensure Python (>= 3.8) and pip are installed
-        yield check_prerequisites();
+        yield check_python_prerequisites(3, 8);
         // Install latest version of commisery
         yield exec.exec("python3", [
             "-m",
@@ -10082,65 +10169,60 @@ function prepare_environment() {
             "--upgrade",
             "--requirement",
             path.join(__dirname, "requirements.txt"),
-        ]);
+        ], { silent: true });
     });
 }
+exports.prepare_environment = prepare_environment;
+
+
+/***/ }),
+
+/***/ 399:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
 /**
- * Retrieves a list of commits associated with the specified Pull Request
- * @param owner GitHub owner
- * @param repo GitHub repository
- * @param pullrequest_id GitHub Pullrequest ID
- * @returns List of commit objects
+ * Copyright (C) 2020-2022, TomTom (http://tomtom.com).
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
-function get_commits(owner, repo, pullrequest_id) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const github_token = core.getInput("token");
-        const octokit = github.getOctokit(github_token);
-        // Retrieve commits from provided Pull Request
-        const { data: commits } = yield octokit.rest.pulls.listCommits({
-            owner: owner,
-            repo: repo,
-            pull_number: pullrequest_id,
-        });
-        return commits;
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
-}
-/**
- * Validates the commit object against the Conventional Commit convention
- * @param commit
- * @returns
- */
-function is_commit_valid(commit) {
-    return __awaiter(this, void 0, void 0, function* () {
-        // Provide the commit message as file
-        yield fs.writeFileSync(".commit-message", commit.commit.message);
-        let stderr = "";
-        try {
-            yield exec.exec("commisery-verify-msg", [".commit-message"], {
-                ignoreReturnCode: true,
-                silent: true,
-                listeners: {
-                    stderr: (data) => (stderr += data.toString()),
-                },
-            });
-        }
-        catch (error) {
-            core.debug("Error detected while executing commisery");
-        }
-        return [stderr == "", get_error_subjects(stderr)];
-    });
-}
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const core = __nccwpck_require__(2186);
+const environment_1 = __nccwpck_require__(6869);
+const commisery_1 = __nccwpck_require__(8604);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         // Ensure that commisery is installed
         try {
-            yield prepare_environment();
+            console.log("🌲 Preparing environment...");
+            yield (0, environment_1.prepare_environment)();
             let [owner, repo] = (process.env.GITHUB_REPOSITORY || "").split("/");
             // Validate each commit against Conventional Commit standard
-            let commits = yield get_commits(owner, repo, core.getInput("pull_request"));
+            let commits = yield (0, commisery_1.get_commits)(owner, repo, core.getInput("pull_request"));
             let success = true;
+            console.log("🚀 Validating your commit messages...");
             for (const commit of commits) {
-                let [valid, errors] = yield is_commit_valid(commit);
+                let [valid, errors] = yield (0, commisery_1.is_commit_valid)(commit);
                 if (!valid) {
                     core.summary
                         .addHeading(commit.commit.message, 2)
@@ -10155,6 +10237,9 @@ function run() {
                 core.setFailed(`Commits in your Pull Request are not compliant to Conventional Commits`);
                 // Post summary
                 core.summary.write();
+            }
+            else {
+                console.log("✅ Your commit messages comply to the conventional commit standard!");
             }
         }
         catch (ex) {
