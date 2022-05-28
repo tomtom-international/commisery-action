@@ -21,32 +21,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.release.target_commitish }}
-          token: ${{ secrets.PAT }}
-
-      - name: Determine version
-        id: version
-        run: |
-          VERSION=$(echo "${GITHUB_REF}" | cut -f 3 -d "/")
-          echo "##[set-output name=version;]${VERSION}"
-
       - name: Setup Python 3.7
-        uses: actions/setup-python@v3
-        with: {python-version: '3.7'}
+        uses: actions/setup-python@v2
+        with: { python-version: '3.7' }
 
-      - name: Install keepachangelog-manager
-        run: python3 -m pip install "keepachangelog-manager>=3.0.0,<4"
-
-      - name: Release CHANGELOG.md
-        run: changelogmanager release --override-version ${{ steps.version.outputs.version }}
-
-      - uses: stefanzweifel/git-auto-commit-action@v4
+      - name: Validate CHANGELOG.md
+        uses: tomtom-international/keepachangelog-action@v0
         with:
-          branch: ${{ github.event.release.target_commitish }}
-          commit_message: "docs: updated `CHANGELOG.md` for version ${{ steps.version.outputs.version }}"
-          file_pattern: CHANGELOG.md
+          deploy: release
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   deploy:
     runs-on: ubuntu-latest
