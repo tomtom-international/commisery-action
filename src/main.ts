@@ -36,17 +36,27 @@ async function run() {
       let [valid, errors] = await is_commit_valid(commit);
 
       if (!valid) {
-        core.summary
-          .addHeading(commit.commit.message, 2)
-          .addRaw(
-            `<b>SHA:</b> <a href="${commit.html_url}"><code>${commit.sha}</code></a>`
-          );
-
+        core.startGroup(`❌ Commit message: "${commit.commit.message}"`);
         for (var error of errors) {
-          core.summary.addCodeBlock(error);
-        }
+          const error_re = /\.commit-message:\d+:\d+:\s(error|info):\s(.*)/;
+          const match = error_re.exec(error);
+          if (!match) {
+            continue;
+          }
 
+          if (match[1] === "error") {
+            core.error(match[2], {
+              title: `(${commit.sha}) ${commit.commit.message}`,
+            });
+          } else {
+            core.info(match[2]);
+          }
+        }
         success = false;
+
+        core.endGroup();
+      } else {
+        core.info(`✅ Commit message: "${commit.commit.message}"`);
       }
     }
 
