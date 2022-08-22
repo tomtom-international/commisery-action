@@ -27,7 +27,7 @@ jobs:
         with: { python-version: '3.7' }
 
       - name: Validate CHANGELOG.md
-        uses: tomtom-international/keepachangelog-action@v0
+        uses: tomtom-international/keepachangelog-action@v1
         with:
           deploy: draft
           token: ${{ secrets.GITHUB_TOKEN }}
