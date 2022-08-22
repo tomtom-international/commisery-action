@@ -1,11 +1,16 @@
-# Copyright (C) 2022 TomTom NV. All rights reserved.
+# Copyright (C) 2022, TomTom (http://tomtom.com).
 #
-# This software is the proprietary copyright of TomTom NV and its subsidiaries and may be
-# used for internal evaluation purposes or commercial use strictly subject to separate
-# license agreement between you and TomTom NV. If you are the licensee, you are only permitted
-# to use this software in accordance with the terms of your license agreement. If you are
-# not the licensee, you are not authorized to use this software in any manner and should
-# immediately return or destroy it.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 ---
 name: Release and Deploy GitHub Action
@@ -13,35 +18,44 @@ name: Release and Deploy GitHub Action
 concurrency: deployment
 
 on:
-  release:
-    types: [released]
+  push:
+    branches:
+      - main
 
 jobs:
   update-changelog:
+    name: Release Changelog
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.keepachangelog.outputs.version }}
 
     steps:
-      - name: Set-up Python 3.7
+      - name: Set-up Python
         uses: actions/setup-python@v4
-        with: { python-version: '3.7' }
-
-      - name: Validate CHANGELOG.md
-        uses: tomtom-international/keepachangelog-action@v0
         with:
-          deploy: release
-          token: ${{ secrets.GITHUB_TOKEN }}
+          python-version: '3.7'
 
-  deploy:
+      - name: Release Changelog
+        uses: tomtom-international/keepachangelog-action@v1
+        id: keepachangelog
+        with:
+          tag: v{version}
+          token: ${{ secrets.RELEASE_TOKEN }}
+          publish: true
+          
+
+  release-action:
     runs-on: ubuntu-latest
     needs: update-changelog
+    if: needs.update-changelog.outputs.version != ''
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ needs.update-changelog.outputs.version }}
         
-      - name: Update the ${{ github.event.release.tag_name }} tag
+      - name: Update the ${{ needs.update-changelog.outputs.version }} tag
         uses: actions/publish-action@v0.2.0
         with:
-          source-tag: ${{ github.event.release.tag_name }}
+          source-tag: ${{ needs.update-changelog.outputs.version }}

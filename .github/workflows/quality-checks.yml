@@ -12,21 +12,22 @@
 name: Quality Checks
 on:
   pull_request:
-    types: [edited, opened, synchronize, reopened]
 
 jobs:
   commit-message:
-    name: Conventional Commit Message Checker (Commisery)
+    name: Conventional Commits Compliance
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@v3
+
       - name: Set-up Python v3.8
         uses: actions/setup-python@v4
         with:
           python-version: '3.8'
 
       - name: Run Commisery
-        uses: tomtom-international/commisery-action@master
+        uses: ./
         with:
           token: ${{ github.token }}
           pull_request: ${{ github.event.number }}
@@ -37,10 +38,11 @@ jobs:
     steps:
       - name: Set-up Python 3.7
         uses: actions/setup-python@v4
-        with: { python-version: '3.7' }
+        with:
+          python-version: '3.7'
 
       - name: Validate CHANGELOG.md
-        uses: tomtom-international/keepachangelog-action@v0
+        uses: tomtom-international/keepachangelog-action@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
