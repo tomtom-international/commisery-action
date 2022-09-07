@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Add execution output as part of the standard logging
 
+### Added
+- Ability to specify the validation mode (input: `mode`)  - Pull Request, Commits or both.
+
 ## [1.0.3] - 2022-06-21
 ### Changed
 - Reworked the error messages to improve clarity in build logs and on the summary page (w/o introducing duplication of data).
