@@ -35,7 +35,7 @@ async function run() {
       let [valid, errors] = await isCommitValid(commit);
 
       if (!valid) {
-        core.startGroup(`❌ Commit message contains error(s)"`);
+        core.startGroup(`❌ Commit message contains error(s)`);
         for (var error of errors) {
           const error_re = /\.commit-message:\d+:\d+:\s(error|info):\s(.*)/;
           const match = error_re.exec(error);

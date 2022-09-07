@@ -10957,7 +10957,7 @@ function run() {
                 core.startGroup(`🔍 Checking validity of ${commit.commit.message}`);
                 let [valid, errors] = yield (0, commisery_1.isCommitValid)(commit);
                 if (!valid) {
-                    core.startGroup(`❌ Commit message contains error(s)"`);
+                    core.startGroup(`❌ Commit message contains error(s)`);
                     for (var error of errors) {
                         const error_re = /\.commit-message:\d+:\d+:\s(error|info):\s(.*)/;
                         const match = error_re.exec(error);
