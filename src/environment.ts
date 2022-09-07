@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+const core = require("@actions/core");
 const exec = require("@actions/exec");
 
 import * as path from "path";
@@ -24,13 +25,11 @@ import * as path from "path";
  * @param major Major version
  * @param minor Minor version
  */
-async function check_python_prerequisites(major, minor) {
+async function checkPythonPrerequisites(major, minor) {
   const python_version_re = /Python\s*(\d+)\.(\d+)\.(\d+)/;
-  const { stdout: python_version } = await exec.getExecOutput(
-    "python3",
-    ["--version"],
-    { silent: true }
-  );
+  const { stdout: python_version } = await exec.getExecOutput("python3", [
+    "--version",
+  ]);
   const match = python_version_re.exec(python_version);
 
   if (!match || match.length != 4) {
@@ -44,11 +43,11 @@ async function check_python_prerequisites(major, minor) {
   }
 
   try {
-    const { stdout: pip_version } = await exec.getExecOutput(
-      "python3",
-      ["-m", "pip", "--version"],
-      { silent: true }
-    );
+    const { stdout: pip_version } = await exec.getExecOutput("python3", [
+      "-m",
+      "pip",
+      "--version",
+    ]);
   } catch {
     throw new Error("Unable to determine the installed Pip version.");
   }
@@ -57,21 +56,21 @@ async function check_python_prerequisites(major, minor) {
 /**
  * Prepares the environment for using commisery
  */
-export async function prepare_environment() {
+export async function prepareEnvironment() {
+  core.startGroup("🌲 Preparing environment...");
+
   // Ensure Python (>= 3.8) and pip are installed
-  await check_python_prerequisites(3, 8);
+  await checkPythonPrerequisites(3, 8);
 
   // Install latest version of commisery
-  await exec.exec(
-    "python3",
-    [
-      "-m",
-      "pip",
-      "install",
-      "--upgrade",
-      "--requirement",
-      path.join(__dirname, "requirements.txt"),
-    ],
-    { silent: true }
-  );
+  await exec.exec("python3", [
+    "-m",
+    "pip",
+    "install",
+    "--upgrade",
+    "--requirement",
+    path.join(__dirname, "requirements.txt"),
+  ]);
+
+  core.endGroup();
 }

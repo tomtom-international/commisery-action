@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Changed
+- Add execution output as part of the standard logging
+
 ## [1.0.3] - 2022-06-21
 ### Changed
 - Reworked the error messages to improve clarity in build logs and on the summary page (w/o introducing duplication of data).

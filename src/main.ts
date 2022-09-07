@@ -16,27 +16,26 @@
 
 const core = require("@actions/core");
 
-import { prepare_environment } from "./environment";
-import { is_commit_valid, get_commits } from "./commisery";
+import { prepareEnvironment } from "./environment";
+import { isCommitValid, getCommits } from "./commisery";
 
 async function run() {
   // Ensure that commisery is installed
   try {
-    console.log("🌲 Preparing environment...");
-    await prepare_environment();
+    await prepareEnvironment();
 
     let [owner, repo] = (process.env.GITHUB_REPOSITORY || "").split("/");
 
     // Validate each commit against Conventional Commit standard
-    let commits = await get_commits(owner, repo, core.getInput("pull_request"));
+    let commits = await getCommits(owner, repo, core.getInput("pull_request"));
     let success = true;
 
-    console.log("🚀 Validating your commit messages...");
     for (const commit of commits) {
-      let [valid, errors] = await is_commit_valid(commit);
+      core.startGroup(`🔍 Checking validity of: ${commit.commit.message}`);
+      let [valid, errors] = await isCommitValid(commit);
 
       if (!valid) {
-        core.startGroup(`❌ Commit message: "${commit.commit.message}"`);
+        core.startGroup(`❌ Commit message: ${commit.commit.message}`);
         for (var error of errors) {
           const error_re = /\.commit-message:\d+:\d+:\s(error|info):\s(.*)/;
           const match = error_re.exec(error);
@@ -56,9 +55,10 @@ async function run() {
 
         core.endGroup();
       } else {
-        core.info(`✅ Commit message: "${commit.commit.message}"`);
+        core.info(`✅ Commit message is compliant!`);
       }
     }
+    core.endGroup();
 
     if (!success) {
       core.setFailed(
