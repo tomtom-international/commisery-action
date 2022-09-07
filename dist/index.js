@@ -11049,7 +11049,7 @@ function validateMessages(messages) {
     return __awaiter(this, void 0, void 0, function* () {
         let success = true;
         for (const item of messages) {
-            core.startGroup(`🔍 Checking validity of: ${item.message}`);
+            core.startGroup(`🔍 Checking: ${item.title}`);
             let [valid, errors] = yield (0, commisery_1.isCommitValid)(item.message);
             if (!valid) {
                 core.startGroup(`❌ ${item.title}: ${item.message}`);
@@ -11071,16 +11071,13 @@ function validateMessages(messages) {
                 success = false;
                 core.endGroup();
             }
-            else {
-                core.info(`✅ '${item.title}' is compliant!`);
-            }
             core.endGroup();
         }
         if (!success) {
-            core.setFailed(`Commits in your Pull Request are not compliant to Conventional Commits`);
+            core.setFailed(`Your Pull Request is not compliant to Conventional Commits`);
         }
         else {
-            console.log("✅ Your commit messages comply to the conventional commit standard!");
+            console.log("✅ Your Pull Request complies to the conventional commit standard!");
         }
     });
 }

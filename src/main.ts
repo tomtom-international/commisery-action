@@ -80,7 +80,7 @@ async function validateMessages(messages: Message[]) {
   let success = true;
 
   for (const item of messages) {
-    core.startGroup(`🔍 Checking validity of: ${item.message}`);
+    core.startGroup(`🔍 Checking: ${item.title}`);
     let [valid, errors] = await isCommitValid(item.message);
 
     if (!valid) {
