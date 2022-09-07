@@ -20,7 +20,7 @@ concurrency: deployment
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   update-changelog:
