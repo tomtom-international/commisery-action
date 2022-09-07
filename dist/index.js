@@ -10776,7 +10776,6 @@ exports.getCommits = getCommits;
  */
 function isCommitValid(commit) {
     return __awaiter(this, void 0, void 0, function* () {
-        core.startGroup(`🔍 Checking validity of ${commit.commit.message}`);
         // Provide the commit message as file
         yield fs.writeFileSync(".commit-message", commit.commit.message);
         let stderr = "";
@@ -10791,7 +10790,6 @@ function isCommitValid(commit) {
         catch (error) {
             core.debug("Error detected while executing commisery");
         }
-        core.endGroup();
         return [stderr == "", getErrorSubjects(stderr)];
     });
 }
@@ -10955,11 +10953,11 @@ function run() {
             // Validate each commit against Conventional Commit standard
             let commits = yield (0, commisery_1.getCommits)(owner, repo, core.getInput("pull_request"));
             let success = true;
-            console.log("🚀 Validating your commit messages...");
             for (const commit of commits) {
+                core.startGroup(`🔍 Checking validity of ${commit.commit.message}`);
                 let [valid, errors] = yield (0, commisery_1.isCommitValid)(commit);
                 if (!valid) {
-                    core.startGroup(`❌ Commit message: "${commit.commit.message}"`);
+                    core.startGroup(`❌ Commit message contains error(s)"`);
                     for (var error of errors) {
                         const error_re = /\.commit-message:\d+:\d+:\s(error|info):\s(.*)/;
                         const match = error_re.exec(error);
@@ -10979,9 +10977,10 @@ function run() {
                     core.endGroup();
                 }
                 else {
-                    core.info(`✅ Commit message: "${commit.commit.message}"`);
+                    core.info(`✅ Commit message is compliant!`);
                 }
             }
+            core.endGroup();
             if (!success) {
                 core.setFailed(`Commits in your Pull Request are not compliant to Conventional Commits`);
                 // Post summary

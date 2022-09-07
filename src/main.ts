@@ -30,12 +30,12 @@ async function run() {
     let commits = await getCommits(owner, repo, core.getInput("pull_request"));
     let success = true;
 
-    console.log("🚀 Validating your commit messages...");
     for (const commit of commits) {
+      core.startGroup(`🔍 Checking validity of ${commit.commit.message}`);
       let [valid, errors] = await isCommitValid(commit);
 
       if (!valid) {
-        core.startGroup(`❌ Commit message: "${commit.commit.message}"`);
+        core.startGroup(`❌ Commit message contains error(s)"`);
         for (var error of errors) {
           const error_re = /\.commit-message:\d+:\d+:\s(error|info):\s(.*)/;
           const match = error_re.exec(error);
@@ -55,9 +55,10 @@ async function run() {
 
         core.endGroup();
       } else {
-        core.info(`✅ Commit message: "${commit.commit.message}"`);
+        core.info(`✅ Commit message is compliant!`);
       }
     }
+    core.endGroup();
 
     if (!success) {
       core.setFailed(

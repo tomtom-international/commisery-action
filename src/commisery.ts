@@ -83,7 +83,6 @@ export async function getCommits(
  * @returns
  */
 export async function isCommitValid(commit): Promise<[boolean, string[]]> {
-  core.startGroup(`🔍 Checking validity of ${commit.commit.message}`);
   // Provide the commit message as file
   await fs.writeFileSync(".commit-message", commit.commit.message);
 
@@ -100,6 +99,5 @@ export async function isCommitValid(commit): Promise<[boolean, string[]]> {
     core.debug("Error detected while executing commisery");
   }
 
-  core.endGroup();
   return [stderr == "", getErrorSubjects(stderr)];
 }
