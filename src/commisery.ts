@@ -24,7 +24,7 @@ const fs = require("fs");
  * @param message
  * @returns message without ANSI color codes
  */
-function strip_ansicolor(message: string) {
+function stripANSIColor(message: string) {
   const pattern = [
     "[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]+)*|[a-zA-Z\\d]+(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)",
     "(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-nq-uy=><~]))",
@@ -38,10 +38,10 @@ function strip_ansicolor(message: string) {
  * @param message
  * @returns multiline message
  */
-function get_error_subjects(message: string) {
+function getErrorSubjects(message: string) {
   let errors: string[] = [];
 
-  for (var line of strip_ansicolor(message).split("\n")) {
+  for (var line of stripANSIColor(message).split("\n")) {
     if (line.startsWith(".commit-message") && line.indexOf(": error:") > -1) {
       errors.push(line);
     } else if (line.length > 0) {
@@ -59,7 +59,7 @@ function get_error_subjects(message: string) {
  * @param pullrequest_id GitHub Pullrequest ID
  * @returns List of commit objects
  */
-export async function get_commits(
+export async function getCommits(
   owner: string,
   repo: string,
   pullrequest_id: string
@@ -82,7 +82,8 @@ export async function get_commits(
  * @param commit
  * @returns
  */
-export async function is_commit_valid(commit): Promise<[boolean, string[]]> {
+export async function isCommitValid(commit): Promise<[boolean, string[]]> {
+  core.startGroup(`🔍 Checking validity of ${commit.commit.message}`);
   // Provide the commit message as file
   await fs.writeFileSync(".commit-message", commit.commit.message);
 
@@ -91,7 +92,6 @@ export async function is_commit_valid(commit): Promise<[boolean, string[]]> {
   try {
     await exec.exec("commisery-verify-msg", [".commit-message"], {
       ignoreReturnCode: true,
-      silent: true,
       listeners: {
         stderr: (data: Buffer): string => (stderr += data.toString()),
       },
@@ -100,5 +100,6 @@ export async function is_commit_valid(commit): Promise<[boolean, string[]]> {
     core.debug("Error detected while executing commisery");
   }
 
-  return [stderr == "", get_error_subjects(stderr)];
+  core.endGroup();
+  return [stderr == "", getErrorSubjects(stderr)];
 }
