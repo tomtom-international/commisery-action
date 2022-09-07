@@ -11045,7 +11045,7 @@ function validateMessages(messages) {
     return __awaiter(this, void 0, void 0, function* () {
         let success = true;
         for (const item of messages) {
-            core.startGroup(`🔍 Checking: ${item.title}`);
+            core.startGroup(`🔍 Checking ${item.title}`);
             let [valid, errors] = yield (0, commisery_1.isCommitValid)(item.message);
             if (!valid) {
                 core.startGroup(`❌ ${item.title}: ${item.message}`);
