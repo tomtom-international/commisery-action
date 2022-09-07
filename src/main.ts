@@ -50,13 +50,9 @@ async function getMessagesToValidate() {
 
   if (mode === "full" || mode === "pullrequest") {
     const pullrequest: any = await getPullRequest(owner, repo, pullrequest_id);
-    let message = pullrequest.title;
-    if (pullrequest.body) {
-      message += `\n\n${pullrequest.body}`;
-    }
     to_validate.push({
-      title: `Pull Request (#${pullrequest_id})`,
-      message: message,
+      title: `Pull Request Title (#${pullrequest_id})`,
+      message: pullrequest.title,
     });
   }
 
@@ -64,7 +60,7 @@ async function getMessagesToValidate() {
     let commits = await getCommits(owner, repo, pullrequest_id);
     for (const commit of commits) {
       to_validate.push({
-        title: commit.sha,
+        title: `Commit SHA: ${commit.sha}`,
         message: commit.commit.message,
       });
     }
