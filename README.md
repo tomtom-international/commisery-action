@@ -44,7 +44,7 @@ The workflow, usually declared in `.github/workflows/build.yml`, looks like:
 
 ## Example of Conventional Commit check results
 
-![example](resources/example.png)
+![example](https://github.com/tomtom-international/commisery-action/raw/master/resources/example.png)
 
 [Conventional Commits]: https://www.conventionalcommits.org/en/v1.0.0/
 [Commisery]: https://pypi.org/project/commisery/
