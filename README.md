@@ -40,6 +40,7 @@ The workflow, usually declared in `.github/workflows/build.yml`, looks like:
 
 - **token**: GitHub Token provided by GitHub, see [Authenticating with the GITHUB_TOKEN]
 - **pull_request**: Pull Request number, provided by the [GitHub context].
+- **mode**: Validation mode, MUST be one of `full`, `pullrequest` or `commits`
 
 ## Example of Conventional Commit check results
 

@@ -17,61 +17,110 @@
 const core = require("@actions/core");
 
 import { prepareEnvironment } from "./environment";
-import { isCommitValid, getCommits } from "./commisery";
+import { isCommitValid } from "./commisery";
+import { getCommits, getPullRequest } from "./github";
 
-async function run() {
-  // Ensure that commisery is installed
-  try {
-    await prepareEnvironment();
+interface Message {
+  title: string;
+  message: string;
+}
 
-    let [owner, repo] = (process.env.GITHUB_REPOSITORY || "").split("/");
+/**
+ * Determines which validation mode to utilize
+ */
+function determineMode() {
+  const mode = core.getInput("mode");
+  const mode_options = ["full", "commits", "pullrequest"];
 
-    // Validate each commit against Conventional Commit standard
-    let commits = await getCommits(owner, repo, core.getInput("pull_request"));
-    let success = true;
+  if (!mode_options.includes(mode)) {
+    throw new Error(`Input parameter 'mode' must be one of ${mode_options}`);
+  }
 
+  return mode;
+}
+
+/**
+ * Determines the list of messages to validate (Pull Request and/or Commits)
+ */
+async function getMessagesToValidate() {
+  const [owner, repo] = (process.env.GITHUB_REPOSITORY || "").split("/");
+  const pullrequest_id = core.getInput("pull_request");
+  const mode = determineMode();
+  let to_validate: Message[] = [];
+
+  if (mode === "full" || mode === "pullrequest") {
+    const pullrequest: any = await getPullRequest(owner, repo, pullrequest_id);
+    to_validate.push({
+      title: `Pull Request Title (#${pullrequest_id})`,
+      message: pullrequest.title,
+    });
+  }
+
+  if (mode === "full" || mode === "commits") {
+    let commits = await getCommits(owner, repo, pullrequest_id);
     for (const commit of commits) {
-      core.startGroup(`🔍 Checking validity of: ${commit.commit.message}`);
-      let [valid, errors] = await isCommitValid(commit);
+      to_validate.push({
+        title: `Commit SHA (${commit.sha})`,
+        message: commit.commit.message,
+      });
+    }
+  }
 
-      if (!valid) {
-        core.startGroup(`❌ Commit message: ${commit.commit.message}`);
-        for (var error of errors) {
-          const error_re = /\.commit-message:\d+:\d+:\s(error|info):\s(.*)/;
-          const match = error_re.exec(error);
-          if (!match) {
-            continue;
-          }
+  return to_validate;
+}
 
-          if (match[1] === "error") {
-            core.error(match[2], {
-              title: `(${commit.sha}) ${commit.commit.message}`,
-            });
-          } else {
-            core.info(match[2]);
-          }
+/**
+ * Validates all specified messages
+ */
+async function validateMessages(messages: Message[]) {
+  let success = true;
+
+  for (const item of messages) {
+    core.startGroup(`🔍 Checking ${item.title}`);
+    let [valid, errors] = await isCommitValid(item.message);
+
+    if (!valid) {
+      core.startGroup(`❌ ${item.title}: ${item.message}`);
+      for (var error of errors) {
+        const error_re = /\.commit-message:\d+:\d+:\s(error|info):\s(.*)/;
+        const match = error_re.exec(error);
+        if (!match) {
+          continue;
         }
-        success = false;
 
-        core.endGroup();
-      } else {
-        core.info(`✅ Commit message is compliant!`);
+        if (match[1] === "error") {
+          core.error(match[2], {
+            title: `(${item.title}) ${item.message}`,
+          });
+        } else {
+          core.info(match[2]);
+        }
       }
+      success = false;
+
+      core.endGroup();
     }
     core.endGroup();
+  }
 
-    if (!success) {
-      core.setFailed(
-        `Commits in your Pull Request are not compliant to Conventional Commits`
-      );
+  if (!success) {
+    core.setFailed(
+      `Your Pull Request is not compliant to Conventional Commits`
+    );
+  } else {
+    console.log(
+      "✅ Your Pull Request complies to the conventional commit standard!"
+    );
+  }
+}
 
-      // Post summary
-      core.summary.write();
-    } else {
-      console.log(
-        "✅ Your commit messages comply to the conventional commit standard!"
-      );
-    }
+async function run() {
+  try {
+    // Ensure that commisery is installed
+    await prepareEnvironment();
+    // Validate each commit against Conventional Commit standard
+    const messages = await getMessagesToValidate();
+    await validateMessages(messages);
   } catch (ex) {
     core.setFailed((ex as Error).message);
   }

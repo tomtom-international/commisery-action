@@ -31,6 +31,11 @@ inputs:
     description: 'Pull Request number (eg. github.event.number)'
     required: true
 
+  mode:
+    description: Validation mode, MUST be one of `full`, `pullrequest` or `commits`
+    required: false
+    default: 'commits'
+
 runs:
   using: 'node16'
   main: 'dist/index.js'

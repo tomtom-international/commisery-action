@@ -10714,10 +10714,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.isCommitValid = exports.getCommits = void 0;
+exports.isCommitValid = void 0;
 const core = __nccwpck_require__(2186);
 const exec = __nccwpck_require__(1514);
-const github = __nccwpck_require__(5438);
 const fs = __nccwpck_require__(7147);
 /**
  * Strips ANSI color codes from the provided message
@@ -10749,35 +10748,14 @@ function getErrorSubjects(message) {
     return errors;
 }
 /**
- * Retrieves a list of commits associated with the specified Pull Request
- * @param owner GitHub owner
- * @param repo GitHub repository
- * @param pullrequest_id GitHub Pullrequest ID
- * @returns List of commit objects
- */
-function getCommits(owner, repo, pullrequest_id) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const github_token = core.getInput("token");
-        const octokit = github.getOctokit(github_token);
-        // Retrieve commits from provided Pull Request
-        const { data: commits } = yield octokit.rest.pulls.listCommits({
-            owner: owner,
-            repo: repo,
-            pull_number: pullrequest_id,
-        });
-        return commits;
-    });
-}
-exports.getCommits = getCommits;
-/**
  * Validates the commit object against the Conventional Commit convention
  * @param commit
  * @returns
  */
-function isCommitValid(commit) {
+function isCommitValid(message) {
     return __awaiter(this, void 0, void 0, function* () {
         // Provide the commit message as file
-        yield fs.writeFileSync(".commit-message", commit.commit.message);
+        yield fs.writeFileSync(".commit-message", message);
         let stderr = "";
         try {
             yield exec.exec("commisery-verify-msg", [".commit-message"], {
@@ -10911,6 +10889,82 @@ exports.prepareEnvironment = prepareEnvironment;
 
 /***/ }),
 
+/***/ 978:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+/**
+ * Copyright (C) 2020-2022, TomTom (http://tomtom.com).
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getPullRequest = exports.getCommits = void 0;
+const core = __nccwpck_require__(2186);
+const github = __nccwpck_require__(5438);
+const github_token = core.getInput("token");
+const octokit = github.getOctokit(github_token);
+/**
+ * Retrieves a list of commits associated with the specified Pull Request
+ * @param owner GitHub owner
+ * @param repo GitHub repository
+ * @param pullrequest_id GitHub Pullrequest ID
+ * @returns List of commit objects
+ */
+function getCommits(owner, repo, pullrequest_id) {
+    return __awaiter(this, void 0, void 0, function* () {
+        // Retrieve commits from provided Pull Request
+        const { data: commits } = yield octokit.rest.pulls.listCommits({
+            owner: owner,
+            repo: repo,
+            pull_number: pullrequest_id,
+        });
+        return commits;
+    });
+}
+exports.getCommits = getCommits;
+/**
+ * Retrieves the Pull Request associated with the specified Pull Request ID
+ * @param owner GitHub owner
+ * @param repo GitHub repository
+ * @param pullrequest_id GitHub Pullrequest ID
+ * @returns Pull Request
+ */
+function getPullRequest(owner, repo, pullrequest_id) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const { data: pr } = yield octokit.rest.pulls.get({
+            owner: owner,
+            repo: repo,
+            pull_number: pullrequest_id,
+        });
+        return pr;
+    });
+}
+exports.getPullRequest = getPullRequest;
+
+
+/***/ }),
+
 /***/ 399:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -10944,51 +10998,93 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __nccwpck_require__(2186);
 const environment_1 = __nccwpck_require__(6869);
 const commisery_1 = __nccwpck_require__(8604);
-function run() {
+const github_1 = __nccwpck_require__(978);
+/**
+ * Determines which validation mode to utilize
+ */
+function determineMode() {
+    const mode = core.getInput("mode");
+    const mode_options = ["full", "commits", "pullrequest"];
+    if (!mode_options.includes(mode)) {
+        throw new Error(`Input parameter 'mode' must be one of ${mode_options}`);
+    }
+    return mode;
+}
+/**
+ * Determines the list of messages to validate (Pull Request and/or Commits)
+ */
+function getMessagesToValidate() {
     return __awaiter(this, void 0, void 0, function* () {
-        // Ensure that commisery is installed
-        try {
-            yield (0, environment_1.prepareEnvironment)();
-            let [owner, repo] = (process.env.GITHUB_REPOSITORY || "").split("/");
-            // Validate each commit against Conventional Commit standard
-            let commits = yield (0, commisery_1.getCommits)(owner, repo, core.getInput("pull_request"));
-            let success = true;
+        const [owner, repo] = (process.env.GITHUB_REPOSITORY || "").split("/");
+        const pullrequest_id = core.getInput("pull_request");
+        const mode = determineMode();
+        let to_validate = [];
+        if (mode === "full" || mode === "pullrequest") {
+            const pullrequest = yield (0, github_1.getPullRequest)(owner, repo, pullrequest_id);
+            to_validate.push({
+                title: `Pull Request Title (#${pullrequest_id})`,
+                message: pullrequest.title,
+            });
+        }
+        if (mode === "full" || mode === "commits") {
+            let commits = yield (0, github_1.getCommits)(owner, repo, pullrequest_id);
             for (const commit of commits) {
-                core.startGroup(`🔍 Checking validity of: ${commit.commit.message}`);
-                let [valid, errors] = yield (0, commisery_1.isCommitValid)(commit);
-                if (!valid) {
-                    core.startGroup(`❌ Commit message: ${commit.commit.message}`);
-                    for (var error of errors) {
-                        const error_re = /\.commit-message:\d+:\d+:\s(error|info):\s(.*)/;
-                        const match = error_re.exec(error);
-                        if (!match) {
-                            continue;
-                        }
-                        if (match[1] === "error") {
-                            core.error(match[2], {
-                                title: `(${commit.sha}) ${commit.commit.message}`,
-                            });
-                        }
-                        else {
-                            core.info(match[2]);
-                        }
+                to_validate.push({
+                    title: `Commit SHA (${commit.sha})`,
+                    message: commit.commit.message,
+                });
+            }
+        }
+        return to_validate;
+    });
+}
+/**
+ * Validates all specified messages
+ */
+function validateMessages(messages) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let success = true;
+        for (const item of messages) {
+            core.startGroup(`🔍 Checking ${item.title}`);
+            let [valid, errors] = yield (0, commisery_1.isCommitValid)(item.message);
+            if (!valid) {
+                core.startGroup(`❌ ${item.title}: ${item.message}`);
+                for (var error of errors) {
+                    const error_re = /\.commit-message:\d+:\d+:\s(error|info):\s(.*)/;
+                    const match = error_re.exec(error);
+                    if (!match) {
+                        continue;
                     }
-                    success = false;
-                    core.endGroup();
+                    if (match[1] === "error") {
+                        core.error(match[2], {
+                            title: `(${item.title}) ${item.message}`,
+                        });
+                    }
+                    else {
+                        core.info(match[2]);
+                    }
                 }
-                else {
-                    core.info(`✅ Commit message is compliant!`);
-                }
+                success = false;
+                core.endGroup();
             }
             core.endGroup();
-            if (!success) {
-                core.setFailed(`Commits in your Pull Request are not compliant to Conventional Commits`);
-                // Post summary
-                core.summary.write();
-            }
-            else {
-                console.log("✅ Your commit messages comply to the conventional commit standard!");
-            }
+        }
+        if (!success) {
+            core.setFailed(`Your Pull Request is not compliant to Conventional Commits`);
+        }
+        else {
+            console.log("✅ Your Pull Request complies to the conventional commit standard!");
+        }
+    });
+}
+function run() {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            // Ensure that commisery is installed
+            yield (0, environment_1.prepareEnvironment)();
+            // Validate each commit against Conventional Commit standard
+            const messages = yield getMessagesToValidate();
+            yield validateMessages(messages);
         }
         catch (ex) {
             core.setFailed(ex.message);

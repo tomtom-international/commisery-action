@@ -16,7 +16,6 @@
 
 const core = require("@actions/core");
 const exec = require("@actions/exec");
-const github = require("@actions/github");
 const fs = require("fs");
 
 /**
@@ -53,38 +52,13 @@ function getErrorSubjects(message: string) {
 }
 
 /**
- * Retrieves a list of commits associated with the specified Pull Request
- * @param owner GitHub owner
- * @param repo GitHub repository
- * @param pullrequest_id GitHub Pullrequest ID
- * @returns List of commit objects
- */
-export async function getCommits(
-  owner: string,
-  repo: string,
-  pullrequest_id: string
-) {
-  const github_token = core.getInput("token");
-  const octokit = github.getOctokit(github_token);
-
-  // Retrieve commits from provided Pull Request
-  const { data: commits } = await octokit.rest.pulls.listCommits({
-    owner: owner,
-    repo: repo,
-    pull_number: pullrequest_id,
-  });
-
-  return commits;
-}
-
-/**
  * Validates the commit object against the Conventional Commit convention
  * @param commit
  * @returns
  */
-export async function isCommitValid(commit): Promise<[boolean, string[]]> {
+export async function isCommitValid(message): Promise<[boolean, string[]]> {
   // Provide the commit message as file
-  await fs.writeFileSync(".commit-message", commit.commit.message);
+  await fs.writeFileSync(".commit-message", message);
 
   let stderr = "";
 
