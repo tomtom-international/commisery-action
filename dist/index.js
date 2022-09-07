@@ -11030,7 +11030,7 @@ function getMessagesToValidate() {
             let commits = yield (0, github_1.getCommits)(owner, repo, pullrequest_id);
             for (const commit of commits) {
                 to_validate.push({
-                    title: `Commit SHA: ${commit.sha}`,
+                    title: `Commit SHA (${commit.sha})`,
                     message: commit.commit.message,
                 });
             }

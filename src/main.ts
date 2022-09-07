@@ -60,7 +60,7 @@ async function getMessagesToValidate() {
     let commits = await getCommits(owner, repo, pullrequest_id);
     for (const commit of commits) {
       to_validate.push({
-        title: `Commit SHA: ${commit.sha}`,
+        title: `Commit SHA (${commit.sha})`,
         message: commit.commit.message,
       });
     }
