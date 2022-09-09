@@ -1,0 +1,53 @@
+# Copyright (C) 2020-2022, TomTom (http://tomtom.com).
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: 'Bump version'
+author: 'Joost Muller'
+description: >
+  Examines Conventional Commits since the latest tag (provided it is SemVer-compatible), and
+  bumps the major-, minor- or patch-level accordingly.
+  Breaking changes bump major, `feat` bumps minor and `fix` bumps patch.
+  Note that _only_ the latest tag is examined, parsed as a SemVer, and subsequently used for
+  the rest of the logic; the prefix is not taken into account to determine the current version.
+
+  This action can optionally create a new GitHub release when a version bump is performed.
+branding:
+  icon: 'code'
+  color: 'white'
+
+inputs:
+  token:
+    description: 'GitHub token used to access GitHub (eg. github.token)'
+    required: true
+  create-release:
+    description: 'Create a GitHub Release if a version bump is performed'
+    default: true
+    required: false
+  version-prefix:
+    description: 'Optional SemVer prefix (eg. "v", "componentX-")'
+    default: ''
+    required: false
+outputs:
+  current-version:
+    description: >-
+      The version currently in the repository (stripped of any prefix), or empty string if
+      the last Git tag is not SemVer-compatible
+  next-version:
+    description: >-
+      The next version (including the optionally provided version-prefix), or empty string if a
+      version bump was not performed
+
+runs:
+  using: 'node16'
+  main: '../dist/bump/index.js'

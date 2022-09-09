@@ -62,3 +62,25 @@ export async function getPullRequest(
 
   return pr;
 }
+
+/**
+ * Creates a GitHub release named `tag_name` on the main branch of the provided repo
+ * @param owner GitHub owner
+ * @param repo GitHub repository
+ * @param tag_name Name of the tag (and release)
+ */
+export async function createRelease(
+  owner: string,
+  repo: string,
+  tag_name: string
+) {
+  await octokit.rest.repos.createRelease({
+    owner: owner,
+    repo: repo,
+    tag_name: tag_name,
+    name: tag_name,
+    body: "",
+    draft: false,
+    prerelease: false,
+  });
+}
