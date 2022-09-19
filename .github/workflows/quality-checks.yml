@@ -35,8 +35,6 @@ jobs:
         uses: ./
         with:
           token: ${{ github.token }}
-          pull_request: ${{ github.event.number }}
-          mode: full
 
   keepachangelog:
     runs-on: ubuntu-latest

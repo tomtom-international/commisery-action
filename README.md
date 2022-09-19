@@ -1,50 +1,122 @@
-# Check your commits against Conventional Commits using Commisery
+# Conventional Commit Messages
 
-Using this GitHub action, scan all commits in your Pull Request against the [Conventional Commits]
-standard using [Commisery]
+This GitHub Action, based on [Commisery], consists of two major components:
+
+- Scan all commits in your Pull Request against the [Conventional Commits] standard
+- Create GitHub Releases based on unreleased [Conventional Commits]
 
 ## Prerequisites
 
 * [Commisery] requires at least `Python>3.8`
 * `pip` needs to be installed for this Python version 
 
-## Usage
+## Check your Pull Request for Conventional Commit Compliance
 
-The workflow, usually declared in `.github/workflows/build.yml`, looks like:
+The workflow, usually declared in `.github/workflows/conventional-commit.yml`, looks like:
 
 ```yml
-
     name: Commisery
     on: 
       pull_request:
-        types: [edited, opened, synchronize, reopened]
 
     jobs:
       commit-message:
-        name: Conventional Commit Message Checker (Commisery)
+        name: Conventional Commit compliance
         runs-on: ubuntu-latest
+
         steps:       
-        - name: Set-up Python 3.8
-          uses: actions/setup-python@v3
+        - uses: actions/setup-python@v3
           with:
             python-version: 3.8
 
-        - name: Run Commisery
-          uses: tomtom-international/commisery-action@master
+        - name: Check for compliance
+          uses: tomtom-international/commisery-action@v1
           with:
-            token: ${{ secrets.GITHUB_TOKEN }}
-            pull_request: ${{ github.event.number }}
+            token: ${{ github.token }}
 ```
 
-## Inputs
+### Inputs
 
-- **token**: GitHub Token provided by GitHub, see [Authenticating with the GITHUB_TOKEN]
-- **pull_request**: Pull Request number, provided by the [GitHub context].
-- **mode**: Validation mode, MUST be one of `full`, `pullrequest` or `commits`
+| Item | Mandatory | Description |
+| --- | --- | --- |
+| `token` | YES |  GitHub Token provided by GitHub, see [Authenticating with the GITHUB_TOKEN] |
+| `validate-pull-request` | NO | Includes the Pull Request title and description as part of the Conventional Commit validation (DEFAULT: `false`) |
+| `validate-commits` | NO | Includes commits associated with the current Pull Request as part of the Conventional Commit validation (DEFAULT: `true`) |
 
-## Example of Conventional Commit check results
+> **NOTE**: This action will only function as part of the `pull_request` trigger for workflows.
+
+### Example of Conventional Commit check results
 
 ![example](https://github.com/tomtom-international/commisery-action/raw/master/resources/example.png)
+
+### Create GitHub Releases based on unreleased Conventional Commits
+
+With the `/bump` GitHub Action, you can create a new release (and implicitly a Git tag), based on the
+[Conventional Commits] since the latest tag, provided it is a [Semantic Versioning]-compatible tag.
+
+Both the current and bumped versions are available as outputs, and an optional input can be provided to
+disable automatic release creation, in case you're only interested in the new version.
+
+An example workflow that creates a release on every commit or merge to the `main` branch:
+
+```yml
+    name: Bump version
+    on:
+      push:
+        branches: [ main ]
+
+    jobs:
+      bump-version:
+        name: Bump version and release
+        runs-on: ubuntu-latest
+
+        steps:
+        - uses: actions/checkout@v3
+          with:
+            # Make sure that you retrieve a depth large enough to cover your unreleased commits.
+            fetch-depth: 0
+
+        - uses: actions/setup-python@v3
+          with:
+            python-version: 3.8
+
+        - name: Release version
+          id: release-version
+          uses: tomtom-international/commisery-action/bump@v1
+          with:
+            token: ${{ github.token }}
+            create-release: true
+            version-prefix: v
+
+        - run: echo "Current version is ${{steps.release-version.outputs.current-version}}"
+
+        - if: steps.release-version.outputs.next-version != ""
+          run: echo "Version bumped to ${{steps.release-version.outputs.next-version}}
+```
+
+> **NOTE**: Make sure that enough history and tags must be available for the tag to be discoverable. This example uses a GitHub's "checkout" action with a fetch depth of zero (which imports the complete history).
+
+### Inputs
+
+| Item | Mandatory | Description |
+| --- | --- | --- |
+| `token` | YES | GitHub Token provided by GitHub, see [Authenticating with the GITHUB_TOKEN]|
+| `create-release` | NO | Can optionally be set to `false` to disable release creation on version bump.|
+| `version-prefix` | NO | An optional prefix to the Semantic Version, eg. `v`, `componentX-`. The value of this parameter will be prepended to the tagged version.
+
+> **NOTE**: The `version-prefix` this is *not* used for determining the current version.
+
+### Outputs
+| Output | Description |
+| --- | --- |
+| `current-version` | The Semantic Version associated with the latest tag in the repository, stripped of any and all prefixes, or an empty string if the latest tag could not be parsed as a SemVer.
+| `next-version` | The next version (including the optionally provided version-prefix) as determined from the Conventional Commits, or empty string if a version bump was not performed
+
+[Conventional Commits]: https://www.conventionalcommits.org/en/v1.0.0/
+[Semantic Versioning]: https://semver.org/spec/v2.0.0.html
+[Commisery]: https://pypi.org/project/commisery/
+[Authenticating with the GITHUB_TOKEN]: https://help.github.com/en/actions/automating-your-workflow-with-github-actions/authenticating-with-the-github_token
+
 
 [Conventional Commits]: https://www.conventionalcommits.org/en/v1.0.0/
 [Commisery]: https://pypi.org/project/commisery/

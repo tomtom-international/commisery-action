@@ -17,10 +17,18 @@
 const core = require("@actions/core");
 
 import { prepareEnvironment } from "./environment";
+import { IS_PULLREQUEST_EVENT } from "./github";
 import { getMessagesToValidate, validateMessages } from "./validate";
 
 async function run() {
   try {
+    if (!IS_PULLREQUEST_EVENT) {
+      core.warning(
+        "Conventional Commit Message validation requires a workflow using the `pull_request` trigger!"
+      );
+      return;
+    }
+
     // Ensure that commisery is installed
     await prepareEnvironment();
     // Validate each commit against Conventional Commit standard

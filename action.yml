@@ -27,14 +27,22 @@ inputs:
     description: 'GitHub token used to access GitHub (eg. github.token)'
     required: true
 
+  validate-pull-request:
+    description: 'Validates the Pull Request title and body'
+    required: false
+    default: true
+
+  validate-commits:
+    description: 'Validates the commits within the current context'
+    required: false
+    default: true
+
+  # Deprecated inputs
   pull_request:
-    description: 'Pull Request number (eg. github.event.number)'
-    required: true
+    deprecationMessage: 'The Pull Request number is now automatically determined when running `on: pull_request`'
 
   mode:
-    description: Validation mode, MUST be one of `full`, `pullrequest` or `commits`
-    required: false
-    default: 'commits'
+    deprecationMessage: 'Replaced by the `validate-pull-request` and `validate-commits` inputs'
 
 runs:
   using: 'node16'

@@ -20,6 +20,9 @@ const github = require("@actions/github");
 const github_token = core.getInput("token");
 const octokit = github.getOctokit(github_token);
 
+export const IS_PULLREQUEST_EVENT = github.context.eventName === "pull_request";
+export const PULLREQUEST_ID = github.context.issue.number;
+
 /**
  * Retrieves a list of commits associated with the specified Pull Request
  * @param owner GitHub owner
