@@ -59,19 +59,24 @@ function getErrorSubjects(message: string) {
 export async function isCommitValid(message): Promise<[boolean, string[]]> {
   // Provide the commit message as file
   await fs.writeFileSync(".commit-message", message);
+  const { exitCode: exitCode, stderr: stderr } = await exec.getExecOutput(
+    "cm",
+    ["check", ".commit-message"],
+    { ignoreReturnCode: true }
+  );
 
-  let stderr = "";
+  return [exitCode == 0, getErrorSubjects(stderr)];
+}
 
-  try {
-    await exec.exec("commisery-verify-msg", [".commit-message"], {
-      ignoreReturnCode: true,
-      listeners: {
-        stderr: (data: Buffer): string => (stderr += data.toString()),
-      },
-    });
-  } catch (error) {
-    core.debug("Error detected while executing commisery");
-  }
-
-  return [stderr == "", getErrorSubjects(stderr)];
+/**
+ * Returns a bumped version based on Conventional Commits after the latest Git tag
+ * @returns
+ */
+export async function getBumpedVersion(): Promise<[string, string[]]> {
+  const { stdout: version, stderr: stderr } = await exec.getExecOutput(
+    "cm",
+    ["next-version"],
+    { ignoreReturnCode: true }
+  );
+  return [version.trim(), stderr.split("\n")];
 }
