@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `mode` input option is replaced by `validate-pull-request` and `validate-commits`
 - The `pull_request` input option is no longer required to be specified and will be determined automatically
 
+### Changed
+- The Pull Request title is now validated by default
+
 ## [1.2.0] - 2022-09-19
 ### Added
 - New GitHub action entrypoint ("bump"), which can create a new release (and implicitly a Git tag), based on the Conventional Commits since the latest tag, provided it is a Semantic Versioning-compatible tag.
