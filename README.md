@@ -33,6 +33,8 @@ The workflow, usually declared in `.github/workflows/conventional-commit.yml`, l
           uses: tomtom-international/commisery-action@v1
           with:
             token: ${{ github.token }}
+            validate-pull-request: true # OPTIONAL, default: `true`
+            validate-commits: true # OPTIONAL, default: `true`
 ```
 
 ### Inputs
@@ -85,8 +87,8 @@ An example workflow that creates a release on every commit or merge to the `main
           uses: tomtom-international/commisery-action/bump@v1
           with:
             token: ${{ github.token }}
-            create-release: true
-            version-prefix: v
+            create-release: true # OPTIONAL, default: `true`
+            version-prefix: v # OPTIONAL
 
         - run: echo "Current version is ${{steps.release-version.outputs.current-version}}"
 
