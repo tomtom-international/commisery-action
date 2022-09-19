@@ -30,6 +30,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.8'
+          cache: 'pip'
 
       - name: Run Commisery
         uses: ./
@@ -44,6 +45,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.7'
+          cache: 'pip'
 
       - name: Validate CHANGELOG.md
         uses: tomtom-international/keepachangelog-action@v1
