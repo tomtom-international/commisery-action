@@ -15,9 +15,10 @@
  */
 
 const core = require("@actions/core");
+const github = require("@actions/github");
 
 import { isCommitValid } from "./commisery";
-import { getCommits, getPullRequest } from "./github";
+import { getCommits, getPullRequest, PULLREQUEST_ID } from "./github";
 
 interface Message {
   title: string;
@@ -25,29 +26,16 @@ interface Message {
 }
 
 /**
- * Determines which validation mode to utilize
- */
-function determineMode() {
-  const mode = core.getInput("mode");
-  const mode_options = ["full", "commits", "pullrequest"];
-
-  if (!mode_options.includes(mode)) {
-    throw new Error(`Input parameter 'mode' must be one of ${mode_options}`);
-  }
-
-  return mode;
-}
-
-/**
  * Determines the list of messages to validate (Pull Request and/or Commits)
  */
 export async function getMessagesToValidate() {
   const [owner, repo] = (process.env.GITHUB_REPOSITORY || "").split("/");
-  const pullrequest_id = core.getInput("pull_request");
-  const mode = determineMode();
+  const pullrequest_id = PULLREQUEST_ID;
+
   let to_validate: Message[] = [];
 
-  if (mode === "full" || mode === "pullrequest") {
+  // Include Pull Request title
+  if (core.getBooleanInput("validate-pull-request")) {
     const pullrequest: any = await getPullRequest(owner, repo, pullrequest_id);
     to_validate.push({
       title: `Pull Request Title (#${pullrequest_id})`,
@@ -55,7 +43,8 @@ export async function getMessagesToValidate() {
     });
   }
 
-  if (mode === "full" || mode === "commits") {
+  // Include commits associated to the Pull Request
+  if (core.getBooleanInput("validate-commits")) {
     let commits = await getCommits(owner, repo, pullrequest_id);
     for (const commit of commits) {
       to_validate.push({

@@ -10853,11 +10853,7 @@ function checkPythonPrerequisites(major, minor) {
             throw new Error(`Incorrect Python version installed; found ${match[1]}.${match[2]}.${match[3]}, expected >= ${major}.${minor}.0`);
         }
         try {
-            const { stdout: pip_version } = yield exec.getExecOutput("python3", [
-                "-m",
-                "pip",
-                "--version",
-            ]);
+            yield exec.getExecOutput("python3", ["-m", "pip", "--version"]);
         }
         catch (_a) {
             throw new Error("Unable to determine the installed Pip version.");
@@ -10919,11 +10915,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.createRelease = exports.getPullRequest = exports.getCommits = void 0;
+exports.createRelease = exports.getPullRequest = exports.getCommits = exports.PULLREQUEST_ID = exports.IS_PULLREQUEST_EVENT = void 0;
 const core = __nccwpck_require__(2186);
 const github = __nccwpck_require__(5438);
 const github_token = core.getInput("token");
 const octokit = github.getOctokit(github_token);
+exports.IS_PULLREQUEST_EVENT = github.context.eventName === "pull_request";
+exports.PULLREQUEST_ID = github.context.issue.number;
 /**
  * Retrieves a list of commits associated with the specified Pull Request
  * @param owner GitHub owner
@@ -11017,10 +11015,15 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __nccwpck_require__(2186);
 const environment_1 = __nccwpck_require__(6869);
+const github_1 = __nccwpck_require__(978);
 const validate_1 = __nccwpck_require__(4953);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
+            if (!github_1.IS_PULLREQUEST_EVENT) {
+                core.warning("Conventional Commit Message validation requires a workflow using the `pull_request` trigger!");
+                return;
+            }
             // Ensure that commisery is installed
             yield (0, environment_1.prepareEnvironment)();
             // Validate each commit against Conventional Commit standard
@@ -11069,36 +11072,27 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.validateMessages = exports.getMessagesToValidate = void 0;
 const core = __nccwpck_require__(2186);
+const github = __nccwpck_require__(5438);
 const commisery_1 = __nccwpck_require__(8604);
 const github_1 = __nccwpck_require__(978);
-/**
- * Determines which validation mode to utilize
- */
-function determineMode() {
-    const mode = core.getInput("mode");
-    const mode_options = ["full", "commits", "pullrequest"];
-    if (!mode_options.includes(mode)) {
-        throw new Error(`Input parameter 'mode' must be one of ${mode_options}`);
-    }
-    return mode;
-}
 /**
  * Determines the list of messages to validate (Pull Request and/or Commits)
  */
 function getMessagesToValidate() {
     return __awaiter(this, void 0, void 0, function* () {
         const [owner, repo] = (process.env.GITHUB_REPOSITORY || "").split("/");
-        const pullrequest_id = core.getInput("pull_request");
-        const mode = determineMode();
+        const pullrequest_id = github_1.PULLREQUEST_ID;
         let to_validate = [];
-        if (mode === "full" || mode === "pullrequest") {
+        // Include Pull Request title
+        if (core.getBooleanInput("validate-pull-request")) {
             const pullrequest = yield (0, github_1.getPullRequest)(owner, repo, pullrequest_id);
             to_validate.push({
                 title: `Pull Request Title (#${pullrequest_id})`,
                 message: pullrequest.title,
             });
         }
-        if (mode === "full" || mode === "commits") {
+        // Include commits associated to the Pull Request
+        if (core.getBooleanInput("validate-commits")) {
             let commits = yield (0, github_1.getCommits)(owner, repo, pullrequest_id);
             for (const commit of commits) {
                 to_validate.push({

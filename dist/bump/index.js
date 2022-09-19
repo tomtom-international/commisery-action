@@ -10961,11 +10961,7 @@ function checkPythonPrerequisites(major, minor) {
             throw new Error(`Incorrect Python version installed; found ${match[1]}.${match[2]}.${match[3]}, expected >= ${major}.${minor}.0`);
         }
         try {
-            const { stdout: pip_version } = yield exec.getExecOutput("python3", [
-                "-m",
-                "pip",
-                "--version",
-            ]);
+            yield exec.getExecOutput("python3", ["-m", "pip", "--version"]);
         }
         catch (_a) {
             throw new Error("Unable to determine the installed Pip version.");
@@ -11027,11 +11023,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.createRelease = exports.getPullRequest = exports.getCommits = void 0;
+exports.createRelease = exports.getPullRequest = exports.getCommits = exports.PULLREQUEST_ID = exports.IS_PULLREQUEST_EVENT = void 0;
 const core = __nccwpck_require__(2186);
 const github = __nccwpck_require__(5438);
 const github_token = core.getInput("token");
 const octokit = github.getOctokit(github_token);
+exports.IS_PULLREQUEST_EVENT = github.context.eventName === "pull_request";
+exports.PULLREQUEST_ID = github.context.issue.number;
 /**
  * Retrieves a list of commits associated with the specified Pull Request
  * @param owner GitHub owner

@@ -43,11 +43,7 @@ async function checkPythonPrerequisites(major, minor) {
   }
 
   try {
-    const { stdout: pip_version } = await exec.getExecOutput("python3", [
-      "-m",
-      "pip",
-      "--version",
-    ]);
+    await exec.getExecOutput("python3", ["-m", "pip", "--version"]);
   } catch {
     throw new Error("Unable to determine the installed Pip version.");
   }
