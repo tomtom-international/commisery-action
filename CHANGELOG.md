@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.0] - 2022-09-19
 ### Added
 - New GitHub action entrypoint ("bump"), which can create a new release (and implicitly a Git tag), based on the Conventional Commits since the latest tag, provided it is a Semantic Versioning-compatible tag.
 
