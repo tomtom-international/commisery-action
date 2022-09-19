@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-const core = require("@actions/core");
 const exec = require("@actions/exec");
 const fs = require("fs");
+
+import { COMMISERY_BIN } from "./environment";
 
 /**
  * Strips ANSI color codes from the provided message
@@ -60,7 +61,7 @@ export async function isCommitValid(message): Promise<[boolean, string[]]> {
   // Provide the commit message as file
   await fs.writeFileSync(".commit-message", message);
   const { exitCode: exitCode, stderr: stderr } = await exec.getExecOutput(
-    "cm",
+    COMMISERY_BIN,
     ["check", ".commit-message"],
     { ignoreReturnCode: true }
   );
@@ -74,7 +75,7 @@ export async function isCommitValid(message): Promise<[boolean, string[]]> {
  */
 export async function getBumpedVersion(): Promise<[string, string[]]> {
   const { stdout: version, stderr: stderr } = await exec.getExecOutput(
-    "cm",
+    COMMISERY_BIN,
     ["next-version"],
     { ignoreReturnCode: true }
   );

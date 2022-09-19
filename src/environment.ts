@@ -14,10 +14,16 @@
  * limitations under the License.
  */
 
+const cache = require("@actions/cache");
 const core = require("@actions/core");
 const exec = require("@actions/exec");
+const tc = require("@actions/tool-cache");
+const glob = require("@actions/glob");
 
 import * as path from "path";
+import os from "os";
+
+export const COMMISERY_BIN = path.join(".venv", "bin", "cm");
 
 /**
  * Checks whether the provided Python version is present
@@ -58,15 +64,27 @@ export async function prepareEnvironment() {
   // Ensure Python (>= 3.8) and pip are installed
   await checkPythonPrerequisites(3, 8);
 
-  // Install latest version of commisery
-  await exec.exec("python3", [
-    "-m",
-    "pip",
-    "install",
-    "--upgrade",
-    "--requirement",
-    path.join(__dirname, "requirements.txt"),
-  ]);
+  const requirements_file = path.join(__dirname, "requirements.txt");
+  const cache_hash = await glob.hashFiles(requirements_file);
+  const cache_key = `python-3-8-${os.arch()}-venv-commisery-${cache_hash}`;
 
+  const retrieved_cache_key = await cache.restoreCache([".venv"], cache_key);
+  console.log(retrieved_cache_key);
+
+  if (retrieved_cache_key === undefined) {
+    await exec.exec("python3", ["-m", "venv", ".venv"]);
+
+    // Install latest version of commisery
+    await exec.exec(".venv/bin/python3", [
+      "-m",
+      "pip",
+      "install",
+      "--upgrade",
+      "--requirement",
+      requirements_file,
+    ]);
+
+    await cache.saveCache([".venv"], cache_key);
+  }
   core.endGroup();
 }
