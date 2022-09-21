@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Fixed
+- Configuration file is now retrieved from the current branch iso main development branch.
+
 ## [1.3.0] - 2022-09-21
 ### Added
 - You can specify the location of the Commisery configuration file with the `config`-input parameter

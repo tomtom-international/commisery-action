@@ -104,16 +104,13 @@ export async function getConfig(owner: string, repo: string, path: string) {
       ref: github.context.ref,
     });
 
-    console.log(config_file);
-
     fs.writeFileSync(
       ".commisery.yml",
       Buffer.from(config_file.content, "base64")
     );
-
-    console.log(fs.readFileSync(".commisery.yml"));
   } catch (error) {
-    console.log(error);
+    console.log("Unable to download the specified configuration file!");
+    core.debug(error);
     return;
   }
 }
