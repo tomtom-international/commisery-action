@@ -101,6 +101,7 @@ export async function getConfig(owner: string, repo: string, path: string) {
       owner: owner,
       repo: repo,
       path: path,
+      ref: github.context.ref,
     });
 
     console.log(config_file);

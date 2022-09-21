@@ -11105,6 +11105,7 @@ function getConfig(owner, repo, path) {
                 owner: owner,
                 repo: repo,
                 path: path,
+                ref: github.context.ref,
             });
             console.log(config_file);
             fs.writeFileSync(".commisery.yml", Buffer.from(config_file.content, "base64"));
