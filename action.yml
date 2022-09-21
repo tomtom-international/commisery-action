@@ -37,6 +37,11 @@ inputs:
     required: false
     default: true
 
+  config:
+    description: 'Path towards the Commisery configuration file'
+    required: false
+    default: '.commisery.yml'
+
   # Deprecated inputs
   pull_request:
     deprecationMessage: 'The Pull Request number is now automatically determined when running `on: pull_request`'

@@ -37,6 +37,27 @@ The workflow, usually declared in `.github/workflows/conventional-commit.yml`, l
             validate-commits: true # OPTIONAL, default: `true`
 ```
 
+## Additional configuration options
+
+You can provide additional configuration parameters to Commisery by providing a 
+configuration file. i.e.:
+
+```yml
+        - name: Check for compliance
+          uses: tomtom-international/commisery-action@v1
+          with:
+            token: ${{ github.token }}
+            config: '.commisery.yml' # OPTIONAL, default: `.commisery.yml`
+```
+
+This configuration file can be used to;
+- Disable certain rules
+- Add additional Conventional Commit types
+- Increase the maximum subject length
+
+Please refer to the [Commisery Documentation](https://github.com/tomtom-international/commisery/blob/master/README.md)
+for more details about this configuration file.
+
 ### Inputs
 
 | Item | Mandatory | Description |
@@ -105,6 +126,7 @@ An example workflow that creates a release on every commit or merge to the `main
 | `token` | YES | GitHub Token provided by GitHub, see [Authenticating with the GITHUB_TOKEN]|
 | `create-release` | NO | Can optionally be set to `false` to disable release creation on version bump.|
 | `version-prefix` | NO | An optional prefix to the Semantic Version, eg. `v`, `componentX-`. The value of this parameter will be prepended to the tagged version.
+| `config` | NO | Location of the Commisery configuration file (default: `.commisery.yml`)
 
 > **NOTE**: The `version-prefix` this is *not* used for determining the current version.
 

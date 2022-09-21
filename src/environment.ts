@@ -19,6 +19,8 @@ const exec = require("@actions/exec");
 
 import * as path from "path";
 
+import { getConfig } from "./github";
+
 /**
  * Checks whether the provided Python version is present
  *
@@ -67,6 +69,10 @@ export async function prepareEnvironment() {
     "--requirement",
     path.join(__dirname, "requirements.txt"),
   ]);
+
+  // Retrieve the configuration
+  const [owner, repo] = (process.env.GITHUB_REPOSITORY || "").split("/");
+  await getConfig(owner, repo, core.getInput("config"));
 
   core.endGroup();
 }
