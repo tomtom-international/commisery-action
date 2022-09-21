@@ -10997,10 +10997,13 @@ function getConfig(owner, repo, path) {
                 owner: owner,
                 repo: repo,
                 path: path,
+                ref: github.context.ref,
             });
             fs.writeFileSync(".commisery.yml", Buffer.from(config_file.content, "base64"));
         }
         catch (error) {
+            console.log("Unable to download the specified configuration file!");
+            core.debug(error);
             return;
         }
     });
