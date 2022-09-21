@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Added
+- You can specify the location of the Commisery configuration file with the `config`-input parameter
+- Support the Commisery configuration file (without the need to perform a checkout of the repository)
+
 ## [1.2.1] - 2022-09-19
 ### Deprecated
 - The `mode` input option is replaced by `validate-pull-request` and `validate-commits`

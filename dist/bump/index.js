@@ -10941,6 +10941,7 @@ exports.prepareEnvironment = void 0;
 const core = __nccwpck_require__(2186);
 const exec = __nccwpck_require__(1514);
 const path = __importStar(__nccwpck_require__(1017));
+const github_1 = __nccwpck_require__(978);
 /**
  * Checks whether the provided Python version is present
  *
@@ -10985,6 +10986,9 @@ function prepareEnvironment() {
             "--requirement",
             path.join(__dirname, "requirements.txt"),
         ]);
+        // Retrieve the configuration
+        const [owner, repo] = (process.env.GITHUB_REPOSITORY || "").split("/");
+        yield (0, github_1.getConfig)(owner, repo, core.getInput("config"));
         core.endGroup();
     });
 }
@@ -11023,8 +11027,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.createRelease = exports.getPullRequest = exports.getCommits = exports.PULLREQUEST_ID = exports.IS_PULLREQUEST_EVENT = void 0;
+exports.getConfig = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.PULLREQUEST_ID = exports.IS_PULLREQUEST_EVENT = void 0;
 const core = __nccwpck_require__(2186);
+const fs = __nccwpck_require__(7147);
 const github = __nccwpck_require__(5438);
 const github_token = core.getInput("token");
 const octokit = github.getOctokit(github_token);
@@ -11087,6 +11092,28 @@ function createRelease(owner, repo, tag_name) {
     });
 }
 exports.createRelease = createRelease;
+/**
+ * Downloads the requested configuration file in case it exists.
+ * @param owner GitHub owner
+ * @param repo GitHub repository
+ * @param path Path towards the Commisery configuration file
+ */
+function getConfig(owner, repo, path) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const { data: config_file } = yield octokit.rest.repos.getContent({
+                owner: owner,
+                repo: repo,
+                path: path,
+            });
+            fs.writeFileSync(".commisery.yml", Buffer.from(config_file.content, "base64"));
+        }
+        catch (error) {
+            return;
+        }
+    });
+}
+exports.getConfig = getConfig;
 
 
 /***/ }),

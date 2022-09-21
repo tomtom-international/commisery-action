@@ -15,6 +15,7 @@
  */
 
 const core = require("@actions/core");
+const fs = require("fs");
 const github = require("@actions/github");
 
 const github_token = core.getInput("token");
@@ -86,4 +87,27 @@ export async function createRelease(
     draft: false,
     prerelease: false,
   });
+}
+
+/**
+ * Downloads the requested configuration file in case it exists.
+ * @param owner GitHub owner
+ * @param repo GitHub repository
+ * @param path Path towards the Commisery configuration file
+ */
+export async function getConfig(owner: string, repo: string, path: string) {
+  try {
+    const { data: config_file } = await octokit.rest.repos.getContent({
+      owner: owner,
+      repo: repo,
+      path: path,
+    });
+
+    fs.writeFileSync(
+      ".commisery.yml",
+      Buffer.from(config_file.content, "base64")
+    );
+  } catch (error) {
+    return;
+  }
 }
