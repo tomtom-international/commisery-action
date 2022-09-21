@@ -37,27 +37,6 @@ The workflow, usually declared in `.github/workflows/conventional-commit.yml`, l
             validate-commits: true # OPTIONAL, default: `true`
 ```
 
-## Additional configuration options
-
-You can provide additional configuration parameters to Commisery by providing a 
-configuration file. i.e.:
-
-```yml
-        - name: Check for compliance
-          uses: tomtom-international/commisery-action@v1
-          with:
-            token: ${{ github.token }}
-            config: '.commisery.yml' # OPTIONAL, default: `.commisery.yml`
-```
-
-This configuration file can be used to;
-- Disable certain rules
-- Add additional Conventional Commit types
-- Increase the maximum subject length
-
-Please refer to the [Commisery Documentation](https://github.com/tomtom-international/commisery/blob/master/README.md)
-for more details about this configuration file.
-
 ### Inputs
 
 | Item | Mandatory | Description |
@@ -135,6 +114,27 @@ An example workflow that creates a release on every commit or merge to the `main
 | --- | --- |
 | `current-version` | The Semantic Version associated with the latest tag in the repository, stripped of any and all prefixes, or an empty string if the latest tag could not be parsed as a SemVer.
 | `next-version` | The next version (including the optionally provided version-prefix) as determined from the Conventional Commits, or empty string if a version bump was not performed
+
+## Additional configuration options
+
+You can provide additional configuration parameters to Commisery by providing a 
+configuration file. i.e.:
+
+```yml
+        - name: Check for compliance
+          uses: tomtom-international/commisery-action@v1
+          with:
+            token: ${{ github.token }}
+            config: '.commisery.yml' # OPTIONAL, default: `.commisery.yml`
+```
+
+This configuration file can be used to;
+- Disable certain rules
+- Add additional Conventional Commit types
+- Increase the maximum subject length
+
+Please refer to the [Commisery Documentation](https://github.com/tomtom-international/commisery/blob/master/README.md)
+for more details about this configuration file.
 
 [Conventional Commits]: https://www.conventionalcommits.org/en/v1.0.0/
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
