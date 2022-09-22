@@ -14,59 +14,8 @@
  * limitations under the License.
  */
 
-const core = require("@actions/core");
 const exec = require("@actions/exec");
 const fs = require("fs");
-
-/**
- * Strips ANSI color codes from the provided message
- * @param message
- * @returns message without ANSI color codes
- */
-function stripANSIColor(message: string) {
-  const pattern = [
-    "[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]+)*|[a-zA-Z\\d]+(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)",
-    "(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-nq-uy=><~]))",
-  ].join("|");
-
-  return message.replace(new RegExp(pattern, "g"), "");
-}
-
-/**
- * Converts error message into GitHub accepted format
- * @param message
- * @returns multiline message
- */
-function getErrorSubjects(message: string) {
-  let errors: string[] = [];
-
-  for (var line of stripANSIColor(message).split("\n")) {
-    if (line.startsWith(".commit-message") && line.indexOf(": error:") > -1) {
-      errors.push(line);
-    } else if (line.length > 0) {
-      errors[errors.length - 1] += `\n${line}`;
-    }
-  }
-
-  return errors;
-}
-
-/**
- * Validates the commit object against the Conventional Commit convention
- * @param commit
- * @returns
- */
-export async function isCommitValid(message): Promise<[boolean, string[]]> {
-  // Provide the commit message as file
-  await fs.writeFileSync(".commit-message", message);
-  const { exitCode: exitCode, stderr: stderr } = await exec.getExecOutput(
-    "cm",
-    ["check", ".commit-message"],
-    { ignoreReturnCode: true }
-  );
-
-  return [exitCode == 0, getErrorSubjects(stderr)];
-}
 
 /**
  * Returns a bumped version based on Conventional Commits after the latest Git tag

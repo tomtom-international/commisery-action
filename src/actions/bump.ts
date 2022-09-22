@@ -17,16 +17,11 @@
 const core = require("@actions/core");
 const exec = require("@actions/exec");
 
-import { prepareEnvironment } from "./environment";
-import { getBumpedVersion } from "./commisery";
-import { createRelease } from "./github";
+import { getBumpedVersion } from "../commisery";
+import { createRelease, getLatestTag } from "../github";
 
 async function getCurrentSemanticVersion(): Promise<string> {
-  const { stdout: version } = await exec.getExecOutput(
-    "git",
-    ["describe", "--tags", "--abbrev=0"],
-    { ignoreReturnCode: true }
-  );
+  const version = await getLatestTag();
   const SEMVER_REGEX = new RegExp(
     /(?<major>0|[1-9][0-9]*)\./.source +
       /(?<minor>0|[1-9][0-9]*)\./.source +
@@ -48,7 +43,7 @@ async function getCurrentSemanticVersion(): Promise<string> {
 
 async function run() {
   try {
-    await prepareEnvironment();
+    //await prepareEnvironment();
     const prefix = core.getInput("version-prefix");
 
     core.startGroup("🔍 Determining version bump...");
@@ -64,8 +59,7 @@ async function run() {
       let message = "new version is: ";
 
       if (core.getInput("create-release") === "true") {
-        const [owner, repo] = (process.env.GITHUB_REPOSITORY || "").split("/");
-        createRelease(owner, repo, next_version);
+        createRelease(next_version);
         message = "created GitHub Release: ";
       }
 

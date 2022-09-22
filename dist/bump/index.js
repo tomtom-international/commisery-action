@@ -10684,7 +10684,7 @@ function wrappy (fn, cb) {
 
 /***/ }),
 
-/***/ 1692:
+/***/ 1745:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -10716,12 +10716,11 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __nccwpck_require__(2186);
 const exec = __nccwpck_require__(1514);
-const environment_1 = __nccwpck_require__(6869);
 const commisery_1 = __nccwpck_require__(8604);
 const github_1 = __nccwpck_require__(978);
 function getCurrentSemanticVersion() {
     return __awaiter(this, void 0, void 0, function* () {
-        const { stdout: version } = yield exec.getExecOutput("git", ["describe", "--tags", "--abbrev=0"], { ignoreReturnCode: true });
+        const version = yield (0, github_1.getLatestTag)();
         const SEMVER_REGEX = new RegExp(/(?<major>0|[1-9][0-9]*)\./.source +
             /(?<minor>0|[1-9][0-9]*)\./.source +
             /(?<patch>0|[1-9][0-9]*)/.source +
@@ -10741,7 +10740,7 @@ function getCurrentSemanticVersion() {
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            yield (0, environment_1.prepareEnvironment)();
+            //await prepareEnvironment();
             const prefix = core.getInput("version-prefix");
             core.startGroup("🔍 Determining version bump...");
             const current_version = yield getCurrentSemanticVersion();
@@ -10753,8 +10752,7 @@ function run() {
                 const next_version = `${prefix}${version}`;
                 let message = "new version is: ";
                 if (core.getInput("create-release") === "true") {
-                    const [owner, repo] = (process.env.GITHUB_REPOSITORY || "").split("/");
-                    (0, github_1.createRelease)(owner, repo, next_version);
+                    (0, github_1.createRelease)(next_version);
                     message = "created GitHub Release: ";
                 }
                 console.log(`✅ Version bumped: ${message}${next_version}`);
@@ -10822,53 +10820,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getBumpedVersion = exports.isCommitValid = void 0;
-const core = __nccwpck_require__(2186);
+exports.getBumpedVersion = void 0;
 const exec = __nccwpck_require__(1514);
 const fs = __nccwpck_require__(7147);
-/**
- * Strips ANSI color codes from the provided message
- * @param message
- * @returns message without ANSI color codes
- */
-function stripANSIColor(message) {
-    const pattern = [
-        "[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]+)*|[a-zA-Z\\d]+(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)",
-        "(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-nq-uy=><~]))",
-    ].join("|");
-    return message.replace(new RegExp(pattern, "g"), "");
-}
-/**
- * Converts error message into GitHub accepted format
- * @param message
- * @returns multiline message
- */
-function getErrorSubjects(message) {
-    let errors = [];
-    for (var line of stripANSIColor(message).split("\n")) {
-        if (line.startsWith(".commit-message") && line.indexOf(": error:") > -1) {
-            errors.push(line);
-        }
-        else if (line.length > 0) {
-            errors[errors.length - 1] += `\n${line}`;
-        }
-    }
-    return errors;
-}
-/**
- * Validates the commit object against the Conventional Commit convention
- * @param commit
- * @returns
- */
-function isCommitValid(message) {
-    return __awaiter(this, void 0, void 0, function* () {
-        // Provide the commit message as file
-        yield fs.writeFileSync(".commit-message", message);
-        const { exitCode: exitCode, stderr: stderr } = yield exec.getExecOutput("cm", ["check", ".commit-message"], { ignoreReturnCode: true });
-        return [exitCode == 0, getErrorSubjects(stderr)];
-    });
-}
-exports.isCommitValid = isCommitValid;
 /**
  * Returns a bumped version based on Conventional Commits after the latest Git tag
  * @returns
@@ -10880,119 +10834,6 @@ function getBumpedVersion() {
     });
 }
 exports.getBumpedVersion = getBumpedVersion;
-
-
-/***/ }),
-
-/***/ 6869:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-/**
- * Copyright (C) 2020-2022, TomTom (http://tomtom.com).
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.prepareEnvironment = void 0;
-const core = __nccwpck_require__(2186);
-const exec = __nccwpck_require__(1514);
-const path = __importStar(__nccwpck_require__(1017));
-const github_1 = __nccwpck_require__(978);
-/**
- * Checks whether the provided Python version is present
- *
- * @param major Major version
- * @param minor Minor version
- */
-function checkPythonPrerequisites(major, minor) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const python_version_re = /Python\s*(\d+)\.(\d+)\.(\d+)/;
-        const { stdout: python_version } = yield exec.getExecOutput("python3", [
-            "--version",
-        ]);
-        const match = python_version_re.exec(python_version);
-        if (!match || match.length != 4) {
-            throw new Error("Unable to determine the installed Python version.");
-        }
-        if (!(parseInt(match[1]) == major && parseInt(match[2]) >= minor)) {
-            throw new Error(`Incorrect Python version installed; found ${match[1]}.${match[2]}.${match[3]}, expected >= ${major}.${minor}.0`);
-        }
-        try {
-            yield exec.getExecOutput("python3", ["-m", "pip", "--version"]);
-        }
-        catch (_a) {
-            throw new Error("Unable to determine the installed Pip version.");
-        }
-    });
-}
-/**
- * Prepares the environment for using commisery
- */
-function prepareEnvironment() {
-    return __awaiter(this, void 0, void 0, function* () {
-        core.startGroup("🌲 Preparing environment...");
-        // Ensure Python (>= 3.8) and pip are installed
-        yield checkPythonPrerequisites(3, 8);
-        // Install latest version of commisery
-        yield exec.exec("python3", [
-            "-m",
-            "pip",
-            "install",
-            "--upgrade",
-            "--requirement",
-            path.join(__dirname, "requirements.txt"),
-        ]);
-        // Retrieve the configuration
-        const [owner, repo] = (process.env.GITHUB_REPOSITORY || "").split("/");
-        yield (0, github_1.getConfig)(owner, repo, core.getInput("config"));
-        core.endGroup();
-    });
-}
-exports.prepareEnvironment = prepareEnvironment;
 
 
 /***/ }),
@@ -11027,7 +10868,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getConfig = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.PULLREQUEST_ID = exports.IS_PULLREQUEST_EVENT = void 0;
+exports.getCommitsSinceTag = exports.getLatestTag = exports.getConfig = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.PULLREQUEST_ID = exports.IS_PULLREQUEST_EVENT = void 0;
 const core = __nccwpck_require__(2186);
 const fs = __nccwpck_require__(7147);
 const github = __nccwpck_require__(5438);
@@ -11035,19 +10876,18 @@ const github_token = core.getInput("token");
 const octokit = github.getOctokit(github_token);
 exports.IS_PULLREQUEST_EVENT = github.context.eventName === "pull_request";
 exports.PULLREQUEST_ID = github.context.issue.number;
+const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
 /**
  * Retrieves a list of commits associated with the specified Pull Request
- * @param owner GitHub owner
- * @param repo GitHub repository
  * @param pullrequest_id GitHub Pullrequest ID
  * @returns List of commit objects
  */
-function getCommits(owner, repo, pullrequest_id) {
+function getCommits(pullrequest_id) {
     return __awaiter(this, void 0, void 0, function* () {
         // Retrieve commits from provided Pull Request
         const { data: commits } = yield octokit.rest.pulls.listCommits({
-            owner: owner,
-            repo: repo,
+            owner: OWNER,
+            repo: REPO,
             pull_number: pullrequest_id,
         });
         return commits;
@@ -11056,16 +10896,14 @@ function getCommits(owner, repo, pullrequest_id) {
 exports.getCommits = getCommits;
 /**
  * Retrieves the Pull Request associated with the specified Pull Request ID
- * @param owner GitHub owner
- * @param repo GitHub repository
  * @param pullrequest_id GitHub Pullrequest ID
  * @returns Pull Request
  */
-function getPullRequest(owner, repo, pullrequest_id) {
+function getPullRequest(pullrequest_id) {
     return __awaiter(this, void 0, void 0, function* () {
         const { data: pr } = yield octokit.rest.pulls.get({
-            owner: owner,
-            repo: repo,
+            owner: OWNER,
+            repo: REPO,
             pull_number: pullrequest_id,
         });
         return pr;
@@ -11074,15 +10912,14 @@ function getPullRequest(owner, repo, pullrequest_id) {
 exports.getPullRequest = getPullRequest;
 /**
  * Creates a GitHub release named `tag_name` on the main branch of the provided repo
- * @param owner GitHub owner
- * @param repo GitHub repository
+
  * @param tag_name Name of the tag (and release)
  */
-function createRelease(owner, repo, tag_name) {
+function createRelease(tag_name) {
     return __awaiter(this, void 0, void 0, function* () {
         yield octokit.rest.repos.createRelease({
-            owner: owner,
-            repo: repo,
+            owner: OWNER,
+            repo: REPO,
             tag_name: tag_name,
             name: tag_name,
             body: "",
@@ -11094,16 +10931,14 @@ function createRelease(owner, repo, tag_name) {
 exports.createRelease = createRelease;
 /**
  * Downloads the requested configuration file in case it exists.
- * @param owner GitHub owner
- * @param repo GitHub repository
  * @param path Path towards the Commisery configuration file
  */
-function getConfig(owner, repo, path) {
+function getConfig(path) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const { data: config_file } = yield octokit.rest.repos.getContent({
-                owner: owner,
-                repo: repo,
+                owner: OWNER,
+                repo: REPO,
                 path: path,
                 ref: github.context.ref,
             });
@@ -11117,6 +10952,33 @@ function getConfig(owner, repo, path) {
     });
 }
 exports.getConfig = getConfig;
+/**
+ * Retrieve the latest tag from GitHub
+ */
+function getLatestTag() {
+    return __awaiter(this, void 0, void 0, function* () {
+        const tags = yield octokit.paginate(octokit.rest.repos.listTags, {
+            owner: OWNER,
+            repo: REPO,
+        });
+        return tags[0].name;
+    });
+}
+exports.getLatestTag = getLatestTag;
+/**
+ * Retrieve all commits since specified tag
+ */
+function getCommitsSinceTag(tag) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const commits = yield octokit.paginate(octokit.rest.repos.listCommits, {
+            owner: OWNER,
+            repo: REPO,
+            sha: `refs/tags/${tag}`,
+        });
+        return commits;
+    });
+}
+exports.getCommitsSinceTag = getCommitsSinceTag;
 
 
 /***/ }),
@@ -11323,7 +11185,7 @@ module.exports = JSON.parse('[[[0,44],"disallowed_STD3_valid"],[[45,46],"valid"]
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
 /******/ 	// This entry module is referenced by other modules so it can't be inlined
-/******/ 	var __webpack_exports__ = __nccwpck_require__(1692);
+/******/ 	var __webpack_exports__ = __nccwpck_require__(1745);
 /******/ 	module.exports = __webpack_exports__;
 /******/ 	
 /******/ })()
