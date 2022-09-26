@@ -60,6 +60,8 @@ export function validateRules(
     C006_scope_should_not_be_empty,
     C007_scope_contains_whitespace,
     C008_missing_separator,
+    C009_missing_description,
+    C010_breaking_indicator_contains_whitespacing,
   ];
 
   let errors: LlvmError[] = [];
@@ -128,7 +130,10 @@ function C003_title_case_description(
   message: ConventionalCommitMetadata,
   _: Configuration
 ) {
-  if (message.description[0] !== message.description[0].toLowerCase()) {
+  if (
+    message.description &&
+    message.description[0] !== message.description[0].toLowerCase()
+  ) {
     let msg = new LlvmError();
     msg.message =
       "[C003] The commit message's description should not start with a capital case letter";
@@ -255,7 +260,6 @@ function C008_missing_separator(
   message: ConventionalCommitMetadata,
   _: Configuration
 ) {
-  console.log(message);
   if (!message.separator || message.separator.indexOf(":") === -1) {
     let msg = new LlvmError();
     msg.message = `[C008] The commit message's subject requires a separator (": ") after the type tag`;
@@ -267,6 +271,48 @@ function C008_missing_separator(
       message.description.length + message.separator.length
     );
     msg.expectations = `: ${message.description}`;
+
+    throw msg;
+  }
+}
+
+/**
+ * The commit message requires a description
+ */
+function C009_missing_description(
+  message: ConventionalCommitMetadata,
+  _: Configuration
+) {
+  if (!message.description) {
+    let msg = new LlvmError();
+    msg.message = "[C009] The commit message requires a description";
+    msg.line = message.subject;
+    msg.column_number = new LlvmRange(message.subject.length + 1);
+
+    throw msg;
+  }
+}
+
+/**
+ * No whitespace allowed around the "!" indicator
+ */
+function C010_breaking_indicator_contains_whitespacing(
+  message: ConventionalCommitMetadata,
+  _: Configuration
+) {
+  if (!message.breaking_change) {
+    return;
+  }
+
+  if (message.breaking_change.trim() !== message.breaking_change) {
+    let msg = new LlvmError();
+    msg.message = `[C010] No whitespace allowed around the "!" indicator`;
+    msg.line = message.subject;
+    msg.column_number = new LlvmRange(
+      message.subject.indexOf(message.breaking_change) + 1,
+      message.breaking_change.length
+    );
+    msg.expectations = `!${message.separator}${message.description}`;
 
     throw msg;
   }

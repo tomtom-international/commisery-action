@@ -213,4 +213,40 @@ describe("Rules", () => {
       assertRuleNoValidationError(message, "C008");
     }
   });
+
+  /**
+   * [C009] The commit message requires a description
+   */
+  test(`[C009] The commit message requires a description`, () => {
+    for (const message of ["feat:", "feat: "]) {
+      assertRuleValidationError(message, "C009");
+    }
+
+    for (const message of [
+      "feat:description without whitespace",
+      "feat: description with whitespace",
+    ]) {
+      assertRuleNoValidationError(message, "C009");
+    }
+  });
+
+  /**
+   * [C010] No whitespace allowed around the "!" indicator
+   */
+  test(`[C010] No whitespace allowed around the "!" indicator`, () => {
+    for (const message of [
+      "feat !: breaking change",
+      "feat! : breaking change",
+    ]) {
+      assertRuleValidationError(message, "C010");
+    }
+
+    for (const message of [
+      "feat!: breaking change",
+      "feat(scope)!: breaking change",
+      "feat(scope)!:breaking change",
+    ]) {
+      assertRuleNoValidationError(message, "C010");
+    }
+  });
 });

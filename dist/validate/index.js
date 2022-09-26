@@ -11973,6 +11973,8 @@ function validateRules(message, config) {
         C006_scope_should_not_be_empty,
         C007_scope_contains_whitespace,
         C008_missing_separator,
+        C009_missing_description,
+        C010_breaking_indicator_contains_whitespacing,
     ];
     let errors = [];
     for (const rule of rules) {
@@ -12023,7 +12025,8 @@ function C002_one_whiteline_between_subject_and_body(message, _) {
  * The commit message's description should not start with a capital case letter
  */
 function C003_title_case_description(message, _) {
-    if (message.description[0] !== message.description[0].toLowerCase()) {
+    if (message.description &&
+        message.description[0] !== message.description[0].toLowerCase()) {
         let msg = new logging_1.LlvmError();
         msg.message =
             "[C003] The commit message's description should not start with a capital case letter";
@@ -12104,7 +12107,6 @@ function C007_scope_contains_whitespace(message, _) {
  * The commit message's subject requires a separator (": ") after the type tag
  */
 function C008_missing_separator(message, _) {
-    console.log(message);
     if (!message.separator || message.separator.indexOf(":") === -1) {
         let msg = new logging_1.LlvmError();
         msg.message = `[C008] The commit message's subject requires a separator (": ") after the type tag`;
@@ -12113,6 +12115,34 @@ function C008_missing_separator(message, _) {
             message.separator.length +
             1, message.description.length + message.separator.length);
         msg.expectations = `: ${message.description}`;
+        throw msg;
+    }
+}
+/**
+ * The commit message requires a description
+ */
+function C009_missing_description(message, _) {
+    if (!message.description) {
+        let msg = new logging_1.LlvmError();
+        msg.message = "[C009] The commit message requires a description";
+        msg.line = message.subject;
+        msg.column_number = new logging_1.LlvmRange(message.subject.length + 1);
+        throw msg;
+    }
+}
+/**
+ * No whitespace allowed around the "!" indicator
+ */
+function C010_breaking_indicator_contains_whitespacing(message, _) {
+    if (!message.breaking_change) {
+        return;
+    }
+    if (message.breaking_change.trim() !== message.breaking_change) {
+        let msg = new logging_1.LlvmError();
+        msg.message = `[C010] No whitespace allowed around the "!" indicator`;
+        msg.line = message.subject;
+        msg.column_number = new logging_1.LlvmRange(message.subject.indexOf(message.breaking_change) + 1, message.breaking_change.length);
+        msg.expectations = `!${message.separator}${message.description}`;
         throw msg;
     }
 }
