@@ -21,6 +21,7 @@ import {
   MergeCommitError,
   validateRules,
 } from "./rules";
+import { SemVerType } from "./semver";
 
 const os = require("os");
 
@@ -43,16 +44,6 @@ export interface ConventionalCommitMetadata {
   scope: string;
   subject: string;
   type: string;
-}
-
-/**
- * SemVer version core types
- */
-export enum SemVerType {
-  NONE = "None",
-  PATCH = "Patch",
-  MINOR = "Minor",
-  MAJOR = "Major",
 }
 
 /**
@@ -268,4 +259,4 @@ function stripMessage(message) {
   return message;
 }
 
-module.exports = { ConventionalCommitMessage, SemVerType };
+module.exports = { ConventionalCommitMessage };

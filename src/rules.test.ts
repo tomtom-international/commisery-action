@@ -1,6 +1,7 @@
 import dedent from "dedent";
 
-import { ConventionalCommitMessage, SemVerType } from "./commit";
+import { ConventionalCommitMessage } from "./commit";
+import { SemVerType } from "./semver";
 import { LlvmError } from "./logging";
 import {
   ConventionalCommitError,
