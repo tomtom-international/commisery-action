@@ -11623,7 +11623,9 @@ class Configuration {
             this.loadFromData(data);
         }
         else {
-            throw new Error(`No configuration can be found at: ${config_path}`);
+            if (config_path !== DEFAULT_CONFIGURATION_FILE) {
+                throw new Error(`No configuration can be found at: ${config_path}`);
+            }
         }
     }
     loadFromData(data) {
