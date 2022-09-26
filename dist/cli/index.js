@@ -1912,23 +1912,14 @@ module.exports = __nccwpck_require__(5177);
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ConventionalCommitMessage = exports.getConventionalCommitMetadata = exports.SemVerType = void 0;
+exports.ConventionalCommitMessage = exports.getConventionalCommitMetadata = void 0;
 const config_1 = __nccwpck_require__(6373);
 const rules_1 = __nccwpck_require__(1058);
+const semver_1 = __nccwpck_require__(8593);
 const os = __nccwpck_require__(2037);
 const BREAKING_CHANGE_TOKEN = "BREAKING-CHANGE";
 const CONVENTIONAL_COMMIT_REGEX = /(?<type>\w+)?((\s*)?\((?<scope>[^()]*)\)(\s*)?)?(?<breaking_change>((\s*)+[!]+(\s*)?)?)(?<separator>((\s+)?:?(\s+)?))(?<description>.*)/;
 const FOOTER_REGEX = /^(?<token>[\w\- ]+|BREAKING\sCHANGE)(?::[ ]|[ ](?=[#]))(?<value>.*)/;
-/**
- * SemVer version core types
- */
-var SemVerType;
-(function (SemVerType) {
-    SemVerType["NONE"] = "None";
-    SemVerType["PATCH"] = "Patch";
-    SemVerType["MINOR"] = "Minor";
-    SemVerType["MAJOR"] = "Major";
-})(SemVerType = exports.SemVerType || (exports.SemVerType = {}));
 /**
  * Footer class containing key, value pairs
  */
@@ -2040,27 +2031,27 @@ class ConventionalCommitMessage {
         this.scope = metadata.scope ? metadata.scope : null;
         this.type = metadata.type ? metadata.type : null;
         this.bump = this.determineBump(metadata);
-        this.breaking_change = this.bump === SemVerType.MAJOR;
+        this.breaking_change = this.bump === semver_1.SemVerType.MAJOR;
     }
     determineBump(metadata) {
         for (const footer of metadata.footers) {
             if (footer.token === BREAKING_CHANGE_TOKEN) {
-                return SemVerType.MAJOR;
+                return semver_1.SemVerType.MAJOR;
             }
         }
         if (metadata.type === undefined) {
-            return SemVerType.NONE;
+            return semver_1.SemVerType.NONE;
         }
         if (metadata.breaking_change === "!") {
-            return SemVerType.MAJOR;
+            return semver_1.SemVerType.MAJOR;
         }
         if (metadata.type.trim().toLowerCase() === "feat") {
-            return SemVerType.MINOR;
+            return semver_1.SemVerType.MINOR;
         }
         if (metadata.type.trim().toLowerCase() === "fix") {
-            return SemVerType.PATCH;
+            return semver_1.SemVerType.PATCH;
         }
-        return SemVerType.NONE;
+        return semver_1.SemVerType.NONE;
     }
 }
 exports.ConventionalCommitMessage = ConventionalCommitMessage;
@@ -2087,7 +2078,7 @@ function stripMessage(message) {
     message = message.trim();
     return message;
 }
-module.exports = { ConventionalCommitMessage, SemVerType };
+module.exports = { ConventionalCommitMessage };
 
 
 /***/ }),
@@ -2528,6 +2519,133 @@ function C010_breaking_indicator_contains_whitespacing(message, _) {
         throw msg;
     }
 }
+
+
+/***/ }),
+
+/***/ 8593:
+/***/ ((module, exports) => {
+
+"use strict";
+
+/**
+ * Copyright (C) 2022, TomTom (http://tomtom.com).
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SemVer = exports.SemVerType = void 0;
+const SEMVER_RE = new RegExp([
+    /^(?<prefix>[A-Za-z-]+)?/,
+    /(?<major>0|[1-9][0-9]*)/,
+    /\.(?<minor>0|[1-9][0-9]*)/,
+    /\.(?<patch>0|[1-9][0-9]*)/,
+    /(?:-(?<prerelease>[-0-9a-zA-Z]+(?:\.[-0-9a-zA-Z]+)*))?/,
+    /(?:\+(?<build>[-0-9a-zA-Z]+(?:\.[-0-9a-zA-Z]+)*))?/,
+    /\s*$/,
+]
+    .map((r) => r.source)
+    .join(""));
+/**
+ * SemVer version core types
+ */
+var SemVerType;
+(function (SemVerType) {
+    SemVerType[SemVerType["NONE"] = 0] = "NONE";
+    SemVerType[SemVerType["PATCH"] = 1] = "PATCH";
+    SemVerType[SemVerType["MINOR"] = 2] = "MINOR";
+    SemVerType[SemVerType["MAJOR"] = 3] = "MAJOR";
+})(SemVerType = exports.SemVerType || (exports.SemVerType = {}));
+class SemVer {
+    constructor(major, minor, patch, prerelease, build, prefix) {
+        this.major = major;
+        this.minor = minor;
+        this.patch = patch;
+        this.prerelease = prerelease;
+        this.build = build;
+        this.prefix = prefix;
+    }
+    static from_string(version) {
+        const match = SEMVER_RE.exec(version);
+        if (match != null && match.groups != null) {
+            return new SemVer(+match.groups.major, +match.groups.minor, +match.groups.patch, match.groups.prerelease, match.groups.build, match.groups.prefix);
+        }
+        return null;
+    }
+    to_string() {
+        let prerelease = this.prerelease ? `-${this.prerelease}` : "";
+        let build = this.build ? `+${this.build}` : "";
+        return `${this.prefix}${this.major}.${this.minor}.${this.patch}${prerelease}${build}`;
+    }
+    next_major() {
+        return new SemVer(this.major + 1, 0, 0, "", "", this.prefix);
+    }
+    next_minor() {
+        return new SemVer(this.major, this.minor + 1, 0, "", "", this.prefix);
+    }
+    next_patch() {
+        if (this.prerelease !== "") {
+            return new SemVer(this.major, this.minor, this.patch, "", "", this.prefix);
+        }
+        return new SemVer(this.major, this.minor, this.patch + 1, "", "", this.prefix);
+    }
+    /**
+     * Returns a new SemVer object bumped by the provided bump type, or `null` if the
+     * provided type is NONE or unknown.
+     */
+    bump(what) {
+        switch (what) {
+            case SemVerType.MAJOR:
+                return this.next_major();
+            case SemVerType.MINOR:
+                return this.next_minor();
+            case SemVerType.PATCH:
+                return this.next_patch();
+            default:
+                return null;
+        }
+    }
+    lessThan(rhs) {
+        if (this.major < rhs.major)
+            return true;
+        if (this.major === rhs.major) {
+            if (this.minor < rhs.minor) {
+                return true;
+            }
+            if (this.minor === rhs.minor) {
+                if (this.patch < rhs.patch) {
+                    return true;
+                }
+                if (this.patch === rhs.patch) {
+                    // only prerelease presence is currently evaluated;
+                    // TODO: commit distance-prerelease would be nice to have
+                    if (this.prerelease === "" && rhs.prerelease !== "") {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+    equals(rhs) {
+        return (this.major === rhs.major &&
+            this.minor === rhs.minor &&
+            this.patch === rhs.patch &&
+            !!this.prerelease === !!rhs.prerelease);
+    }
+}
+exports.SemVer = SemVer;
+module.exports = { SemVer, SemVerType };
 
 
 /***/ }),
