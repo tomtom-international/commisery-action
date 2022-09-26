@@ -42,6 +42,9 @@ function assertRuleNoValidationError(message: string, type: string) {
 }
 
 describe("Rules", () => {
+  /**
+   * The commit message's tag type should be in lower case
+   */
   test("[C001] The commit message's tag type should be in lower case", () => {
     for (const message of [
       "Chore: did something",
@@ -63,13 +66,16 @@ describe("Rules", () => {
     }
   });
 
+  /**
+   * Only one empty line between subject and body
+   */
   test("[C002] Only one empty line between subject and body", () => {
     for (const message of [
-      dedent(`feat: check rule
+      dedent(`feat: single line body
         
         
         This is the body`),
-      dedent(`feat: check rule
+      dedent(`feat: footer only
         
         
         Implements: 123`),
@@ -78,14 +84,56 @@ describe("Rules", () => {
     }
 
     for (const message of [
-      dedent(`feat: check rule
+      "feat: no body",
+      dedent(`feat: single line body
         
         This is the body`),
-      dedent(`feat: check rule
+      dedent(`feat: footer only
         
         Implements: 123`),
     ]) {
       assertRuleNoValidationError(message, "C002");
+    }
+  });
+
+  /**
+   * [C003] The commit message's description should not start with a capital case letter
+   */
+  test("[C003] The commit message's description should not start with a capital case letter", () => {
+    for (const message of [
+      "feat: Check rule",
+      "feat : Check rule",
+      "feat:Check rule",
+      "feat :Check rule",
+      "feat:  Check rule",
+    ]) {
+      assertRuleValidationError(message, "C003");
+    }
+
+    for (const message of [
+      "feat: check rule",
+      "feat: cHeck rule",
+      "feat:check rule",
+      "feat:   check rule",
+    ]) {
+      assertRuleNoValidationError(message, "C003");
+    }
+  });
+
+  /**
+   * [C004] Commit message's subject should not contain an unknown tag type
+   */
+  test("[C004] Commit message's subject should not contain an unknown tag type", () => {
+    for (const message of [
+      "awesome: type does not exist",
+      "awesome : type does not exist",
+      "awesome:type does not exist",
+    ]) {
+      assertRuleValidationError(message, "C004");
+    }
+
+    for (const message of ["feat: type exists", "fix: type exists"]) {
+      assertRuleNoValidationError(message, "C004");
     }
   });
 });
