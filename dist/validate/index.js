@@ -12413,8 +12413,7 @@ class MissingEmptyLineBetweenSubjectAndBody {
     validate(message, _) {
         if (message.body && message.body[0]) {
             let msg = new logging_1.LlvmError();
-            msg.message =
-                "[C018] The commit message should contain an empty line between subject and body";
+            msg.message = `[${this.id}] ${this.description}`;
             throw msg;
         }
     }
@@ -12424,11 +12423,11 @@ class MissingEmptyLineBetweenSubjectAndBody {
  */
 class SubjectContainsIssueReference {
     constructor() {
-        this.id = "C018";
+        this.id = "C019";
         this.description = "The commit message's subject should not contain a ticket reference";
     }
     validate(message, _) {
-        return;
+        return; // TODO
         if (message.subject.matchAll(new RegExp(`\b(?!${["AES", "PEP", "SHA", "UTF", "VT"].join("|")}\-)[A-Z]+-[0-9]+\b`))) {
             let msg = new logging_1.LlvmError();
             msg.message = `[${this.id}] ${this.description}`;
@@ -12740,10 +12739,9 @@ function validateMessages(messages, config) {
                 if (error instanceof errors_1.ConventionalCommitError) {
                     errors = error.errors;
                 }
-                else if (error instanceof errors_1.MergeCommitError) {
-                    continue;
-                }
-                else if (error instanceof errors_1.FixupCommitError) {
+                else if (error instanceof errors_1.MergeCommitError ||
+                    error instanceof errors_1.FixupCommitError) {
+                    core.endGroup();
                     continue;
                 }
             }

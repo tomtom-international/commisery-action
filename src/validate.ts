@@ -83,9 +83,11 @@ export async function validateMessages(
     } catch (error) {
       if (error instanceof ConventionalCommitError) {
         errors = error.errors;
-      } else if (error instanceof MergeCommitError) {
-        continue;
-      } else if (error instanceof FixupCommitError) {
+      } else if (
+        error instanceof MergeCommitError ||
+        error instanceof FixupCommitError
+      ) {
+        core.endGroup();
         continue;
       }
     }

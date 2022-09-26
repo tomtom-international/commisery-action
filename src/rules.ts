@@ -523,8 +523,7 @@ class MissingEmptyLineBetweenSubjectAndBody implements IConventionalCommitRule {
   validate(message: ConventionalCommitMetadata, _: Configuration) {
     if (message.body && message.body[0]) {
       let msg = new LlvmError();
-      msg.message =
-        "[C018] The commit message should contain an empty line between subject and body";
+      msg.message = `[${this.id}] ${this.description}`;
 
       throw msg;
     }
@@ -535,12 +534,12 @@ class MissingEmptyLineBetweenSubjectAndBody implements IConventionalCommitRule {
  * The commit message's subject should not contain a ticket reference
  */
 class SubjectContainsIssueReference implements IConventionalCommitRule {
-  id = "C018";
+  id = "C019";
   description =
     "The commit message's subject should not contain a ticket reference";
 
   validate(message: ConventionalCommitMetadata, _: Configuration) {
-    return;
+    return; // TODO
     if (
       message.subject.matchAll(
         new RegExp(
