@@ -2038,7 +2038,7 @@ class ConventionalCommitMessage {
         this.description = metadata.description;
         this.footers = metadata.footers;
         this.scope = metadata.scope ? metadata.scope : null;
-        this.type = metadata.type;
+        this.type = metadata.type ? metadata.type : null;
         this.bump = this.determineBump(metadata);
         this.breaking_change = this.bump === SemVerType.MAJOR;
     }
@@ -2342,6 +2342,9 @@ class FixupCommitError extends Error {
     }
 }
 exports.FixupCommitError = FixupCommitError;
+/**
+ * Validates the commit message against the specified ruleset
+ */
 function validateRules(message, config) {
     const rules = [
         C001_non_lower_case_type,
@@ -2349,6 +2352,9 @@ function validateRules(message, config) {
         C003_title_case_description,
         C004_unknown_tag_type,
         C005_separator_contains_trailing_whitespaces,
+        C006_scope_should_not_be_empty,
+        C007_scope_contains_whitespace,
+        C008_missing_separator,
     ];
     let errors = [];
     for (const rule of rules) {
@@ -2371,10 +2377,7 @@ exports.validateRules = validateRules;
  * The commit message's tag type should be in lower case
  */
 function C001_non_lower_case_type(message, _) {
-    /*if (message.isMerge()) {
-      return;
-    }*/
-    if (message.type === undefined || message.type.trim() === "") {
+    if (message.type === undefined) {
         return;
     }
     if (message.type.toLowerCase() !== message.type) {
@@ -2391,10 +2394,6 @@ function C001_non_lower_case_type(message, _) {
  * Only one empty line between subject and body
  */
 function C002_one_whiteline_between_subject_and_body(message, _) {
-    if (message.body === undefined) {
-        // || message.isMerge()) {
-        return;
-    }
     if (message.body.length >= 2 && message.body[1].trim() === "") {
         let msg = new logging_1.LlvmError();
         msg.message = "[C002] Only one empty line between subject and body";
@@ -2406,12 +2405,6 @@ function C002_one_whiteline_between_subject_and_body(message, _) {
  * The commit message's description should not start with a capital case letter
  */
 function C003_title_case_description(message, _) {
-    if (
-    //message.isMerge() ||
-    message.description === undefined ||
-        message.description.trim() === "") {
-        return;
-    }
     if (message.description[0] !== message.description[0].toLowerCase()) {
         let msg = new logging_1.LlvmError();
         msg.message =
@@ -2427,7 +2420,6 @@ function C003_title_case_description(message, _) {
  */
 function C004_unknown_tag_type(message, config) {
     if (message.type === undefined) {
-        // || message.isMerge()
         return;
     }
     if (!(message.type in config.tags)) {
@@ -2443,9 +2435,11 @@ function C004_unknown_tag_type(message, config) {
         throw msg;
     }
 }
+/**
+ * Only one whitespace allowed after the ":" separator
+ */
 function C005_separator_contains_trailing_whitespaces(message, _) {
-    if (message.separator === undefined || message.separator.trim() === "") {
-        // || message.isMerge()
+    if (message.separator === null) {
         return;
     }
     if (message.separator !== ": ") {
@@ -2453,6 +2447,55 @@ function C005_separator_contains_trailing_whitespaces(message, _) {
         msg.message = '[C005] Only one whitespace allowed after the ":" separator';
         msg.line = message.subject;
         msg.expectations = `: ${message.description}`;
+        throw msg;
+    }
+}
+/**
+ * The commit message's scope should not be empty
+ */
+function C006_scope_should_not_be_empty(message, _) {
+    if (message.scope === undefined) {
+        return;
+    }
+    if (!message.scope.trim()) {
+        let msg = new logging_1.LlvmError();
+        msg.message = "[C006] The commit message's scope should not be empty";
+        msg.line = message.subject;
+        msg.column_number = new logging_1.LlvmRange(message.subject.indexOf("(") + 1, message.scope.length + 2);
+        throw msg;
+    }
+}
+/**
+ * The commit message's scope should not contain any whitespacing
+ */
+function C007_scope_contains_whitespace(message, _) {
+    if (message.scope === undefined) {
+        return;
+    }
+    if (message.scope.length != message.scope.trim().length) {
+        let msg = new logging_1.LlvmError();
+        msg.message =
+            "[C007] The commit message's scope should not contain any whitespacing";
+        msg.line = message.subject;
+        msg.column_number = new logging_1.LlvmRange(message.subject.indexOf("("), message.scope.length + 2);
+        msg.expectations = message.scope.trim();
+        throw msg;
+    }
+}
+/**
+ * The commit message's subject requires a separator (": ") after the type tag
+ */
+function C008_missing_separator(message, _) {
+    console.log(message);
+    if (!message.separator || message.separator.indexOf(":") === -1) {
+        let msg = new logging_1.LlvmError();
+        msg.message = `[C008] The commit message's subject requires a separator (": ") after the type tag`;
+        msg.line = message.subject;
+        msg.column_number = new logging_1.LlvmRange(message.subject.indexOf(message.description) -
+            message.separator.length +
+            1, message.description.length + message.separator.length);
+        msg.expectations = `: ${message.description}`;
+        throw msg;
     }
 }
 

@@ -14,6 +14,10 @@ function assertRuleValidationError(message: string, type: string) {
   } catch (error: any) {
     let foundError = false;
 
+    if (!(error instanceof ConventionalCommitError)) {
+      console.log(message, error);
+    }
+
     expect(error).toBeInstanceOf(ConventionalCommitError);
     for (const err of error.errors) {
       if (err.message && err.message.startsWith(`[${type}]`)) {
@@ -30,6 +34,10 @@ function assertRuleNoValidationError(message: string, type: string) {
     expect(msg).toBeDefined();
   } catch (error: any) {
     let foundError = false;
+
+    if (!(error instanceof ConventionalCommitError)) {
+      console.log(message, error);
+    }
 
     expect(error).toBeInstanceOf(ConventionalCommitError);
     for (const err of error.errors) {
@@ -128,12 +136,81 @@ describe("Rules", () => {
       "awesome: type does not exist",
       "awesome : type does not exist",
       "awesome:type does not exist",
+      ": type does not exist",
     ]) {
       assertRuleValidationError(message, "C004");
     }
 
     for (const message of ["feat: type exists", "fix: type exists"]) {
       assertRuleNoValidationError(message, "C004");
+    }
+  });
+
+  /**
+   * [C005] Only one whitespace allowed after the ":" separator
+   */
+  test('[C005] Only one whitespace allowed after the ":" separator', () => {
+    for (const message of [
+      "feat:no whitespace",
+      "feat:  two whitespaces",
+      "feat:   three whitespaces",
+    ]) {
+      assertRuleValidationError(message, "C005");
+    }
+    assertRuleNoValidationError("feat: one whitespace", "C005");
+  });
+
+  /**
+   * [C006] The commit message's scope should not be empty
+   */
+  test("[C006] The commit message's scope should not be empty", () => {
+    for (const message of [
+      "feat(): empty scope",
+      "feat( ): scope only whitespaces",
+    ]) {
+      assertRuleValidationError(message, "C006");
+    }
+
+    for (const message of ["feat: no scope", "feat(test): scope"]) {
+      assertRuleNoValidationError(message, "C006");
+    }
+  });
+
+  /**
+   * [C007] The commit message's scope should not contain any whitespacing
+   */
+  test("[C007] The commit message's scope should not contain any whitespacing", () => {
+    for (const message of [
+      "feat( test): whitespace before scope",
+      "feat(test ): whitespace after scope",
+      "feat( test ): whitespace around scope",
+    ]) {
+      assertRuleValidationError(message, "C007");
+    }
+
+    for (const message of ["feat: no scope", "feat(test): scope"]) {
+      assertRuleNoValidationError(message, "C007");
+    }
+  });
+
+  /**
+   * [C008] The commit message's subject requires a separator (": ") after the type tag
+   */
+  test(`[C008] The commit message's subject requires a separator (": ") after the type tag`, () => {
+    for (const message of [
+      "feat missing seperator",
+      "feat(test) missing seperator",
+    ]) {
+      assertRuleValidationError(message, "C008");
+    }
+
+    for (const message of [
+      "feat: contains seperator",
+      "feat!: breaking with seperator",
+      "feat(scope): with scope",
+      "feat(scope)!: with scope and breaking",
+    ]) {
+      assertRuleNoValidationError(message, "C008");
     }
   });
 });

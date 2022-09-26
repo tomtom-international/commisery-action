@@ -155,7 +155,7 @@ export class ConventionalCommitMessage {
   footers: Footer[];
   hexsha: string | undefined;
   scope: string | null;
-  type: string;
+  type: string | null;
 
   constructor(
     message: string,
@@ -203,7 +203,7 @@ export class ConventionalCommitMessage {
     this.description = metadata.description;
     this.footers = metadata.footers;
     this.scope = metadata.scope ? metadata.scope : null;
-    this.type = metadata.type;
+    this.type = metadata.type ? metadata.type : null;
 
     this.bump = this.determineBump(metadata);
     this.breaking_change = this.bump === SemVerType.MAJOR;

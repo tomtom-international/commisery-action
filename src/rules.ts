@@ -44,6 +44,9 @@ export class FixupCommitError extends Error {
   }
 }
 
+/**
+ * Validates the commit message against the specified ruleset
+ */
 export function validateRules(
   message: ConventionalCommitMetadata,
   config: Configuration
@@ -54,6 +57,9 @@ export function validateRules(
     C003_title_case_description,
     C004_unknown_tag_type,
     C005_separator_contains_trailing_whitespaces,
+    C006_scope_should_not_be_empty,
+    C007_scope_contains_whitespace,
+    C008_missing_separator,
   ];
 
   let errors: LlvmError[] = [];
@@ -80,11 +86,7 @@ function C001_non_lower_case_type(
   message: ConventionalCommitMetadata,
   _: Configuration
 ) {
-  /*if (message.isMerge()) {
-    return;
-  }*/
-
-  if (message.type === undefined || message.type.trim() === "") {
+  if (message.type === undefined) {
     return;
   }
 
@@ -110,11 +112,6 @@ function C002_one_whiteline_between_subject_and_body(
   message: ConventionalCommitMetadata,
   _: Configuration
 ) {
-  if (message.body === undefined) {
-    // || message.isMerge()) {
-    return;
-  }
-
   if (message.body.length >= 2 && message.body[1].trim() === "") {
     let msg = new LlvmError();
     msg.message = "[C002] Only one empty line between subject and body";
@@ -131,14 +128,6 @@ function C003_title_case_description(
   message: ConventionalCommitMetadata,
   _: Configuration
 ) {
-  if (
-    //message.isMerge() ||
-    message.description === undefined ||
-    message.description.trim() === ""
-  ) {
-    return;
-  }
-
   if (message.description[0] !== message.description[0].toLowerCase()) {
     let msg = new LlvmError();
     msg.message =
@@ -161,7 +150,6 @@ function C004_unknown_tag_type(
   config: Configuration
 ) {
   if (message.type === undefined) {
-    // || message.isMerge()
     return;
   }
 
@@ -189,12 +177,14 @@ function C004_unknown_tag_type(
   }
 }
 
+/**
+ * Only one whitespace allowed after the ":" separator
+ */
 function C005_separator_contains_trailing_whitespaces(
   message: ConventionalCommitMetadata,
   _: Configuration
 ) {
-  if (message.separator === undefined || message.separator.trim() === "") {
-    // || message.isMerge()
+  if (message.separator === null) {
     return;
   }
 
@@ -203,5 +193,81 @@ function C005_separator_contains_trailing_whitespaces(
     msg.message = '[C005] Only one whitespace allowed after the ":" separator';
     msg.line = message.subject;
     msg.expectations = `: ${message.description}`;
+
+    throw msg;
+  }
+}
+
+/**
+ * The commit message's scope should not be empty
+ */
+function C006_scope_should_not_be_empty(
+  message: ConventionalCommitMetadata,
+  _: Configuration
+) {
+  if (message.scope === undefined) {
+    return;
+  }
+
+  if (!message.scope.trim()) {
+    let msg = new LlvmError();
+    msg.message = "[C006] The commit message's scope should not be empty";
+    msg.line = message.subject;
+    msg.column_number = new LlvmRange(
+      message.subject.indexOf("(") + 1,
+      message.scope.length + 2
+    );
+
+    throw msg;
+  }
+}
+
+/**
+ * The commit message's scope should not contain any whitespacing
+ */
+function C007_scope_contains_whitespace(
+  message: ConventionalCommitMetadata,
+  _: Configuration
+) {
+  if (message.scope === undefined) {
+    return;
+  }
+
+  if (message.scope.length != message.scope.trim().length) {
+    let msg = new LlvmError();
+    msg.message =
+      "[C007] The commit message's scope should not contain any whitespacing";
+    msg.line = message.subject;
+    msg.column_number = new LlvmRange(
+      message.subject.indexOf("("),
+      message.scope.length + 2
+    );
+    msg.expectations = message.scope.trim();
+
+    throw msg;
+  }
+}
+
+/**
+ * The commit message's subject requires a separator (": ") after the type tag
+ */
+function C008_missing_separator(
+  message: ConventionalCommitMetadata,
+  _: Configuration
+) {
+  console.log(message);
+  if (!message.separator || message.separator.indexOf(":") === -1) {
+    let msg = new LlvmError();
+    msg.message = `[C008] The commit message's subject requires a separator (": ") after the type tag`;
+    msg.line = message.subject;
+    msg.column_number = new LlvmRange(
+      message.subject.indexOf(message.description) -
+        message.separator.length +
+        1,
+      message.description.length + message.separator.length
+    );
+    msg.expectations = `: ${message.description}`;
+
+    throw msg;
   }
 }
