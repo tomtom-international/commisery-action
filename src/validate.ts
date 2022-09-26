@@ -20,7 +20,11 @@ import { ConventionalCommitMessage } from "./commit";
 import { Configuration } from "./config";
 import { getCommits, getPullRequest, PULLREQUEST_ID } from "./github";
 import { LlvmError } from "./logging";
-import { ConventionalCommitError } from "./rules";
+import {
+  ConventionalCommitError,
+  FixupCommitError,
+  MergeCommitError,
+} from "./rules";
 
 interface Message {
   title: string;
@@ -79,6 +83,10 @@ export async function validateMessages(
     } catch (error) {
       if (error instanceof ConventionalCommitError) {
         errors = error.errors;
+      } else if (error instanceof MergeCommitError) {
+        continue;
+      } else if (error instanceof FixupCommitError) {
+        continue;
       }
     }
 

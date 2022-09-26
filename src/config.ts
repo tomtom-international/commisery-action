@@ -42,9 +42,7 @@ export class Configuration {
   max_subject_length: Number = 80;
   tags: {} = DEFAULT_ACCEPTED_TAGS;
 
-  fromFile(config_path: string) {
-    const data = yaml.parse(fs.readFileSync(config_path, "utf8"));
-
+  private loadFromData(data: any) {
     for (const key in data) {
       if (CONFIG_ITEMS.indexOf(key) === -1) {
         throw new Error(`Unknown configuration item '${key} detected!`);
@@ -100,7 +98,8 @@ export class Configuration {
    */
   constructor(config_path: string = DEFAULT_CONFIGURATION_FILE) {
     if (fs.existsSync(config_path)) {
-      this.fromFile(config_path);
+      const data = yaml.parse(fs.readFileSync(config_path, "utf8"));
+      this.loadFromData(data);
     }
   }
 }

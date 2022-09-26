@@ -26,7 +26,7 @@ const os = require("os");
 
 const BREAKING_CHANGE_TOKEN = "BREAKING-CHANGE";
 const CONVENTIONAL_COMMIT_REGEX =
-  /(?<type>\w+)?(\s)?(\((?<scope>[^()]*)\))?(\s)?(?<breaking_change>((\s*)+[!]+(\s*)?)?)(?<separator>((\s+)?:?(\s+)?))(?<description>.*)/;
+  /(?<type>\w+)?((\s*)?\((?<scope>[^()]*)\)(\s*)?)?(?<breaking_change>((\s*)+[!]+(\s*)?)?)(?<separator>((\s+)?:?(\s+)?))(?<description>.*)/;
 const FOOTER_REGEX =
   /^(?<token>[\w\- ]+|BREAKING\sCHANGE)(?::[ ]|[ ](?=[#]))(?<value>.*)/;
 
@@ -214,6 +214,9 @@ export class ConventionalCommitMessage {
       if (footer.token === BREAKING_CHANGE_TOKEN) {
         return SemVerType.MAJOR;
       }
+    }
+    if (metadata.type === undefined) {
+      return SemVerType.NONE;
     }
 
     if (metadata.breaking_change === "!") {

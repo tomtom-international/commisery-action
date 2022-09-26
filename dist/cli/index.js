@@ -1917,7 +1917,7 @@ const config_1 = __nccwpck_require__(6373);
 const rules_1 = __nccwpck_require__(1058);
 const os = __nccwpck_require__(2037);
 const BREAKING_CHANGE_TOKEN = "BREAKING-CHANGE";
-const CONVENTIONAL_COMMIT_REGEX = /(?<type>\w+)?(\s)?(\((?<scope>[^()]*)\))?(\s)?(?<breaking_change>((\s*)+[!]+(\s*)?)?)(?<separator>((\s+)?:?(\s+)?))(?<description>.*)/;
+const CONVENTIONAL_COMMIT_REGEX = /(?<type>\w+)?((\s*)?\((?<scope>[^()]*)\)(\s*)?)?(?<breaking_change>((\s*)+[!]+(\s*)?)?)(?<separator>((\s+)?:?(\s+)?))(?<description>.*)/;
 const FOOTER_REGEX = /^(?<token>[\w\- ]+|BREAKING\sCHANGE)(?::[ ]|[ ](?=[#]))(?<value>.*)/;
 /**
  * SemVer version core types
@@ -2048,6 +2048,9 @@ class ConventionalCommitMessage {
                 return SemVerType.MAJOR;
             }
         }
+        if (metadata.type === undefined) {
+            return SemVerType.NONE;
+        }
         if (metadata.breaking_change === "!") {
             return SemVerType.MAJOR;
         }
@@ -2140,11 +2143,11 @@ class Configuration {
         this.max_subject_length = 80;
         this.tags = DEFAULT_ACCEPTED_TAGS;
         if (fs.existsSync(config_path)) {
-            this.fromFile(config_path);
+            const data = yaml.parse(fs.readFileSync(config_path, "utf8"));
+            this.loadFromData(data);
         }
     }
-    fromFile(config_path) {
-        const data = yaml.parse(fs.readFileSync(config_path, "utf8"));
+    loadFromData(data) {
         for (const key in data) {
             if (CONFIG_ITEMS.indexOf(key) === -1) {
                 throw new Error(`Unknown configuration item '${key} detected!`);

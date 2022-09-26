@@ -269,7 +269,7 @@ describe("Scope", () => {
 
 // Validation of the type in a Commit Message
 //
-describe("Scope", () => {
+describe("Type", () => {
   test("Chore Commit", () => {
     const msg = new ConventionalCommitMessage("chore: did somethig");
     expect(msg.type).toBe("chore");
