@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2020-2022, TomTom (http://tomtom.com).
+ * Copyright (C) 2022, TomTom (http://tomtom.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+import { ALL_RULES } from "./rules";
 
 const fs = require("fs");
 const yaml = require("yaml");
@@ -32,6 +34,7 @@ const DEFAULT_ACCEPTED_TAGS = {
   test: "Updates tests",
   improvement: "Introduces improvements to the code quality of the codebase",
 };
+const DEFAULT_IGNORED_RULES = [];
 
 const CONFIG_ITEMS = ["max-subject-length", "tags", "disable"];
 
@@ -39,8 +42,10 @@ const CONFIG_ITEMS = ["max-subject-length", "tags", "disable"];
  * Configuration (from file)
  */
 export class Configuration {
-  max_subject_length: Number = 80;
+  max_subject_length: number = 80;
   tags: {} = DEFAULT_ACCEPTED_TAGS;
+  ignore: string[] = DEFAULT_IGNORED_RULES;
+  rules: {} = {};
 
   private loadFromData(data: any) {
     for (const key in data) {
@@ -49,6 +54,20 @@ export class Configuration {
       }
 
       switch (key) {
+        case "disable":
+          if (typeof data[key] === "object") {
+            for (const item of data[key]) {
+              this.rules[item].enabled = false;
+            }
+          } else {
+            throw new Error(
+              `Incorrect type '${typeof data[
+                key
+              ]} for ${key}, must be '${typeof []}`
+            );
+          }
+          break;
+
         case "max-subject-length":
           if (typeof data[key] === "number") {
             this.max_subject_length = data[key];
@@ -97,9 +116,18 @@ export class Configuration {
    * Constructs a Configuration parameters from file
    */
   constructor(config_path: string = DEFAULT_CONFIGURATION_FILE) {
+    // Enable all rules by default
+    for (const rule of ALL_RULES) {
+      this.rules[rule.id] = {
+        description: rule.description,
+        enabled: true,
+      };
+    }
     if (fs.existsSync(config_path)) {
       const data = yaml.parse(fs.readFileSync(config_path, "utf8"));
       this.loadFromData(data);
+    } else {
+      throw new Error(`No configuration can be found at: ${config_path}`);
     }
   }
 }

@@ -16,36 +16,79 @@
  * limitations under the License.
  */
 
+import dedent from "dedent";
 const fs = require("fs");
 const os = require("os");
 const { Command } = require("commander");
 
 import { ConventionalCommitMessage } from "../commit";
 import { Configuration } from "../config";
-import { ConventionalCommitError } from "../rules";
+import { ConventionalCommitError } from "../errors";
+import { ALL_RULES } from "../rules";
 
 const program = new Command();
 
 program
   .name("commisery")
-  .description("Commisery Conventional Commit Message Manager");
+  .description("Commisery Conventional Commit Message Manager")
+  .option("-c, --config <string>");
 
 program
   .command("check")
   .description("Check Conventional Commit Compliance")
   .argument("<filehandle>", "Conventional Commit Message")
   .action((filehandle: string) => {
-    const config = new Configuration();
+    const config = new Configuration(program.opts().config);
     const message = fs.readFileSync(filehandle, "utf8");
 
     try {
-      const commit = new ConventionalCommitMessage(message, undefined, config);
+      new ConventionalCommitMessage(message, undefined, config);
     } catch (error) {
       if (error instanceof ConventionalCommitError) {
         for (const err of error.errors) {
           console.log(err.report());
         }
       }
+    }
+  });
+
+program
+  .command("overview")
+  .description(
+    "Lists the accepted Conventional Commit tags and Rules (including description)"
+  )
+  .action(() => {
+    const config = new Configuration(program.opts().config);
+
+    console.log(
+      dedent(`
+    Conventional Commit tags
+    ------------------------`)
+    );
+
+    for (const key in config.tags) {
+      console.log(`${key}: \x1b[90m${config.tags[key]}\x1b[0m`);
+    }
+
+    console.log(os.EOL);
+
+    console.log(
+      dedent(`
+    Commisery Validation rules
+    --------------------------
+    [\x1b[92mo\x1b[0m]: \x1b[90mrule is enabled\x1b[0m, [\x1b[91mx\x1b[0m]: \x1b[90mrule has been disabled\x1b[0m
+    `)
+    );
+
+    console.log(os.EOL);
+
+    for (const rule in config.rules) {
+      const status = config.rules[rule].enabled
+        ? `\x1b[92mo\x1b[0m`
+        : `\x1b[91mx\x1b[0m`;
+      console.log(
+        `[${status}] ${rule}: \x1b[90m${config.rules[rule].description}\x1b[0m`
+      );
     }
   });
 

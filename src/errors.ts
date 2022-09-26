@@ -14,18 +14,28 @@
  * limitations under the License.
  */
 
-const exec = require("@actions/exec");
-const fs = require("fs");
+import { LlvmError } from "./logging";
 
-/**
- * Returns a bumped version based on Conventional Commits after the latest Git tag
- * @returns
- */
-export async function getBumpedVersion(): Promise<[string, string[]]> {
-  const { stdout: version, stderr: stderr } = await exec.getExecOutput(
-    "cm",
-    ["next-version"],
-    { ignoreReturnCode: true }
-  );
-  return [version.trim(), stderr.split("\n")];
+export class ConventionalCommitError extends Error {
+  errors: LlvmError[];
+
+  constructor(message: string, errors: LlvmError[]) {
+    super(message);
+    this.name = "ConventionalCommitError";
+    this.errors = errors;
+  }
+}
+
+export class MergeCommitError extends Error {
+  constructor() {
+    super("Commit Message is a 'merge' commit!");
+    this.name = "MergeCommitError";
+  }
+}
+
+export class FixupCommitError extends Error {
+  constructor() {
+    super("Commit Message is a 'fixup' commit!");
+    this.name = "FixupCommitError";
+  }
 }

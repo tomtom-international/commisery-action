@@ -24,7 +24,7 @@ import {
   ConventionalCommitError,
   FixupCommitError,
   MergeCommitError,
-} from "./rules";
+} from "./errors";
 
 interface Message {
   title: string;

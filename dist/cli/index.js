@@ -2,6 +2,73 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
+/***/ 5281:
+/***/ ((module) => {
+
+"use strict";
+
+
+function dedent(strings) {
+
+  var raw = void 0;
+  if (typeof strings === "string") {
+    // dedent can be used as a plain function
+    raw = [strings];
+  } else {
+    raw = strings.raw;
+  }
+
+  // first, perform interpolation
+  var result = "";
+  for (var i = 0; i < raw.length; i++) {
+    result += raw[i].
+    // join lines when there is a suppressed newline
+    replace(/\\\n[ \t]*/g, "").
+
+    // handle escaped backticks
+    replace(/\\`/g, "`");
+
+    if (i < (arguments.length <= 1 ? 0 : arguments.length - 1)) {
+      result += arguments.length <= i + 1 ? undefined : arguments[i + 1];
+    }
+  }
+
+  // now strip indentation
+  var lines = result.split("\n");
+  var mindent = null;
+  lines.forEach(function (l) {
+    var m = l.match(/^(\s+)\S+/);
+    if (m) {
+      var indent = m[1].length;
+      if (!mindent) {
+        // this is the first indented line
+        mindent = indent;
+      } else {
+        mindent = Math.min(mindent, indent);
+      }
+    }
+  });
+
+  if (mindent !== null) {
+    result = lines.map(function (l) {
+      return l[0] === " " ? l.slice(mindent) : l;
+    }).join("\n");
+  }
+
+  // dedent eats leading and trailing whitespace too
+  result = result.trim();
+
+  // handle escaped newlines at the end to ensure they don't get stripped too
+  return result.replace(/\\n/g, "\n");
+}
+
+if (true) {
+  module.exports = dedent;
+}
+
+
+/***/ }),
+
 /***/ 4087:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
@@ -1891,13 +1958,97 @@ module.exports = __nccwpck_require__(5177);
 
 /***/ }),
 
+/***/ 5810:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+/**
+ * Copyright (C) 2022, TomTom (http://tomtom.com).
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const dedent_1 = __importDefault(__nccwpck_require__(5281));
+const fs = __nccwpck_require__(7147);
+const os = __nccwpck_require__(2037);
+const { Command } = __nccwpck_require__(4379);
+const commit_1 = __nccwpck_require__(1730);
+const config_1 = __nccwpck_require__(6373);
+const errors_1 = __nccwpck_require__(6976);
+const program = new Command();
+program
+    .name("commisery")
+    .description("Commisery Conventional Commit Message Manager")
+    .option("-c, --config <string>");
+program
+    .command("check")
+    .description("Check Conventional Commit Compliance")
+    .argument("<filehandle>", "Conventional Commit Message")
+    .action((filehandle) => {
+    const config = new config_1.Configuration(program.opts().config);
+    const message = fs.readFileSync(filehandle, "utf8");
+    try {
+        new commit_1.ConventionalCommitMessage(message, undefined, config);
+    }
+    catch (error) {
+        if (error instanceof errors_1.ConventionalCommitError) {
+            for (const err of error.errors) {
+                console.log(err.report());
+            }
+        }
+    }
+});
+program
+    .command("overview")
+    .description("Lists the accepted Conventional Commit tags and Rules (including description)")
+    .action(() => {
+    const config = new config_1.Configuration(program.opts().config);
+    console.log((0, dedent_1.default)(`
+    Conventional Commit tags
+    ------------------------`));
+    for (const key in config.tags) {
+        console.log(`${key}: \x1b[90m${config.tags[key]}\x1b[0m`);
+    }
+    console.log(os.EOL);
+    console.log((0, dedent_1.default)(`
+    Commisery Validation rules
+    --------------------------
+    [\x1b[92mo\x1b[0m]: \x1b[90mrule is enabled\x1b[0m, [\x1b[91mx\x1b[0m]: \x1b[90mrule has been disabled\x1b[0m
+    `));
+    console.log(os.EOL);
+    for (const rule in config.rules) {
+        const status = config.rules[rule].enabled
+            ? `\x1b[92mo\x1b[0m`
+            : `\x1b[91mx\x1b[0m`;
+        console.log(`[${status}] ${rule}: \x1b[90m${config.rules[rule].description}\x1b[0m`);
+    }
+});
+program.parse();
+
+
+/***/ }),
+
 /***/ 1730:
 /***/ ((module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 /**
- * Copyright (C) 2022-2022, TomTom (http://tomtom.com).
+ * Copyright (C) 2022, TomTom (http://tomtom.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1915,6 +2066,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ConventionalCommitMessage = exports.getConventionalCommitMetadata = void 0;
 const config_1 = __nccwpck_require__(6373);
 const rules_1 = __nccwpck_require__(1058);
+const errors_1 = __nccwpck_require__(6976);
 const semver_1 = __nccwpck_require__(8593);
 const os = __nccwpck_require__(2037);
 const BREAKING_CHANGE_TOKEN = "BREAKING-CHANGE";
@@ -2005,22 +2157,22 @@ class ConventionalCommitMessage {
         const split_message = stripMessage(message).split(os.EOL);
         // Skip Mere and Fixup commits
         if (isMerge(split_message[0])) {
-            throw new rules_1.MergeCommitError();
+            throw new errors_1.MergeCommitError();
         }
         if (isFixup(split_message[0])) {
-            throw new rules_1.FixupCommitError();
+            throw new errors_1.FixupCommitError();
         }
         this.hexsha = hexsha;
         this.config = config;
         // Initializes class based on commit message
         const metadata = getConventionalCommitMetadata(split_message);
         if (metadata === undefined) {
-            throw new rules_1.ConventionalCommitError(`Commit is not a Conventional Commit type!`, []);
+            throw new errors_1.ConventionalCommitError(`Commit is not a Conventional Commit type!`, []);
         }
         // Validate whether this is a valid Conventional Commit
         const errors = (0, rules_1.validateRules)(metadata, this.config);
         if (errors.length > 0) {
-            throw new rules_1.ConventionalCommitError(`Commit is not compliant to Conventional Commits!`, errors);
+            throw new errors_1.ConventionalCommitError(`Commit is not compliant to Conventional Commits!`, errors);
         }
         this.body = metadata.body.slice(1).join(os.EOL);
         if (this.body === "") {
@@ -2089,7 +2241,7 @@ module.exports = { ConventionalCommitMessage };
 "use strict";
 
 /**
- * Copyright (C) 2020-2022, TomTom (http://tomtom.com).
+ * Copyright (C) 2022, TomTom (http://tomtom.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2105,6 +2257,7 @@ module.exports = { ConventionalCommitMessage };
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Configuration = void 0;
+const rules_1 = __nccwpck_require__(1058);
 const fs = __nccwpck_require__(7147);
 const yaml = __nccwpck_require__(4083);
 const DEFAULT_CONFIGURATION_FILE = ".commisery.yml";
@@ -2122,6 +2275,7 @@ const DEFAULT_ACCEPTED_TAGS = {
     test: "Updates tests",
     improvement: "Introduces improvements to the code quality of the codebase",
 };
+const DEFAULT_IGNORED_RULES = [];
 const CONFIG_ITEMS = ["max-subject-length", "tags", "disable"];
 /**
  * Configuration (from file)
@@ -2133,9 +2287,21 @@ class Configuration {
     constructor(config_path = DEFAULT_CONFIGURATION_FILE) {
         this.max_subject_length = 80;
         this.tags = DEFAULT_ACCEPTED_TAGS;
+        this.ignore = DEFAULT_IGNORED_RULES;
+        this.rules = {};
+        // Enable all rules by default
+        for (const rule of rules_1.ALL_RULES) {
+            this.rules[rule.id] = {
+                description: rule.description,
+                enabled: true,
+            };
+        }
         if (fs.existsSync(config_path)) {
             const data = yaml.parse(fs.readFileSync(config_path, "utf8"));
             this.loadFromData(data);
+        }
+        else {
+            throw new Error(`No configuration can be found at: ${config_path}`);
         }
     }
     loadFromData(data) {
@@ -2144,6 +2310,16 @@ class Configuration {
                 throw new Error(`Unknown configuration item '${key} detected!`);
             }
             switch (key) {
+                case "disable":
+                    if (typeof data[key] === "object") {
+                        for (const item of data[key]) {
+                            this.rules[item].enabled = false;
+                        }
+                    }
+                    else {
+                        throw new Error(`Incorrect type '${typeof data[key]} for ${key}, must be '${typeof []}`);
+                    }
+                    break;
                 case "max-subject-length":
                     if (typeof data[key] === "number") {
                         this.max_subject_length = data[key];
@@ -2176,6 +2352,54 @@ class Configuration {
     }
 }
 exports.Configuration = Configuration;
+
+
+/***/ }),
+
+/***/ 6976:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/**
+ * Copyright (C) 2020-2022, TomTom (http://tomtom.com).
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FixupCommitError = exports.MergeCommitError = exports.ConventionalCommitError = void 0;
+class ConventionalCommitError extends Error {
+    constructor(message, errors) {
+        super(message);
+        this.name = "ConventionalCommitError";
+        this.errors = errors;
+    }
+}
+exports.ConventionalCommitError = ConventionalCommitError;
+class MergeCommitError extends Error {
+    constructor() {
+        super("Commit Message is a 'merge' commit!");
+        this.name = "MergeCommitError";
+    }
+}
+exports.MergeCommitError = MergeCommitError;
+class FixupCommitError extends Error {
+    constructor() {
+        super("Commit Message is a 'fixup' commit!");
+        this.name = "FixupCommitError";
+    }
+}
+exports.FixupCommitError = FixupCommitError;
 
 
 /***/ }),
@@ -2308,51 +2532,19 @@ exports.LlvmError = LlvmError;
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.validateRules = exports.FixupCommitError = exports.MergeCommitError = exports.ConventionalCommitError = void 0;
+exports.getConventionalCommitRule = exports.ALL_RULES = exports.validateRules = void 0;
 const difflib = __nccwpck_require__(4087);
 const logging_1 = __nccwpck_require__(1517);
-class ConventionalCommitError extends Error {
-    constructor(message, errors) {
-        super(message);
-        this.name = "ConventionalCommitError";
-        this.errors = errors;
-    }
-}
-exports.ConventionalCommitError = ConventionalCommitError;
-class MergeCommitError extends Error {
-    constructor() {
-        super("Commit Message is a 'merge' commit!");
-        this.name = "MergeCommitError";
-    }
-}
-exports.MergeCommitError = MergeCommitError;
-class FixupCommitError extends Error {
-    constructor() {
-        super("Commit Message is a 'fixup' commit!");
-        this.name = "FixupCommitError";
-    }
-}
-exports.FixupCommitError = FixupCommitError;
 /**
  * Validates the commit message against the specified ruleset
  */
 function validateRules(message, config) {
-    const rules = [
-        C001_non_lower_case_type,
-        C002_one_whiteline_between_subject_and_body,
-        C003_title_case_description,
-        C004_unknown_tag_type,
-        C005_separator_contains_trailing_whitespaces,
-        C006_scope_should_not_be_empty,
-        C007_scope_contains_whitespace,
-        C008_missing_separator,
-        C009_missing_description,
-        C010_breaking_indicator_contains_whitespacing,
-    ];
     let errors = [];
-    for (const rule of rules) {
+    for (const rule of exports.ALL_RULES) {
         try {
-            rule(message, config);
+            if (!(rule.id in config.ignore)) {
+                rule.validate(message, config);
+            }
         }
         catch (error) {
             if (error instanceof logging_1.LlvmError) {
@@ -2369,156 +2561,505 @@ exports.validateRules = validateRules;
 /**
  * The commit message's tag type should be in lower case
  */
-function C001_non_lower_case_type(message, _) {
-    if (message.type === undefined) {
-        return;
+class NonLowerCaseType {
+    constructor() {
+        this.id = "C001";
+        this.description = "The commit message's tag type should be in lower case";
     }
-    if (message.type.toLowerCase() !== message.type) {
-        let msg = new logging_1.LlvmError();
-        msg.message =
-            "[C001] The commit message's tag type should be in lower case";
-        msg.line = message.subject;
-        msg.column_number = new logging_1.LlvmRange(message.subject.indexOf(message.type) + 1, message.type.length);
-        msg.expectations = message.type.toLowerCase();
-        throw msg;
+    validate(message, _) {
+        if (message.type === undefined) {
+            return;
+        }
+        if (message.type.toLowerCase() !== message.type) {
+            let msg = new logging_1.LlvmError();
+            msg.message = `[${this.id}] ${this.description}`;
+            msg.line = message.subject;
+            msg.column_number = new logging_1.LlvmRange(message.subject.indexOf(message.type) + 1, message.type.length);
+            msg.expectations = message.type.toLowerCase();
+            throw msg;
+        }
     }
 }
 /**
  * Only one empty line between subject and body
  */
-function C002_one_whiteline_between_subject_and_body(message, _) {
-    if (message.body.length >= 2 && message.body[1].trim() === "") {
-        let msg = new logging_1.LlvmError();
-        msg.message = "[C002] Only one empty line between subject and body";
-        msg.line = message.subject;
-        throw msg;
+class OneWhitelineBetweenSubjectAndBody {
+    constructor() {
+        this.id = "C002";
+        this.description = "Only one empty line between subject and body";
+    }
+    validate(message, _) {
+        if (message.body.length >= 2 && message.body[1].trim() === "") {
+            let msg = new logging_1.LlvmError();
+            msg.message = `[${this.id}] ${this.description}`;
+            msg.line = message.subject;
+            throw msg;
+        }
     }
 }
 /**
  * The commit message's description should not start with a capital case letter
  */
-function C003_title_case_description(message, _) {
-    if (message.description &&
-        message.description[0] !== message.description[0].toLowerCase()) {
-        let msg = new logging_1.LlvmError();
-        msg.message =
-            "[C003] The commit message's description should not start with a capital case letter";
-        msg.line = message.subject;
-        msg.column_number = new logging_1.LlvmRange(message.subject.indexOf(message.description) + 1);
-        msg.expectations = message.description[0].toLowerCase();
-        throw msg;
+class TitleCaseDescription {
+    constructor() {
+        this.id = "C003";
+        this.description = "The commit message's description should not start with a capital case letter";
+    }
+    validate(message, _) {
+        if (message.description &&
+            message.description[0] !== message.description[0].toLowerCase()) {
+            let msg = new logging_1.LlvmError();
+            msg.message = `[${this.id}] ${this.description}`;
+            msg.line = message.subject;
+            msg.column_number = new logging_1.LlvmRange(message.subject.indexOf(message.description) + 1);
+            msg.expectations = message.description[0].toLowerCase();
+            throw msg;
+        }
     }
 }
 /**
  * Commit message's subject should not contain an unknown tag type
  */
-function C004_unknown_tag_type(message, config) {
-    if (message.type === undefined) {
-        return;
+class UnknownTagType {
+    constructor() {
+        this.id = "C004";
+        this.description = "Commit message's subject should not contain an unknown tag type";
     }
-    if (!(message.type in config.tags)) {
-        const matches = difflib.getCloseMatches(message.type.toLowerCase(), Object.keys(config.tags));
-        const closest_match = matches
-            ? matches[0]
-            : Object.keys(config.tags).join(", ");
-        let msg = new logging_1.LlvmError();
-        msg.message = `[C004] Commit message's subject should not contain an unknown tag type. Use one of: ${Object.keys(config.tags).join(", ")}`;
-        msg.line = message.subject;
-        msg.column_number = new logging_1.LlvmRange(message.subject.indexOf(message.type) + 1, message.type.length);
-        msg.expectations = closest_match;
-        throw msg;
+    validate(message, config) {
+        if (message.type === undefined) {
+            return;
+        }
+        if (!(message.type in config.tags)) {
+            const matches = difflib.getCloseMatches(message.type.toLowerCase(), Object.keys(config.tags));
+            const closest_match = matches
+                ? matches[0]
+                : Object.keys(config.tags).join(", ");
+            let msg = new logging_1.LlvmError();
+            msg.message = `[${this.id}] ${this.description}. Use one of: ${Object.keys(config.tags).join(", ")}`;
+            msg.line = message.subject;
+            msg.column_number = new logging_1.LlvmRange(message.subject.indexOf(message.type) + 1, message.type.length);
+            msg.expectations = closest_match;
+            throw msg;
+        }
     }
 }
 /**
  * Only one whitespace allowed after the ":" separator
  */
-function C005_separator_contains_trailing_whitespaces(message, _) {
-    if (message.separator === null) {
-        return;
+class SeparatorContainsTrailingWhitespaces {
+    constructor() {
+        this.id = "C005";
+        this.description = 'Only one whitespace allowed after the ":" separator';
     }
-    if (message.separator !== ": ") {
-        let msg = new logging_1.LlvmError();
-        msg.message = '[C005] Only one whitespace allowed after the ":" separator';
-        msg.line = message.subject;
-        msg.expectations = `: ${message.description}`;
-        throw msg;
+    validate(message, _) {
+        if (message.separator === null) {
+            return;
+        }
+        if (message.separator !== ": ") {
+            let msg = new logging_1.LlvmError();
+            msg.message = `[${this.id}] ${this.description}`;
+            msg.line = message.subject;
+            msg.column_number = new logging_1.LlvmRange(message.subject.indexOf(message.separator) + 1, message.separator.length);
+            msg.expectations = `: `;
+            throw msg;
+        }
     }
 }
 /**
  * The commit message's scope should not be empty
  */
-function C006_scope_should_not_be_empty(message, _) {
-    if (message.scope === undefined) {
-        return;
+class ScopeShouldNotBeEmpty {
+    constructor() {
+        this.id = "C006";
+        this.description = "The commit message's scope should not be empty";
     }
-    if (!message.scope.trim()) {
-        let msg = new logging_1.LlvmError();
-        msg.message = "[C006] The commit message's scope should not be empty";
-        msg.line = message.subject;
-        msg.column_number = new logging_1.LlvmRange(message.subject.indexOf("(") + 1, message.scope.length + 2);
-        throw msg;
+    validate(message, _) {
+        if (message.scope === undefined) {
+            return;
+        }
+        if (!message.scope.trim()) {
+            let msg = new logging_1.LlvmError();
+            msg.message = `[${this.id}] ${this.description}`;
+            msg.line = message.subject;
+            msg.column_number = new logging_1.LlvmRange(message.subject.indexOf("(") + 1, message.scope.length + 2);
+            throw msg;
+        }
     }
 }
 /**
  * The commit message's scope should not contain any whitespacing
  */
-function C007_scope_contains_whitespace(message, _) {
-    if (message.scope === undefined) {
-        return;
+class ScopeContainsWhitespace {
+    constructor() {
+        this.id = "C007";
+        this.description = "The commit message's scope should not contain any whitespacing";
     }
-    if (message.scope.length != message.scope.trim().length) {
-        let msg = new logging_1.LlvmError();
-        msg.message =
-            "[C007] The commit message's scope should not contain any whitespacing";
-        msg.line = message.subject;
-        msg.column_number = new logging_1.LlvmRange(message.subject.indexOf("("), message.scope.length + 2);
-        msg.expectations = message.scope.trim();
-        throw msg;
+    validate(message, _) {
+        if (message.scope && message.scope.length != message.scope.trim().length) {
+            let msg = new logging_1.LlvmError();
+            msg.message = `[${this.id}] ${this.description}`;
+            msg.line = message.subject;
+            msg.column_number = new logging_1.LlvmRange(message.subject.indexOf("(") + 2, message.scope.length);
+            msg.expectations = message.scope.trim();
+            throw msg;
+        }
     }
 }
 /**
  * The commit message's subject requires a separator (": ") after the type tag
  */
-function C008_missing_separator(message, _) {
-    if (!message.separator || message.separator.indexOf(":") === -1) {
-        let msg = new logging_1.LlvmError();
-        msg.message = `[C008] The commit message's subject requires a separator (": ") after the type tag`;
-        msg.line = message.subject;
-        msg.column_number = new logging_1.LlvmRange(message.subject.indexOf(message.description) -
-            message.separator.length +
-            1, message.description.length + message.separator.length);
-        msg.expectations = `: ${message.description}`;
-        throw msg;
+class MissingSeparator {
+    constructor() {
+        this.id = "C008";
+        this.description = `The commit message's subject requires a separator (": ") after the type tag`;
+    }
+    validate(message, _) {
+        if (message.separator === undefined ||
+            message.separator.indexOf(":") === -1) {
+            let msg = new logging_1.LlvmError();
+            msg.message = `[${this.id}] ${this.description}`;
+            msg.line = message.subject;
+            if (message.scope) {
+                msg.column_number = new logging_1.LlvmRange(message.subject.indexOf(message.scope) + message.scope.length + 2);
+            }
+            else if (message.breaking_change) {
+                msg.column_number = new logging_1.LlvmRange(message.subject.indexOf(message.breaking_change));
+            }
+            else {
+                msg.column_number = new logging_1.LlvmRange(message.subject.indexOf(" ") + 1);
+            }
+            msg.expectations = `:`;
+            throw msg;
+        }
     }
 }
 /**
  * The commit message requires a description
  */
-function C009_missing_description(message, _) {
-    if (!message.description) {
-        let msg = new logging_1.LlvmError();
-        msg.message = "[C009] The commit message requires a description";
-        msg.line = message.subject;
-        msg.column_number = new logging_1.LlvmRange(message.subject.length + 1);
-        throw msg;
+class MissingDescription {
+    constructor() {
+        this.id = "C009";
+        this.description = "The commit message requires a description";
+    }
+    validate(message, _) {
+        if (!message.description) {
+            let msg = new logging_1.LlvmError();
+            msg.message = `[${this.id}] ${this.description}`;
+            msg.line = message.subject;
+            msg.column_number = new logging_1.LlvmRange(message.subject.length + 2);
+            throw msg;
+        }
     }
 }
 /**
  * No whitespace allowed around the "!" indicator
  */
-function C010_breaking_indicator_contains_whitespacing(message, _) {
-    if (!message.breaking_change) {
-        return;
+class BreakingIndicatorContainsWhitespacing {
+    constructor() {
+        this.id = "C010";
+        this.description = 'No whitespace allowed around the "!" indicator';
     }
-    if (message.breaking_change.trim() !== message.breaking_change) {
-        let msg = new logging_1.LlvmError();
-        msg.message = `[C010] No whitespace allowed around the "!" indicator`;
-        msg.line = message.subject;
-        msg.column_number = new logging_1.LlvmRange(message.subject.indexOf(message.breaking_change) + 1, message.breaking_change.length);
-        msg.expectations = `!${message.separator}${message.description}`;
-        throw msg;
+    validate(message, _) {
+        if (message.breaking_change &&
+            message.breaking_change.trim() !== message.breaking_change) {
+            let msg = new logging_1.LlvmError();
+            msg.message = `[${this.id}] ${this.description}`;
+            msg.line = message.subject;
+            msg.column_number = new logging_1.LlvmRange(message.subject.indexOf(message.breaking_change) + 1, message.breaking_change.length + message.separator.trimEnd().length);
+            msg.expectations = `!:`;
+            throw msg;
+        }
     }
 }
+/**
+ * Breaking separator should consist of only one indicator
+ */
+class OnlySingleBreakingIndicator {
+    constructor() {
+        this.id = "C011";
+        this.description = "Breaking separator should consist of only one indicator";
+    }
+    validate(message, _) {
+        if (message.breaking_change && message.breaking_change.trim().length > 1) {
+            let msg = new logging_1.LlvmError();
+            msg.message = `[${this.id}] ${this.description}`;
+            msg.line = message.subject;
+            msg.column_number = new logging_1.LlvmRange(message.subject.indexOf(message.breaking_change) + 1, message.breaking_change.length + 1);
+            msg.expectations = `!:`;
+            throw msg;
+        }
+    }
+}
+/**
+ * The commit message's subject requires a type
+ */
+class MissingTypeTag {
+    constructor() {
+        this.id = "C012";
+        this.description = "The commit message's subject requires a type";
+    }
+    validate(message, _) {
+        if (!message.type) {
+            let msg = new logging_1.LlvmError();
+            msg.message = `[${this.id}] ${this.description}`;
+            msg.line = message.subject;
+            throw msg;
+        }
+    }
+}
+/**
+ * The commit message's subject should not end with punctuation
+ */
+class SubjectShouldNotEndWithPunctuation {
+    constructor() {
+        this.id = "C013";
+        this.description = "The commit message's subject should not end with punctuation";
+    }
+    validate(message, _) {
+        if (message.description.match(/.*[.!?,]$/)) {
+            let msg = new logging_1.LlvmError();
+            msg.message = `[${this.id}] ${this.description}`;
+            msg.line = message.subject;
+            msg.column_number = new logging_1.LlvmRange(message.subject.length);
+            throw msg;
+        }
+    }
+}
+/**
+ * The commit message's subject should be within the line length limit
+ */
+class SubjectExceedsLineLengthLimit {
+    constructor() {
+        this.id = "C014";
+        this.description = "The commit message's subject should be within the line length limit";
+    }
+    validate(message, config) {
+        if (message.subject.length > config.max_subject_length) {
+            let msg = new logging_1.LlvmError();
+            msg.message = `[${this.id}] ${this.description} (${config.max_subject_length}), exceeded by ${message.subject.length - config.max_subject_length + 1} characters`;
+            msg.line = message.subject;
+            msg.column_number = new logging_1.LlvmRange(config.max_subject_length, message.subject.length - config.max_subject_length + 1);
+            throw msg;
+        }
+    }
+}
+/**
+ * Description should not start with a repetition of the tag
+ */
+class NoRepeatedTags {
+    constructor() {
+        this.id = "C015";
+        this.description = "Description should not start with a repetition of the tag";
+    }
+    validate(message, _) {
+        if (message.description &&
+            message.type &&
+            message.description
+                .toLocaleUpperCase()
+                .startsWith(message.type.toLowerCase())) {
+            let msg = new logging_1.LlvmError();
+            msg.message = `[${this.id}] ${this.description}`;
+            msg.line = message.subject;
+            msg.column_number = new logging_1.LlvmRange(message.subject.indexOf(message.description) + 1, message.type.length);
+            throw msg;
+        }
+    }
+}
+/**
+ * The commit message's description should be written in imperative mood
+ */
+class DescriptionInImperativeMood {
+    constructor() {
+        this.id = "C016";
+        this.description = "The commit message's description should be written in imperative mood";
+    }
+    validate(message, _) {
+        const common_non_imperative_verbs = [
+            "added",
+            "adds",
+            "adding",
+            "applied",
+            "applies",
+            "applying",
+            "edited",
+            "edits",
+            "editing",
+            "expanded",
+            "expands",
+            "expanding",
+            "fixed",
+            "fixes",
+            "fixing",
+            "removed",
+            "removes",
+            "removing",
+            "renamed",
+            "renames",
+            "renaming",
+            "deleted",
+            "deletes",
+            "deleting",
+            "updated",
+            "updates",
+            "updating",
+            "ensured",
+            "ensures",
+            "ensuring",
+            "resolved",
+            "resolves",
+            "resolving",
+            "verified",
+            "verifies",
+            "verifying",
+        ];
+        if (message.description.match(new RegExp(`${common_non_imperative_verbs.join("|")}`, "i"))) {
+            let msg = new logging_1.LlvmError();
+            msg.message = `[${this.id}] ${this.description}`;
+            msg.line = message.subject;
+            msg.column_number = new logging_1.LlvmRange(message.subject.indexOf(message.description) + 1, message.description.split(" ")[0].length);
+            throw msg;
+        }
+    }
+}
+/**
+ * Subject should not contain reference to review comments
+ */
+class SubjectContainsReviewRemarks {
+    constructor() {
+        this.id = "C017";
+        this.description = "Subject should not contain reference to review comments";
+    }
+    validate(_, __) {
+        // TODO: implement this rule
+    }
+}
+/**
+ * The commit message should contain an empty line between subject and body
+ */
+class MissingEmptyLineBetweenSubjectAndBody {
+    constructor() {
+        this.id = "C018";
+        this.description = "The commit message should contain an empty line between subject and body";
+    }
+    validate(message, _) {
+        if (message.body && message.body[0]) {
+            let msg = new logging_1.LlvmError();
+            msg.message =
+                "[C018] The commit message should contain an empty line between subject and body";
+            throw msg;
+        }
+    }
+}
+/**
+ * The commit message's subject should not contain a ticket reference
+ */
+class SubjectContainsIssueReference {
+    constructor() {
+        this.id = "C018";
+        this.description = "The commit message's subject should not contain a ticket reference";
+    }
+    validate(message, _) {
+        return;
+        if (message.subject.matchAll(new RegExp(`\b(?!${["AES", "PEP", "SHA", "UTF", "VT"].join("|")}\-)[A-Z]+-[0-9]+\b`))) {
+            let msg = new logging_1.LlvmError();
+            msg.message = `[${this.id}] ${this.description}`;
+            msg.line = message.subject;
+            throw msg;
+        }
+    }
+}
+/**
+ * Git-trailer should not contain whitespace(s)
+ */
+class GitTrailerContainsWhitespace {
+    constructor() {
+        this.id = "C020";
+        this.description = "Git-trailer should not contain whitespace(s)";
+    }
+    validate(message, _) {
+        message.footers.forEach((item) => {
+            if (item.token.indexOf(" ") >= 0) {
+                let msg = new logging_1.LlvmError();
+                msg.message = `[${this.id}] ${this.description}`;
+                msg.line = `${item.token}: ${item.value}`;
+                msg.column_number = new logging_1.LlvmRange(0, item.token.length);
+                throw msg;
+            }
+        });
+    }
+}
+/**
+ * Footer should not contain any blank line(s)
+ */
+class FooterContainsBlankLine {
+    constructor() {
+        this.id = "C022";
+        this.description = "Footer should not contain any blank line(s)";
+    }
+    validate(message, _) {
+        for (const item of message.footers) {
+            if (!item.token || item.value.length === 0) {
+                let msg = new logging_1.LlvmError();
+                msg.message = `[${this.id}] ${this.description}`;
+                throw msg;
+            }
+        }
+    }
+}
+/**
+ * The BREAKING CHANGE git-trailer should be the first element in the footer
+ */
+class BreakingChangeMustBeFirstGitTrailer {
+    constructor() {
+        this.id = "C023";
+        this.description = "The BREAKING CHANGE git-trailer should be the first element in the footer";
+    }
+    validate(message, _) {
+        message.footers.forEach((item, index) => {
+            if (item.token === "BREAKING-CHANGE") {
+                if (index === 0) {
+                    return;
+                }
+                let msg = new logging_1.LlvmError();
+                msg.message = `[${this.id}] ${this.description}`;
+                throw msg;
+            }
+        });
+    }
+}
+exports.ALL_RULES = [
+    new NonLowerCaseType(),
+    new OneWhitelineBetweenSubjectAndBody(),
+    new TitleCaseDescription(),
+    new UnknownTagType(),
+    new SeparatorContainsTrailingWhitespaces(),
+    new ScopeShouldNotBeEmpty(),
+    new ScopeContainsWhitespace(),
+    new MissingSeparator(),
+    new MissingDescription(),
+    new BreakingIndicatorContainsWhitespacing(),
+    new OnlySingleBreakingIndicator(),
+    new MissingTypeTag(),
+    new SubjectShouldNotEndWithPunctuation(),
+    new SubjectExceedsLineLengthLimit(),
+    new NoRepeatedTags(),
+    new DescriptionInImperativeMood(),
+    new SubjectContainsReviewRemarks(),
+    new MissingEmptyLineBetweenSubjectAndBody(),
+    new SubjectContainsIssueReference(),
+    new GitTrailerContainsWhitespace(),
+    new FooterContainsBlankLine(),
+    new BreakingChangeMustBeFirstGitTrailer(),
+];
+function getConventionalCommitRule(id) {
+    for (const rule of exports.ALL_RULES) {
+        if (rule.id === id) {
+            return rule;
+        }
+    }
+    throw new Error(`Unknown rule: ${id}`);
+}
+exports.getConventionalCommitRule = getConventionalCommitRule;
 
 
 /***/ }),
@@ -14295,60 +14836,12 @@ exports.visitAsync = visitAsync;
 /******/ 	if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = __dirname + "/";
 /******/ 	
 /************************************************************************/
-var __webpack_exports__ = {};
-// This entry need to be wrapped in an IIFE because it need to be in strict mode.
-(() => {
-"use strict";
-var exports = __webpack_exports__;
-
-/**
- * Copyright (C) 2022, TomTom (http://tomtom.com).
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-const fs = __nccwpck_require__(7147);
-const os = __nccwpck_require__(2037);
-const { Command } = __nccwpck_require__(4379);
-const commit_1 = __nccwpck_require__(1730);
-const config_1 = __nccwpck_require__(6373);
-const rules_1 = __nccwpck_require__(1058);
-const program = new Command();
-program
-    .name("commisery")
-    .description("Commisery Conventional Commit Message Manager");
-program
-    .command("check")
-    .description("Check Conventional Commit Compliance")
-    .argument("<filehandle>", "Conventional Commit Message")
-    .action((filehandle) => {
-    const config = new config_1.Configuration();
-    const message = fs.readFileSync(filehandle, "utf8");
-    try {
-        const commit = new commit_1.ConventionalCommitMessage(message, undefined, config);
-    }
-    catch (error) {
-        if (error instanceof rules_1.ConventionalCommitError) {
-            for (const err of error.errors) {
-                console.log(err.report());
-            }
-        }
-    }
-});
-program.parse();
-
-})();
-
-module.exports = __webpack_exports__;
+/******/ 	
+/******/ 	// startup
+/******/ 	// Load entry module and return exports
+/******/ 	// This entry module is referenced by other modules so it can't be inlined
+/******/ 	var __webpack_exports__ = __nccwpck_require__(5810);
+/******/ 	module.exports = __webpack_exports__;
+/******/ 	
 /******/ })()
 ;

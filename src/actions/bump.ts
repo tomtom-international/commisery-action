@@ -26,7 +26,7 @@ import {
   ConventionalCommitError,
   FixupCommitError,
   MergeCommitError,
-} from "../rules";
+} from "../errors";
 
 const octokit = getOctokit(core.getInput("token"));
 

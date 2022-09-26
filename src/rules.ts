@@ -20,28 +20,14 @@ import { ConventionalCommitMetadata } from "./commit";
 import { Configuration } from "./config";
 import { LlvmError, LlvmRange } from "./logging";
 
-export class ConventionalCommitError extends Error {
-  errors: LlvmError[];
+export interface IConventionalCommitRule {
+  description: string;
+  id: string;
 
-  constructor(message: string, errors: LlvmError[]) {
-    super(message);
-    this.name = "ConventionalCommitError";
-    this.errors = errors;
-  }
-}
-
-export class MergeCommitError extends Error {
-  constructor() {
-    super("Commit Message is a 'merge' commit!");
-    this.name = "MergeCommitError";
-  }
-}
-
-export class FixupCommitError extends Error {
-  constructor() {
-    super("Commit Message is a 'fixup' commit!");
-    this.name = "FixupCommitError";
-  }
+  validate: (
+    message: ConventionalCommitMetadata,
+    config: Configuration
+  ) => void;
 }
 
 /**
@@ -51,24 +37,13 @@ export function validateRules(
   message: ConventionalCommitMetadata,
   config: Configuration
 ) {
-  const rules = [
-    C001_non_lower_case_type,
-    C002_one_whiteline_between_subject_and_body,
-    C003_title_case_description,
-    C004_unknown_tag_type,
-    C005_separator_contains_trailing_whitespaces,
-    C006_scope_should_not_be_empty,
-    C007_scope_contains_whitespace,
-    C008_missing_separator,
-    C009_missing_description,
-    C010_breaking_indicator_contains_whitespacing,
-  ];
-
   let errors: LlvmError[] = [];
 
-  for (const rule of rules) {
+  for (const rule of ALL_RULES) {
     try {
-      rule(message, config);
+      if (!(rule.id in config.ignore)) {
+        rule.validate(message, config);
+      }
     } catch (error) {
       if (error instanceof LlvmError) {
         errors.push(error);
@@ -84,236 +59,599 @@ export function validateRules(
 /**
  * The commit message's tag type should be in lower case
  */
-function C001_non_lower_case_type(
-  message: ConventionalCommitMetadata,
-  _: Configuration
-) {
-  if (message.type === undefined) {
-    return;
-  }
+class NonLowerCaseType implements IConventionalCommitRule {
+  id = "C001";
+  description = "The commit message's tag type should be in lower case";
 
-  if (message.type.toLowerCase() !== message.type) {
-    let msg = new LlvmError();
-    msg.message =
-      "[C001] The commit message's tag type should be in lower case";
-    msg.line = message.subject;
-    msg.column_number = new LlvmRange(
-      message.subject.indexOf(message.type) + 1,
-      message.type.length
-    );
-    msg.expectations = message.type.toLowerCase();
+  validate(message: ConventionalCommitMetadata, _: Configuration) {
+    if (message.type === undefined) {
+      return;
+    }
+    if (message.type.toLowerCase() !== message.type) {
+      let msg = new LlvmError();
+      msg.message = `[${this.id}] ${this.description}`;
+      msg.line = message.subject;
+      msg.column_number = new LlvmRange(
+        message.subject.indexOf(message.type) + 1,
+        message.type.length
+      );
+      msg.expectations = message.type.toLowerCase();
 
-    throw msg;
+      throw msg;
+    }
   }
 }
 
 /**
  * Only one empty line between subject and body
  */
-function C002_one_whiteline_between_subject_and_body(
-  message: ConventionalCommitMetadata,
-  _: Configuration
-) {
-  if (message.body.length >= 2 && message.body[1].trim() === "") {
-    let msg = new LlvmError();
-    msg.message = "[C002] Only one empty line between subject and body";
-    msg.line = message.subject;
+class OneWhitelineBetweenSubjectAndBody implements IConventionalCommitRule {
+  id = "C002";
+  description = "Only one empty line between subject and body";
 
-    throw msg;
+  validate(message: ConventionalCommitMetadata, _: Configuration) {
+    if (message.body.length >= 2 && message.body[1].trim() === "") {
+      let msg = new LlvmError();
+      msg.message = `[${this.id}] ${this.description}`;
+      msg.line = message.subject;
+
+      throw msg;
+    }
   }
 }
 
 /**
  * The commit message's description should not start with a capital case letter
  */
-function C003_title_case_description(
-  message: ConventionalCommitMetadata,
-  _: Configuration
-) {
-  if (
-    message.description &&
-    message.description[0] !== message.description[0].toLowerCase()
-  ) {
-    let msg = new LlvmError();
-    msg.message =
-      "[C003] The commit message's description should not start with a capital case letter";
-    msg.line = message.subject;
-    msg.column_number = new LlvmRange(
-      message.subject.indexOf(message.description) + 1
-    );
-    msg.expectations = message.description[0].toLowerCase();
+class TitleCaseDescription implements IConventionalCommitRule {
+  id = "C003";
+  description =
+    "The commit message's description should not start with a capital case letter";
 
-    throw msg;
+  validate(message: ConventionalCommitMetadata, _: Configuration) {
+    if (
+      message.description &&
+      message.description[0] !== message.description[0].toLowerCase()
+    ) {
+      let msg = new LlvmError();
+      msg.message = `[${this.id}] ${this.description}`;
+      msg.line = message.subject;
+      msg.column_number = new LlvmRange(
+        message.subject.indexOf(message.description) + 1
+      );
+      msg.expectations = message.description[0].toLowerCase();
+
+      throw msg;
+    }
   }
 }
 
 /**
  * Commit message's subject should not contain an unknown tag type
  */
-function C004_unknown_tag_type(
-  message: ConventionalCommitMetadata,
-  config: Configuration
-) {
-  if (message.type === undefined) {
-    return;
-  }
+class UnknownTagType implements IConventionalCommitRule {
+  id = "C004";
+  description =
+    "Commit message's subject should not contain an unknown tag type";
 
-  if (!(message.type in config.tags)) {
-    const matches = difflib.getCloseMatches(
-      message.type.toLowerCase(),
-      Object.keys(config.tags)
-    );
-    const closest_match = matches
-      ? matches[0]
-      : Object.keys(config.tags).join(", ");
+  validate(message: ConventionalCommitMetadata, config: Configuration) {
+    if (message.type === undefined) {
+      return;
+    }
 
-    let msg = new LlvmError();
-    msg.message = `[C004] Commit message's subject should not contain an unknown tag type. Use one of: ${Object.keys(
-      config.tags
-    ).join(", ")}`;
-    msg.line = message.subject;
-    msg.column_number = new LlvmRange(
-      message.subject.indexOf(message.type) + 1,
-      message.type.length
-    );
-    msg.expectations = closest_match;
+    if (!(message.type in config.tags)) {
+      const matches = difflib.getCloseMatches(
+        message.type.toLowerCase(),
+        Object.keys(config.tags)
+      );
+      const closest_match = matches
+        ? matches[0]
+        : Object.keys(config.tags).join(", ");
 
-    throw msg;
+      let msg = new LlvmError();
+      msg.message = `[${this.id}] ${
+        this.description
+      }. Use one of: ${Object.keys(config.tags).join(", ")}`;
+      msg.line = message.subject;
+      msg.column_number = new LlvmRange(
+        message.subject.indexOf(message.type) + 1,
+        message.type.length
+      );
+      msg.expectations = closest_match;
+
+      throw msg;
+    }
   }
 }
 
 /**
  * Only one whitespace allowed after the ":" separator
  */
-function C005_separator_contains_trailing_whitespaces(
-  message: ConventionalCommitMetadata,
-  _: Configuration
-) {
-  if (message.separator === null) {
-    return;
-  }
+class SeparatorContainsTrailingWhitespaces implements IConventionalCommitRule {
+  id = "C005";
+  description = 'Only one whitespace allowed after the ":" separator';
 
-  if (message.separator !== ": ") {
-    let msg = new LlvmError();
-    msg.message = '[C005] Only one whitespace allowed after the ":" separator';
-    msg.line = message.subject;
-    msg.expectations = `: ${message.description}`;
+  validate(message: ConventionalCommitMetadata, _: Configuration) {
+    if (message.separator === null) {
+      return;
+    }
 
-    throw msg;
+    if (message.separator !== ": ") {
+      let msg = new LlvmError();
+      msg.message = `[${this.id}] ${this.description}`;
+      msg.line = message.subject;
+      msg.column_number = new LlvmRange(
+        message.subject.indexOf(message.separator) + 1,
+        message.separator.length
+      );
+      msg.expectations = `: `;
+
+      throw msg;
+    }
   }
 }
 
 /**
  * The commit message's scope should not be empty
  */
-function C006_scope_should_not_be_empty(
-  message: ConventionalCommitMetadata,
-  _: Configuration
-) {
-  if (message.scope === undefined) {
-    return;
-  }
+class ScopeShouldNotBeEmpty implements IConventionalCommitRule {
+  id = "C006";
+  description = "The commit message's scope should not be empty";
 
-  if (!message.scope.trim()) {
-    let msg = new LlvmError();
-    msg.message = "[C006] The commit message's scope should not be empty";
-    msg.line = message.subject;
-    msg.column_number = new LlvmRange(
-      message.subject.indexOf("(") + 1,
-      message.scope.length + 2
-    );
+  validate(message: ConventionalCommitMetadata, _: Configuration) {
+    if (message.scope === undefined) {
+      return;
+    }
 
-    throw msg;
+    if (!message.scope.trim()) {
+      let msg = new LlvmError();
+
+      msg.message = `[${this.id}] ${this.description}`;
+      msg.line = message.subject;
+      msg.column_number = new LlvmRange(
+        message.subject.indexOf("(") + 1,
+        message.scope.length + 2
+      );
+
+      throw msg;
+    }
   }
 }
 
 /**
  * The commit message's scope should not contain any whitespacing
  */
-function C007_scope_contains_whitespace(
-  message: ConventionalCommitMetadata,
-  _: Configuration
-) {
-  if (message.scope === undefined) {
-    return;
-  }
+class ScopeContainsWhitespace implements IConventionalCommitRule {
+  id = "C007";
+  description =
+    "The commit message's scope should not contain any whitespacing";
 
-  if (message.scope.length != message.scope.trim().length) {
-    let msg = new LlvmError();
-    msg.message =
-      "[C007] The commit message's scope should not contain any whitespacing";
-    msg.line = message.subject;
-    msg.column_number = new LlvmRange(
-      message.subject.indexOf("("),
-      message.scope.length + 2
-    );
-    msg.expectations = message.scope.trim();
+  validate(message: ConventionalCommitMetadata, _: Configuration) {
+    if (message.scope && message.scope.length != message.scope.trim().length) {
+      let msg = new LlvmError();
+      msg.message = `[${this.id}] ${this.description}`;
+      msg.line = message.subject;
+      msg.column_number = new LlvmRange(
+        message.subject.indexOf("(") + 2,
+        message.scope.length
+      );
+      msg.expectations = message.scope.trim();
 
-    throw msg;
+      throw msg;
+    }
   }
 }
 
 /**
  * The commit message's subject requires a separator (": ") after the type tag
  */
-function C008_missing_separator(
-  message: ConventionalCommitMetadata,
-  _: Configuration
-) {
-  if (!message.separator || message.separator.indexOf(":") === -1) {
-    let msg = new LlvmError();
-    msg.message = `[C008] The commit message's subject requires a separator (": ") after the type tag`;
-    msg.line = message.subject;
-    msg.column_number = new LlvmRange(
-      message.subject.indexOf(message.description) -
-        message.separator.length +
-        1,
-      message.description.length + message.separator.length
-    );
-    msg.expectations = `: ${message.description}`;
+class MissingSeparator implements IConventionalCommitRule {
+  id = "C008";
+  description = `The commit message's subject requires a separator (": ") after the type tag`;
 
-    throw msg;
+  validate(message: ConventionalCommitMetadata, _: Configuration) {
+    if (
+      message.separator === undefined ||
+      message.separator.indexOf(":") === -1
+    ) {
+      let msg = new LlvmError();
+      msg.message = `[${this.id}] ${this.description}`;
+      msg.line = message.subject;
+      if (message.scope) {
+        msg.column_number = new LlvmRange(
+          message.subject.indexOf(message.scope) + message.scope.length + 2
+        );
+      } else if (message.breaking_change) {
+        msg.column_number = new LlvmRange(
+          message.subject.indexOf(message.breaking_change)
+        );
+      } else {
+        msg.column_number = new LlvmRange(message.subject.indexOf(" ") + 1);
+      }
+      msg.expectations = `:`;
+
+      throw msg;
+    }
   }
 }
 
 /**
  * The commit message requires a description
  */
-function C009_missing_description(
-  message: ConventionalCommitMetadata,
-  _: Configuration
-) {
-  if (!message.description) {
-    let msg = new LlvmError();
-    msg.message = "[C009] The commit message requires a description";
-    msg.line = message.subject;
-    msg.column_number = new LlvmRange(message.subject.length + 1);
+class MissingDescription implements IConventionalCommitRule {
+  id = "C009";
+  description = "The commit message requires a description";
 
-    throw msg;
+  validate(message: ConventionalCommitMetadata, _: Configuration) {
+    if (!message.description) {
+      let msg = new LlvmError();
+      msg.message = `[${this.id}] ${this.description}`;
+      msg.line = message.subject;
+      msg.column_number = new LlvmRange(message.subject.length + 2);
+
+      throw msg;
+    }
   }
 }
 
 /**
  * No whitespace allowed around the "!" indicator
  */
-function C010_breaking_indicator_contains_whitespacing(
-  message: ConventionalCommitMetadata,
-  _: Configuration
-) {
-  if (!message.breaking_change) {
+class BreakingIndicatorContainsWhitespacing implements IConventionalCommitRule {
+  id = "C010";
+  description = 'No whitespace allowed around the "!" indicator';
+
+  validate(message: ConventionalCommitMetadata, _: Configuration) {
+    if (
+      message.breaking_change &&
+      message.breaking_change.trim() !== message.breaking_change
+    ) {
+      let msg = new LlvmError();
+      msg.message = `[${this.id}] ${this.description}`;
+      msg.line = message.subject;
+      msg.column_number = new LlvmRange(
+        message.subject.indexOf(message.breaking_change) + 1,
+        message.breaking_change.length + message.separator.trimEnd().length
+      );
+      msg.expectations = `!:`;
+
+      throw msg;
+    }
+  }
+}
+
+/**
+ * Breaking separator should consist of only one indicator
+ */
+class OnlySingleBreakingIndicator implements IConventionalCommitRule {
+  id = "C011";
+  description = "Breaking separator should consist of only one indicator";
+
+  validate(message: ConventionalCommitMetadata, _: Configuration) {
+    if (message.breaking_change && message.breaking_change.trim().length > 1) {
+      let msg = new LlvmError();
+      msg.message = `[${this.id}] ${this.description}`;
+      msg.line = message.subject;
+      msg.column_number = new LlvmRange(
+        message.subject.indexOf(message.breaking_change) + 1,
+        message.breaking_change.length + 1
+      );
+      msg.expectations = `!:`;
+
+      throw msg;
+    }
+  }
+}
+
+/**
+ * The commit message's subject requires a type
+ */
+class MissingTypeTag implements IConventionalCommitRule {
+  id = "C012";
+  description = "The commit message's subject requires a type";
+
+  validate(message: ConventionalCommitMetadata, _: Configuration) {
+    if (!message.type) {
+      let msg = new LlvmError();
+      msg.message = `[${this.id}] ${this.description}`;
+      msg.line = message.subject;
+
+      throw msg;
+    }
+  }
+}
+
+/**
+ * The commit message's subject should not end with punctuation
+ */
+class SubjectShouldNotEndWithPunctuation implements IConventionalCommitRule {
+  id = "C013";
+  description = "The commit message's subject should not end with punctuation";
+
+  validate(message: ConventionalCommitMetadata, _: Configuration) {
+    if (message.description.match(/.*[.!?,]$/)) {
+      let msg = new LlvmError();
+      msg.message = `[${this.id}] ${this.description}`;
+      msg.line = message.subject;
+      msg.column_number = new LlvmRange(message.subject.length);
+
+      throw msg;
+    }
+  }
+}
+
+/**
+ * The commit message's subject should be within the line length limit
+ */
+class SubjectExceedsLineLengthLimit implements IConventionalCommitRule {
+  id = "C014";
+  description =
+    "The commit message's subject should be within the line length limit";
+
+  validate(message: ConventionalCommitMetadata, config: Configuration) {
+    if (message.subject.length > config.max_subject_length) {
+      let msg = new LlvmError();
+      msg.message = `[${this.id}] ${this.description} (${
+        config.max_subject_length
+      }), exceeded by ${
+        message.subject.length - config.max_subject_length + 1
+      } characters`;
+      msg.line = message.subject;
+      msg.column_number = new LlvmRange(
+        config.max_subject_length,
+        message.subject.length - config.max_subject_length + 1
+      );
+
+      throw msg;
+    }
+  }
+}
+
+/**
+ * Description should not start with a repetition of the tag
+ */
+class NoRepeatedTags implements IConventionalCommitRule {
+  id = "C015";
+  description = "Description should not start with a repetition of the tag";
+
+  validate(message: ConventionalCommitMetadata, _: Configuration) {
+    if (
+      message.description &&
+      message.type &&
+      message.description
+        .toLocaleUpperCase()
+        .startsWith(message.type.toLowerCase())
+    ) {
+      let msg = new LlvmError();
+      msg.message = `[${this.id}] ${this.description}`;
+      msg.line = message.subject;
+      msg.column_number = new LlvmRange(
+        message.subject.indexOf(message.description) + 1,
+        message.type.length
+      );
+
+      throw msg;
+    }
+  }
+}
+
+/**
+ * The commit message's description should be written in imperative mood
+ */
+class DescriptionInImperativeMood implements IConventionalCommitRule {
+  id = "C016";
+  description =
+    "The commit message's description should be written in imperative mood";
+
+  validate(message: ConventionalCommitMetadata, _: Configuration) {
+    const common_non_imperative_verbs = [
+      "added",
+      "adds",
+      "adding",
+      "applied",
+      "applies",
+      "applying",
+      "edited",
+      "edits",
+      "editing",
+      "expanded",
+      "expands",
+      "expanding",
+      "fixed",
+      "fixes",
+      "fixing",
+      "removed",
+      "removes",
+      "removing",
+      "renamed",
+      "renames",
+      "renaming",
+      "deleted",
+      "deletes",
+      "deleting",
+      "updated",
+      "updates",
+      "updating",
+      "ensured",
+      "ensures",
+      "ensuring",
+      "resolved",
+      "resolves",
+      "resolving",
+      "verified",
+      "verifies",
+      "verifying",
+    ];
+    if (
+      message.description.match(
+        new RegExp(`${common_non_imperative_verbs.join("|")}`, "i")
+      )
+    ) {
+      let msg = new LlvmError();
+      msg.message = `[${this.id}] ${this.description}`;
+      msg.line = message.subject;
+      msg.column_number = new LlvmRange(
+        message.subject.indexOf(message.description) + 1,
+        message.description.split(" ")[0].length
+      );
+
+      throw msg;
+    }
+  }
+}
+
+/**
+ * Subject should not contain reference to review comments
+ */
+class SubjectContainsReviewRemarks implements IConventionalCommitRule {
+  id = "C017";
+  description = "Subject should not contain reference to review comments";
+
+  validate(_: ConventionalCommitMetadata, __: Configuration) {
+    // TODO: implement this rule
+  }
+}
+
+/**
+ * The commit message should contain an empty line between subject and body
+ */
+class MissingEmptyLineBetweenSubjectAndBody implements IConventionalCommitRule {
+  id = "C018";
+  description =
+    "The commit message should contain an empty line between subject and body";
+
+  validate(message: ConventionalCommitMetadata, _: Configuration) {
+    if (message.body && message.body[0]) {
+      let msg = new LlvmError();
+      msg.message =
+        "[C018] The commit message should contain an empty line between subject and body";
+
+      throw msg;
+    }
+  }
+}
+
+/**
+ * The commit message's subject should not contain a ticket reference
+ */
+class SubjectContainsIssueReference implements IConventionalCommitRule {
+  id = "C018";
+  description =
+    "The commit message's subject should not contain a ticket reference";
+
+  validate(message: ConventionalCommitMetadata, _: Configuration) {
     return;
-  }
+    if (
+      message.subject.matchAll(
+        new RegExp(
+          `\b(?!${["AES", "PEP", "SHA", "UTF", "VT"].join(
+            "|"
+          )}\-)[A-Z]+-[0-9]+\b`
+        )
+      )
+    ) {
+      let msg = new LlvmError();
+      msg.message = `[${this.id}] ${this.description}`;
+      msg.line = message.subject;
 
-  if (message.breaking_change.trim() !== message.breaking_change) {
-    let msg = new LlvmError();
-    msg.message = `[C010] No whitespace allowed around the "!" indicator`;
-    msg.line = message.subject;
-    msg.column_number = new LlvmRange(
-      message.subject.indexOf(message.breaking_change) + 1,
-      message.breaking_change.length
-    );
-    msg.expectations = `!${message.separator}${message.description}`;
-
-    throw msg;
+      throw msg;
+    }
   }
+}
+
+/**
+ * Git-trailer should not contain whitespace(s)
+ */
+class GitTrailerContainsWhitespace implements IConventionalCommitRule {
+  id = "C020";
+  description = "Git-trailer should not contain whitespace(s)";
+
+  validate(message: ConventionalCommitMetadata, _: Configuration) {
+    message.footers.forEach((item) => {
+      if (item.token.indexOf(" ") >= 0) {
+        let msg = new LlvmError();
+        msg.message = `[${this.id}] ${this.description}`;
+        msg.line = `${item.token}: ${item.value}`;
+        msg.column_number = new LlvmRange(0, item.token.length);
+
+        throw msg;
+      }
+    });
+  }
+}
+
+/**
+ * Footer should not contain any blank line(s)
+ */
+class FooterContainsBlankLine implements IConventionalCommitRule {
+  id = "C022";
+  description = "Footer should not contain any blank line(s)";
+
+  validate(message: ConventionalCommitMetadata, _: Configuration) {
+    for (const item of message.footers) {
+      if (!item.token || item.value.length === 0) {
+        let msg = new LlvmError();
+        msg.message = `[${this.id}] ${this.description}`;
+
+        throw msg;
+      }
+    }
+  }
+}
+
+/**
+ * The BREAKING CHANGE git-trailer should be the first element in the footer
+ */
+class BreakingChangeMustBeFirstGitTrailer implements IConventionalCommitRule {
+  id = "C023";
+  description =
+    "The BREAKING CHANGE git-trailer should be the first element in the footer";
+
+  validate(message: ConventionalCommitMetadata, _: Configuration) {
+    message.footers.forEach((item, index) => {
+      if (item.token === "BREAKING-CHANGE") {
+        if (index === 0) {
+          return;
+        }
+        let msg = new LlvmError();
+        msg.message = `[${this.id}] ${this.description}`;
+
+        throw msg;
+      }
+    });
+  }
+}
+
+export const ALL_RULES = [
+  new NonLowerCaseType(),
+  new OneWhitelineBetweenSubjectAndBody(),
+  new TitleCaseDescription(),
+  new UnknownTagType(),
+  new SeparatorContainsTrailingWhitespaces(),
+  new ScopeShouldNotBeEmpty(),
+  new ScopeContainsWhitespace(),
+  new MissingSeparator(),
+  new MissingDescription(),
+  new BreakingIndicatorContainsWhitespacing(),
+  new OnlySingleBreakingIndicator(),
+  new MissingTypeTag(),
+  new SubjectShouldNotEndWithPunctuation(),
+  new SubjectExceedsLineLengthLimit(),
+  new NoRepeatedTags(),
+  new DescriptionInImperativeMood(),
+  new SubjectContainsReviewRemarks(),
+  new MissingEmptyLineBetweenSubjectAndBody(),
+  new SubjectContainsIssueReference(),
+  new GitTrailerContainsWhitespace(),
+  new FooterContainsBlankLine(),
+  new BreakingChangeMustBeFirstGitTrailer(),
+];
+
+export function getConventionalCommitRule(id: string): IConventionalCommitRule {
+  for (const rule of ALL_RULES) {
+    if (rule.id === id) {
+      return rule;
+    }
+  }
+  throw new Error(`Unknown rule: ${id}`);
 }
