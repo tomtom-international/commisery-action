@@ -17,74 +17,112 @@
 const core = require("@actions/core");
 const exec = require("@actions/exec");
 
-import { getBumpedVersion } from "../commisery";
 import { createRelease, getLatestTag } from "../github";
+import { context, getOctokit } from "@actions/github";
 
-async function getCurrentSemanticVersion(): Promise<string> {
-  const version = await getLatestTag();
-  const SEMVER_REGEX = new RegExp(
-    /(?<major>0|[1-9][0-9]*)\./.source +
-      /(?<minor>0|[1-9][0-9]*)\./.source +
-      /(?<patch>0|[1-9][0-9]*)/.source +
-      /(?:-(?<prerelease>[-0-9a-zA-Z]+(?:\.[-0-9a-zA-Z]+)*))?/.source +
-      /(?:\+(?<build>[-0-9a-zA-Z]+(?:\.[-0-9a-zA-Z]+)*))?\s*$/.source
-  );
+import { ConventionalCommitMessage } from "../commit";
+import { SemVer, SemVerType } from "../semver";
+import {
+  ConventionalCommitError,
+  FixupCommitError,
+  MergeCommitError,
+} from "../rules";
 
-  if (version) {
-    const match = version.match(SEMVER_REGEX);
-    if (match) {
-      const m = match.groups;
-      const prerelease = m.prerelease ? `-${m.prerelease}` : "";
-      return `${m.major}.${m.minor}.${m.patch}${prerelease}`;
-    }
-  }
-  return "";
-}
+const octokit = getOctokit(core.getInput("token"));
 
 async function run() {
   try {
-    //await prepareEnvironment();
-    const prefix = core.getInput("version-prefix");
+    const { owner, repo } = context.repo;
+    const commits = await octokit.paginate(octokit.rest.repos.listCommits, {
+      owner: owner,
+      repo: repo,
+      sha: context.sha,
+    });
+    const tags = await octokit.paginate(octokit.rest.repos.listTags, {
+      owner: owner,
+      repo: repo,
+    });
+    core.startGroup("🔍 Finding latest topological tag..");
 
-    core.startGroup("🔍 Determining version bump...");
-    const current_version = await getCurrentSemanticVersion();
-    core.setOutput("current-version", current_version);
-    const [version, logs] = await getBumpedVersion();
-    core.endGroup();
+    let latest_semver: SemVer | null = null;
+    let bump_type: SemVerType = SemVerType.NONE;
 
-    console.log(`ℹ️ Current version: ${current_version}`);
-
-    if (version) {
-      const next_version = `${prefix}${version}`;
-      let message = "new version is: ";
-
-      if (core.getInput("create-release") === "true") {
-        createRelease(next_version);
-        message = "created GitHub Release: ";
-      }
-
-      console.log(`✅ Version bumped: ${message}${next_version}`);
-      core.setOutput("next-version", next_version);
-    } else {
-      for (const line of logs) {
-        const log_re = /^([A-Z]+):.+:(.*)$/;
-        const match = log_re.exec(line);
-        if (match) {
-          if (match[1] === "ERROR") {
-            core.error(match[2]);
-          } else if (match[1] === "WARNING") {
-            core.warning(match[2]);
+    commits: for (const commit of commits) {
+      // Try and match this commit's sha to a tag
+      for (const tag of tags) {
+        if (commit.sha === tag.commit.sha) {
+          core.debug(` - ${commit.commit.message}`);
+          latest_semver = SemVer.from_string(tag.name);
+          if (latest_semver != null) {
+            core.info(`ℹ️ Found SemVer tag: ${tag.name}`);
+            core.setOutput("current-version", latest_semver.to_string());
+            break commits;
           } else {
-            core.info(match[2]);
+            core.debug(
+              `Commit ${commit.sha.slice(1, 6)} has non-SemVer tag: "${
+                tag.name
+              }"`
+            );
           }
-        } else {
-          core.info(line);
+        }
+      }
+      core.debug(
+        `Commit ${commit.sha.slice(1, 6)} is not associated with a SemVer tag`
+      );
+
+      // Determine the required bump if this is a Conventional Commit
+      if (bump_type !== SemVerType.MAJOR) {
+        try {
+          const msg = new ConventionalCommitMessage(commit.commit.message);
+          bump_type = msg.bump > bump_type ? msg.bump : bump_type;
+        } catch (error) {
+          // Ignore compliancy errors, but rethrow other errors
+          if (
+            !(
+              error instanceof ConventionalCommitError ||
+              error instanceof MergeCommitError ||
+              error instanceof FixupCommitError
+            )
+          ) {
+            throw error;
+          }
         }
       }
     }
+
+    if (latest_semver == null) {
+      // We haven't found a SemVer tag in the commit and tag list
+      core.setOutput("current-version", "");
+      core.setOutput("next-version", "");
+      core.warning("⚠️ No SemVer-compatible tags found.");
+      core.endGroup();
+      return;
+    }
+    core.endGroup();
+
+    core.startGroup("🔍 Determining bump");
+    const next_version: SemVer | null = latest_semver.bump(bump_type);
+    if (next_version) {
+      const nv = next_version.to_string();
+      core.info(`ℹ️ Next version: ${nv}`);
+      core.setOutput("next-version", nv);
+      core.endGroup();
+
+      if (core.getInput("create-release") === "true") {
+        core.startGroup(`ℹ️ Creating release ${nv}..`);
+        createRelease(nv);
+      } else {
+        core.startGroup(`ℹ️ Not creating release for ${nv}..`);
+      }
+    } else {
+      core.info("ℹ️ No bump");
+      core.setOutput("next-version", "");
+    }
+    core.endGroup();
   } catch (ex) {
     core.startGroup("❌ Exception");
     core.setFailed((ex as Error).message);
+    core.endGroup();
   }
 }
 
