@@ -14004,7 +14004,7 @@ class SemVer {
                 if (this.patch === rhs.patch) {
                     // only prerelease presence is currently evaluated;
                     // TODO: commit distance-prerelease would be nice to have
-                    if (this.prerelease === "" && rhs.prerelease !== "") {
+                    if (this.prerelease !== "" && rhs.prerelease === "") {
                         return true;
                     }
                 }
