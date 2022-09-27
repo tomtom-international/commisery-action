@@ -24,7 +24,6 @@ const { Command } = require("commander");
 import { ConventionalCommitMessage } from "../commit";
 import { Configuration } from "../config";
 import { ConventionalCommitError } from "../errors";
-import { ALL_RULES } from "../rules";
 
 const program = new Command();
 

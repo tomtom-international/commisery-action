@@ -13173,7 +13173,6 @@ function getConfig(path) {
             fs.writeFileSync(".commisery.yml", Buffer.from(config_file.content, "base64"));
         }
         catch (error) {
-            console.log("Unable to download the specified configuration file!");
             core.debug(error);
             return;
         }
