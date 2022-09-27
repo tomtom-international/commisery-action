@@ -18,7 +18,7 @@ description: >
   Examines Conventional Commits since the latest SemVer-compatible tag, and bumps the major-,
   minor- or patch-level accordingly; breaking changes bump major, `feat` bumps minor and `fix` bumps patch.
   Note that the action will find the topographically nearest tag that ends in a SemVer and will use that
-  for the rest of the logic.
+  for the rest of the logic. Optionally, a `version-prefix` can be provided to specify which tags to consider.
 
   This action can optionally create a new GitHub release when a version bump is performed, but only
   if it isn't called from a `pull_request` event.
@@ -45,8 +45,8 @@ outputs:
       (or none were found matching the version-prefix, if provided)
   next-version:
     description: >-
-      The next version (including the optionally provided version-prefix), or empty string if a
-      version bump was not performed
+      The next version (including any prefix), based on the commits since `current-version`, or an empty
+      string if a version bump was not or could not be performed
 
 runs:
   using: 'node16'
