@@ -12589,7 +12589,7 @@ class SemVer {
     static from_string(version) {
         const match = SEMVER_RE.exec(version);
         if (match != null && match.groups != null) {
-            return new SemVer(+match.groups.major, +match.groups.minor, +match.groups.patch, match.groups.prerelease, match.groups.build, match.groups.prefix);
+            return new SemVer(+match.groups.major, +match.groups.minor, +match.groups.patch, match.groups.prerelease || "", match.groups.build || "", match.groups.prefix || "");
         }
         return null;
     }

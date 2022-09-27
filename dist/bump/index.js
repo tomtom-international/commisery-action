@@ -12611,6 +12611,24 @@ const commit_1 = __nccwpck_require__(1730);
 const semver_1 = __nccwpck_require__(8593);
 const errors_1 = __nccwpck_require__(6976);
 const octokit = (0, github_2.getOctokit)(core.getInput("token"));
+/**
+ * Bump action entrypoint
+ *
+ * This action will:
+ *  - get a list of commits reachable from `context.sha`
+ *  - get a list of tags in the repo
+ *  - match commit- and tag-hashes
+ *    - find the nearest commit-tag combo representing a SemVer (with optional prefix)
+ *  - go through the list of commits _before_ said tag
+ *    - parse them as Conventional Commit messages
+ *    - keep track of the highest-order bump by the CC type
+ *       (breaking: major, feat: minor, fix: patch)
+ *
+ *  - bump the found SemVer accordingly
+ *  - set `current-version` and `next-version` outputs
+ *  - if not running on a `pull_request` event and `create-release` input is not false:
+ *    - create a GitHub release (and, implicitly, git tag)
+ */
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -12627,11 +12645,12 @@ function run() {
             core.startGroup("🔍 Finding latest topological tag..");
             let latest_semver = null;
             let bump_type = semver_1.SemVerType.NONE;
+            const prefix = core.getInput("version-prefix");
             commits: for (const commit of commits) {
                 // Try and match this commit's sha to a tag
                 for (const tag of tags) {
-                    if (commit.sha === tag.commit.sha) {
-                        core.debug(` - ${commit.commit.message}`);
+                    if (tag.name.startsWith(prefix) && commit.sha === tag.commit.sha) {
+                        core.debug(` - Tag '${tag.name}' on commit '${commit.sha.slice(0, 6)}' matches prefix`);
                         latest_semver = semver_1.SemVer.from_string(tag.name);
                         if (latest_semver != null) {
                             core.info(`ℹ️ Found SemVer tag: ${tag.name}`);
@@ -12639,16 +12658,18 @@ function run() {
                             break commits;
                         }
                         else {
-                            core.debug(`Commit ${commit.sha.slice(1, 6)} has non-SemVer tag: "${tag.name}"`);
+                            core.debug(`Commit ${commit.sha.slice(0, 6)} has non-matching tag: "${tag.name}"`);
                         }
                     }
                 }
-                core.debug(`Commit ${commit.sha.slice(1, 6)} is not associated with a SemVer tag`);
+                core.debug(`Commit ${commit.sha.slice(0, 6)} is not associated with a tag`);
                 // Determine the required bump if this is a Conventional Commit
                 if (bump_type !== semver_1.SemVerType.MAJOR) {
                     try {
+                        core.debug(`Examining message: ${commit.commit.message}`);
                         const msg = new commit_1.ConventionalCommitMessage(commit.commit.message);
                         bump_type = msg.bump > bump_type ? msg.bump : bump_type;
+                        core.debug(`After commit type '${msg.type}', bump is: ${semver_1.SemVerType[bump_type]}`);
                     }
                     catch (error) {
                         // Ignore compliancy errors, but rethrow other errors
@@ -12661,7 +12682,7 @@ function run() {
                 }
             }
             if (latest_semver == null) {
-                // We haven't found a SemVer tag in the commit and tag list
+                // We haven't found a (matching) SemVer tag in the commit and tag list
                 core.setOutput("current-version", "");
                 core.setOutput("next-version", "");
                 core.warning("⚠️ No SemVer-compatible tags found.");
@@ -12677,8 +12698,13 @@ function run() {
                 core.setOutput("next-version", nv);
                 core.endGroup();
                 if (core.getInput("create-release") === "true") {
-                    core.startGroup(`ℹ️ Creating release ${nv}..`);
-                    (0, github_1.createRelease)(nv);
+                    if (!github_1.IS_PULLREQUEST_EVENT) {
+                        core.startGroup(`ℹ️ Creating release ${nv}..`);
+                        (0, github_1.createRelease)(nv);
+                    }
+                    else {
+                        core.startGroup("ℹ️ Not creating a release on a pull request event.");
+                    }
                 }
                 else {
                     core.startGroup(`ℹ️ Not creating release for ${nv}..`);
@@ -13927,7 +13953,7 @@ class SemVer {
     static from_string(version) {
         const match = SEMVER_RE.exec(version);
         if (match != null && match.groups != null) {
-            return new SemVer(+match.groups.major, +match.groups.minor, +match.groups.patch, match.groups.prerelease, match.groups.build, match.groups.prefix);
+            return new SemVer(+match.groups.major, +match.groups.minor, +match.groups.patch, match.groups.prerelease || "", match.groups.build || "", match.groups.prefix || "");
         }
         return null;
     }
