@@ -415,18 +415,20 @@ class NoRepeatedTags implements IConventionalCommitRule {
   description = "Description should not start with a repetition of the tag";
 
   validate(message: ConventionalCommitMetadata, _: Configuration) {
+    if (message.description === undefined || message.type === undefined) {
+      return;
+    }
     if (
-      message.description &&
-      message.type &&
-      message.description
-        .toLocaleUpperCase()
-        .startsWith(message.type.toLowerCase())
+      message.description.split(" ")[0].toLowerCase() ===
+      message.type.toLowerCase()
     ) {
       let msg = new LlvmError();
       msg.message = `[${this.id}] ${this.description}`;
       msg.line = message.subject;
       msg.column_number = new LlvmRange(
-        message.subject.indexOf(message.description) + 1,
+        message.subject.indexOf(message.separator) +
+          message.separator.length +
+          1,
         message.type.length
       );
 
@@ -571,7 +573,8 @@ class GitTrailerContainsWhitespace implements IConventionalCommitRule {
         let msg = new LlvmError();
         msg.message = `[${this.id}] ${this.description}`;
         msg.line = `${item.token}: ${item.value}`;
-        msg.column_number = new LlvmRange(0, item.token.length);
+        msg.column_number = new LlvmRange(1, item.token.length);
+        msg.expectations = item.token.replace(" ", "-");
 
         throw msg;
       }

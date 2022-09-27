@@ -27,6 +27,7 @@ function assertRuleValidationError(
   expect(type).not.toBeUndefined();
   try {
     const msg = new ConventionalCommitMessage(message);
+    expect(msg).not.toBeDefined();
   } catch (error: any) {
     let foundError = false;
 
@@ -364,17 +365,153 @@ describe("Rules", () => {
    * [C015] Description should not start with a repetition of the tag
    */
   test(`[C015] Description should not start with a repetition of the tag`, () => {
-    for (const message of ["feat: feat", "fix: fix"]) {
+    for (const message of [
+      "feat: feat",
+      "fix: fix",
+      "fix:fix without whitespacing",
+    ]) {
       assertRuleValidationError(message, getConventionalCommitRule("C015"));
     }
 
     for (const message of [
       "chore: this is a chore",
       "feat(scope)!: breaking change with scope",
-      "fix:fix without whitespacing",
       "fix: fixed",
     ]) {
       assertRuleNoValidationError(message, getConventionalCommitRule("C015"));
+    }
+  });
+
+  /**
+   * [C016] The commit message's description should be written in imperative mood
+   */
+  test(`[C016] The commit message's description should be written in imperative mood`, () => {
+    for (const message of [
+      "feat: adds something",
+      "fix: removes something else",
+      "chore:renamed without spacing",
+    ]) {
+      assertRuleValidationError(message, getConventionalCommitRule("C016"));
+    }
+
+    for (const message of [
+      "chore: this is a chore",
+      "feat(scope)!: breaking change with scope",
+      "chore: remove API call",
+    ]) {
+      assertRuleNoValidationError(message, getConventionalCommitRule("C016"));
+    }
+  });
+
+  /**
+   * [C017] Subject should not contain reference to review comments
+   */
+  test(`[C017] Subject should not contain reference to review comments`, () => {
+    // TODO: Implement rule
+  });
+
+  /**
+   * [C018] The commit message should contain an empty line between subject and body
+   */
+  test(`[C018] The commit message should contain an empty line between subject and body`, () => {
+    for (const message of [
+      dedent(`feat: missing empty line between subject and body
+      This is the body`),
+      dedent(`feat: missing empty line between subject and footer
+      Implements: 1234`),
+    ]) {
+      assertRuleValidationError(message, getConventionalCommitRule("C018"));
+    }
+
+    for (const message of [
+      dedent(`feat: one empty line
+      
+      This is the body`),
+      dedent(`feat(scope)!: multiple empty lines
+      
+
+      This is the body
+      `),
+      dedent(`chore: footers after one whiteline
+      
+      Implements: 1234`),
+    ]) {
+      assertRuleNoValidationError(message, getConventionalCommitRule("C018"));
+    }
+  });
+
+  /**
+   * [C019] The commit message's subject should not contain a ticket reference
+   */
+  test(`[C019] The commit message's subject should not contain a ticket reference`, () => {
+    // TODO: Implement rule
+  });
+
+  /**
+   * [C020] Git-trailer should not contain whitespace(s)
+   */
+  test(`[C020] Git-trailer should not contain whitespace(s)`, () => {
+    for (const message of [
+      dedent(`feat: single whitespace in footer
+      
+      Some token: value`),
+      dedent(`feat: multiple whitespaces in footers
+      
+      correct-token: value
+      Another strange token: value`),
+    ]) {
+      assertRuleValidationError(message, getConventionalCommitRule("C020"));
+    }
+
+    for (const message of [
+      dedent(`feat: one empty line
+      
+      Implements: 1234`),
+      dedent(`feat(scope)!: multiple empty lines
+      
+
+      Correct-token: value
+      Implements #1234
+      `),
+      dedent(`chore: footers after one whiteline
+      
+      Implements #1234
+      Implements: 1234`),
+    ]) {
+      assertRuleNoValidationError(message, getConventionalCommitRule("C020"));
+    }
+  });
+
+  /**
+   * [C022] Footer should not contain any blank line(s)
+   */
+  test(`[C022] Footer should not contain any blank line(s)`, () => {
+    for (const message of [
+      dedent(`feat: multiple whitespaces in footers
+      
+      correct-token: value
+
+      Implements: 1234`),
+    ]) {
+      assertRuleValidationError(message, getConventionalCommitRule("C022"));
+    }
+
+    for (const message of [
+      dedent(`feat: one empty line
+      
+      Implements: 1234`),
+      dedent(`feat(scope)!: multiple empty lines
+      
+
+      Correct-token: value
+      Implements #1234
+      `),
+      dedent(`chore: footers after one whiteline
+      
+      Implements #1234
+      Implements: 1234`),
+    ]) {
+      assertRuleNoValidationError(message, getConventionalCommitRule("C022"));
     }
   });
 });

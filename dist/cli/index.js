@@ -2854,15 +2854,17 @@ class NoRepeatedTags {
         this.description = "Description should not start with a repetition of the tag";
     }
     validate(message, _) {
-        if (message.description &&
-            message.type &&
-            message.description
-                .toLocaleUpperCase()
-                .startsWith(message.type.toLowerCase())) {
+        if (message.description === undefined || message.type === undefined) {
+            return;
+        }
+        if (message.description.split(" ")[0].toLowerCase() ===
+            message.type.toLowerCase()) {
             let msg = new logging_1.LlvmError();
             msg.message = `[${this.id}] ${this.description}`;
             msg.line = message.subject;
-            msg.column_number = new logging_1.LlvmRange(message.subject.indexOf(message.description) + 1, message.type.length);
+            msg.column_number = new logging_1.LlvmRange(message.subject.indexOf(message.separator) +
+                message.separator.length +
+                1, message.type.length);
             throw msg;
         }
     }
@@ -2983,7 +2985,8 @@ class GitTrailerContainsWhitespace {
                 let msg = new logging_1.LlvmError();
                 msg.message = `[${this.id}] ${this.description}`;
                 msg.line = `${item.token}: ${item.value}`;
-                msg.column_number = new logging_1.LlvmRange(0, item.token.length);
+                msg.column_number = new logging_1.LlvmRange(1, item.token.length);
+                msg.expectations = item.token.replace(" ", "-");
                 throw msg;
             }
         });
