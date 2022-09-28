@@ -33,14 +33,11 @@ const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
  */
 export async function getCommits(pullrequest_id: string) {
   // Retrieve commits from provided Pull Request
-  const { data: commits } = await octokit.paginate(
-    octokit.rest.pulls.listCommits,
-    {
-      owner: OWNER,
-      repo: REPO,
-      pull_number: pullrequest_id,
-    }
-  );
+  const { data: commits } = await octokit.rest.pulls.listCommits({
+    owner: OWNER,
+    repo: REPO,
+    pull_number: pullrequest_id,
+  });
 
   return commits;
 }

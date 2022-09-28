@@ -11775,7 +11775,7 @@ const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
 function getCommits(pullrequest_id) {
     return __awaiter(this, void 0, void 0, function* () {
         // Retrieve commits from provided Pull Request
-        const { data: commits } = yield octokit.paginate(octokit.rest.pulls.listCommits, {
+        const { data: commits } = yield octokit.rest.pulls.listCommits({
             owner: OWNER,
             repo: REPO,
             pull_number: pullrequest_id,
