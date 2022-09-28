@@ -12751,7 +12751,6 @@ function validateMessages(messages, config) {
                 }
                 else if (error instanceof errors_1.MergeCommitError ||
                     error instanceof errors_1.FixupCommitError) {
-                    core.endGroup();
                     continue;
                 }
             }

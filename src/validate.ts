@@ -86,7 +86,6 @@ export async function validateMessages(
         error instanceof MergeCommitError ||
         error instanceof FixupCommitError
       ) {
-        core.endGroup();
         continue;
       }
     }
