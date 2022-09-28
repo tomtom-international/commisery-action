@@ -6,13 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Removed
+- Python no longer needs to be installed in order to run this action
 - No longer depend on the Python module `Commisery`
 
-### Added
-- Ability to configure additional tags to bump the PATCH version
-
 ### Changed
-- Conventional Commit Message validation is now fully handled within NodeJs
+- Conventional Commit Message validation is now fully handled within NodeJs, improving the execution performance significantly.
+- Slight improvement to the logging output
 
 ## [1.3.1] - 2022-09-21
 ### Fixed

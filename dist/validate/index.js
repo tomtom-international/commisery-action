@@ -12741,7 +12741,6 @@ function validateMessages(messages, config) {
     return __awaiter(this, void 0, void 0, function* () {
         let success = true;
         for (const item of messages) {
-            core.startGroup(`🔍 Checking ${item.title}`);
             let errors = [];
             try {
                 const commit = new commit_1.ConventionalCommitMessage(item.message, undefined, config);
@@ -12757,17 +12756,19 @@ function validateMessages(messages, config) {
                 }
             }
             if (errors.length > 0) {
+                core.startGroup(`❌ ${item.title}: ${item.message}`);
                 for (var error of errors) {
                     console.log(error.report());
                 }
-                core.startGroup(`❌ ${item.title}: ${item.message}`);
                 for (var error of errors) {
                     core.error(error.message, { title: `(${item.title}) ${item.message}` });
                 }
                 success = false;
                 core.endGroup();
             }
-            core.endGroup();
+            else {
+                console.log(`✅ ${item.title}`);
+            }
         }
         if (!success) {
             core.setFailed(`Your Pull Request is not compliant to Conventional Commits`);

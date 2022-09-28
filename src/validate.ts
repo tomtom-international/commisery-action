@@ -72,7 +72,6 @@ export async function validateMessages(
   let success = true;
 
   for (const item of messages) {
-    core.startGroup(`🔍 Checking ${item.title}`);
     let errors: LlvmError[] = [];
     try {
       const commit = new ConventionalCommitMessage(
@@ -93,18 +92,20 @@ export async function validateMessages(
     }
 
     if (errors.length > 0) {
+      core.startGroup(`❌ ${item.title}: ${item.message}`);
       for (var error of errors) {
         console.log(error.report());
       }
-      core.startGroup(`❌ ${item.title}: ${item.message}`);
+
       for (var error of errors) {
         core.error(error.message, { title: `(${item.title}) ${item.message}` });
       }
       success = false;
 
       core.endGroup();
+    } else {
+      console.log(`✅ ${item.title}`);
     }
-    core.endGroup();
   }
 
   if (!success) {
