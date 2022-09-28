@@ -15,10 +15,16 @@
  */
 
 const core = require("@actions/core");
-const github = require("@actions/github");
 
-import { isCommitValid } from "./commisery";
+import { ConventionalCommitMessage } from "./commit";
+import { Configuration } from "./config";
 import { getCommits, getPullRequest, PULLREQUEST_ID } from "./github";
+import { LlvmError } from "./logging";
+import {
+  ConventionalCommitError,
+  FixupCommitError,
+  MergeCommitError,
+} from "./errors";
 
 interface Message {
   title: string;
@@ -29,14 +35,13 @@ interface Message {
  * Determines the list of messages to validate (Pull Request and/or Commits)
  */
 export async function getMessagesToValidate() {
-  const [owner, repo] = (process.env.GITHUB_REPOSITORY || "").split("/");
   const pullrequest_id = PULLREQUEST_ID;
 
   let to_validate: Message[] = [];
 
   // Include Pull Request title
   if (core.getBooleanInput("validate-pull-request")) {
-    const pullrequest: any = await getPullRequest(owner, repo, pullrequest_id);
+    const pullrequest: any = await getPullRequest(pullrequest_id);
     to_validate.push({
       title: `Pull Request Title (#${pullrequest_id})`,
       message: pullrequest.title,
@@ -45,7 +50,7 @@ export async function getMessagesToValidate() {
 
   // Include commits associated to the Pull Request
   if (core.getBooleanInput("validate-commits")) {
-    let commits = await getCommits(owner, repo, pullrequest_id);
+    let commits = await getCommits(pullrequest_id);
     for (const commit of commits) {
       to_validate.push({
         title: `Commit SHA (${commit.sha})`,
@@ -60,35 +65,46 @@ export async function getMessagesToValidate() {
 /**
  * Validates all specified messages
  */
-export async function validateMessages(messages: Message[]) {
+export async function validateMessages(
+  messages: Message[],
+  config: Configuration
+) {
   let success = true;
 
   for (const item of messages) {
-    core.startGroup(`🔍 Checking ${item.title}`);
-    let [valid, errors] = await isCommitValid(item.message);
+    let errors: LlvmError[] = [];
+    try {
+      const commit = new ConventionalCommitMessage(
+        item.message,
+        undefined,
+        config
+      );
+    } catch (error) {
+      if (error instanceof ConventionalCommitError) {
+        errors = error.errors;
+      } else if (
+        error instanceof MergeCommitError ||
+        error instanceof FixupCommitError
+      ) {
+        continue;
+      }
+    }
 
-    if (!valid) {
+    if (errors.length > 0) {
       core.startGroup(`❌ ${item.title}: ${item.message}`);
       for (var error of errors) {
-        const error_re = /\.commit-message:\d+:\d+:\s(error|info):\s(.*)/;
-        const match = error_re.exec(error);
-        if (!match) {
-          continue;
-        }
+        console.log(error.report());
+      }
 
-        if (match[1] === "error") {
-          core.error(match[2], {
-            title: `(${item.title}) ${item.message}`,
-          });
-        } else {
-          core.info(match[2]);
-        }
+      for (var error of errors) {
+        core.error(error.message, { title: `(${item.title}) ${item.message}` });
       }
       success = false;
 
       core.endGroup();
+    } else {
+      console.log(`✅ ${item.title}`);
     }
-    core.endGroup();
   }
 
   if (!success) {

@@ -15,13 +15,13 @@
 name: 'Bump version'
 author: 'Joost Muller'
 description: >
-  Examines Conventional Commits since the latest tag (provided it is SemVer-compatible), and
-  bumps the major-, minor- or patch-level accordingly.
-  Breaking changes bump major, `feat` bumps minor and `fix` bumps patch.
-  Note that _only_ the latest tag is examined, parsed as a SemVer, and subsequently used for
-  the rest of the logic; the prefix is not taken into account to determine the current version.
+  Examines Conventional Commits since the latest SemVer-compatible tag, and bumps the major-,
+  minor- or patch-level accordingly; breaking changes bump major, `feat` bumps minor and `fix` bumps patch.
+  Note that the action will find the topographically nearest tag that ends in a SemVer and will use that
+  for the rest of the logic. Optionally, a `version-prefix` can be provided to specify which tags to consider.
 
-  This action can optionally create a new GitHub release when a version bump is performed.
+  This action can optionally create a new GitHub release when a version bump is performed, but only
+  if it isn't called from a `pull_request` event.
 branding:
   icon: 'code'
   color: 'white'
@@ -31,8 +31,8 @@ inputs:
     description: 'GitHub token used to access GitHub (eg. github.token)'
     required: true
   create-release:
-    description: 'Create a GitHub Release if a version bump is performed'
-    default: true
+    description: 'Create a GitHub Release if a version bump is performed outside a pull request event'
+    default: false
     required: false
   version-prefix:
     description: 'Optional SemVer prefix (eg. "v", "componentX-")'
@@ -41,12 +41,12 @@ inputs:
 outputs:
   current-version:
     description: >-
-      The version currently in the repository (stripped of any prefix), or empty string if
-      the last Git tag is not SemVer-compatible
+      The version currently in the repository, or empty string if no SemVer-compatible tags were found
+      (or none were found matching the version-prefix, if provided)
   next-version:
     description: >-
-      The next version (including the optionally provided version-prefix), or empty string if a
-      version bump was not performed
+      The next version (including any prefix), based on the commits since `current-version`, or an empty
+      string if a version bump was not or could not be performed
 
 runs:
   using: 'node16'

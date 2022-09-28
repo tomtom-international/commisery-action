@@ -1,14 +1,9 @@
 # Conventional Commit Messages
 
-This GitHub Action, based on [Commisery], consists of two major components:
+This GitHub Action consists of two major components:
 
 - Scan all commits in your Pull Request against the [Conventional Commits] standard
 - Create GitHub Releases based on unreleased [Conventional Commits]
-
-## Prerequisites
-
-* [Commisery] requires at least `Python>3.8`
-* `pip` needs to be installed for this Python version 
 
 ## Check your Pull Request for Conventional Commit Compliance
 
@@ -24,13 +19,8 @@ The workflow, usually declared in `.github/workflows/conventional-commit.yml`, l
         name: Conventional Commit compliance
         runs-on: ubuntu-latest
 
-        steps:       
-        - uses: actions/setup-python@v3
-          with:
-            python-version: 3.8
-
         - name: Check for compliance
-          uses: tomtom-international/commisery-action@v1
+          uses: tomtom-international/commisery-action@v2
           with:
             token: ${{ github.token }}
             validate-pull-request: true # OPTIONAL, default: `true`
@@ -44,6 +34,7 @@ The workflow, usually declared in `.github/workflows/conventional-commit.yml`, l
 | `token` | YES |  GitHub Token provided by GitHub, see [Authenticating with the GITHUB_TOKEN] |
 | `validate-pull-request` | NO | Includes the Pull Request title and description as part of the Conventional Commit validation (DEFAULT: `false`) |
 | `validate-commits` | NO | Includes commits associated with the current Pull Request as part of the Conventional Commit validation (DEFAULT: `true`) |
+| `config` | NO | Location of the Commisery configuration file (default: `.commisery.yml`)
 
 > **NOTE**: This action will only function as part of the `pull_request` trigger for workflows.
 
@@ -58,8 +49,14 @@ With the `/bump` GitHub Action, you can create a new release (and implicitly a G
 
 Both the current and bumped versions are available as outputs, and an optional input can be provided to
 disable automatic release creation, in case you're only interested in the new version.
+When running from a pull request event, release creation is forcibly disabled, but the outputs are still
+available.
 
-An example workflow that creates a release on every commit or merge to the `main` branch:
+Filtering the tags is also possible, by providing a `version-prefix` input. If set, only tags matching
+_exactly_ with the value of `version-prefix` shall be taken into account while determining and bumping versions.
+As an example, for version tag `componentX-1.2.3`, the version prefix would be `componentX-`.
+
+An example workflow that creates a release on every commit or merge to the `main` branch if necessary:
 
 ```yml
     name: Bump version
@@ -73,15 +70,6 @@ An example workflow that creates a release on every commit or merge to the `main
         runs-on: ubuntu-latest
 
         steps:
-        - uses: actions/checkout@v3
-          with:
-            # Make sure that you retrieve a depth large enough to cover your unreleased commits.
-            fetch-depth: 0
-
-        - uses: actions/setup-python@v3
-          with:
-            python-version: 3.8
-
         - name: Release version
           id: release-version
           uses: tomtom-international/commisery-action/bump@v1
@@ -96,18 +84,14 @@ An example workflow that creates a release on every commit or merge to the `main
           run: echo "Version bumped to ${{steps.release-version.outputs.next-version}}
 ```
 
-> **NOTE**: Make sure that enough history and tags must be available for the tag to be discoverable. This example uses a GitHub's "checkout" action with a fetch depth of zero (which imports the complete history).
-
 ### Inputs
 
 | Item | Mandatory | Description |
 | --- | --- | --- |
 | `token` | YES | GitHub Token provided by GitHub, see [Authenticating with the GITHUB_TOKEN]|
 | `create-release` | NO | Can optionally be set to `false` to disable release creation on version bump.|
-| `version-prefix` | NO | An optional prefix to the Semantic Version, eg. `v`, `componentX-`. The value of this parameter will be prepended to the tagged version.
+| `version-prefix` | NO | An optional prefix specifying the tags to consider, eg. `v`, `componentX-`.
 | `config` | NO | Location of the Commisery configuration file (default: `.commisery.yml`)
-
-> **NOTE**: The `version-prefix` this is *not* used for determining the current version.
 
 ### Outputs
 | Output | Description |
@@ -115,31 +99,28 @@ An example workflow that creates a release on every commit or merge to the `main
 | `current-version` | The Semantic Version associated with the latest tag in the repository, stripped of any and all prefixes, or an empty string if the latest tag could not be parsed as a SemVer.
 | `next-version` | The next version (including the optionally provided version-prefix) as determined from the Conventional Commits, or empty string if a version bump was not performed
 
-## Additional configuration options
+## Configuration parameters
 
-You can provide additional configuration parameters to Commisery by providing a 
-configuration file. i.e.:
+You can configure `commisery-action` using a YAML-based configuration file, i.e.
 
-```yml
-        - name: Check for compliance
-          uses: tomtom-international/commisery-action@v1
-          with:
-            token: ${{ github.token }}
-            config: '.commisery.yml' # OPTIONAL, default: `.commisery.yml`
+```yaml
+max-subject-length: 120
+tags:
+  docs: Documentation changes not part of the API
+  example: Changes to example code in the repository
+disable:
+  - C001
+  - C018
 ```
 
-This configuration file can be used to;
-- Disable certain rules
-- Add additional Conventional Commit types
-- Increase the maximum subject length
+| Item | Default value |Description | 
+| --- | --- | --- |
+| `max-subject-length` | `80` | The maximum length of the subject of the commit message |
+| `tags` | `fix`, `feat`, `build`, `chore`, `ci`, `docs`, `perf`, `refactor`, `revert`, `style`, `test`, `improvement` | Additional tags (including description). These tags will not result in a version bump.<br><br>**NOTE:** The tags `feat` and `fix` will automatically be provided |
+| `disabled` | `None` | List of rules to disable as part of the checker |
 
-Please refer to the [Commisery Documentation](https://github.com/tomtom-international/commisery/blob/master/README.md)
-for more details about this configuration file.
-
-[Conventional Commits]: https://www.conventionalcommits.org/en/v1.0.0/
-[Semantic Versioning]: https://semver.org/spec/v2.0.0.html
-[Commisery]: https://pypi.org/project/commisery/
-[Authenticating with the GITHUB_TOKEN]: https://help.github.com/en/actions/automating-your-workflow-with-github-actions/authenticating-with-the-github_token
+> :bulb: By default `commisery-action` will search for the file `.commisery.yml`. 
+You can specify a different file with the `config` input parameter.
 
 
 [Conventional Commits]: https://www.conventionalcommits.org/en/v1.0.0/

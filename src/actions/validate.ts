@@ -16,9 +16,9 @@
 
 const core = require("@actions/core");
 
-import { prepareEnvironment } from "./environment";
-import { IS_PULLREQUEST_EVENT } from "./github";
-import { getMessagesToValidate, validateMessages } from "./validate";
+import { Configuration } from "../config";
+import { getConfig, IS_PULLREQUEST_EVENT } from "../github";
+import { getMessagesToValidate, validateMessages } from "../validate";
 
 async function run() {
   try {
@@ -29,11 +29,13 @@ async function run() {
       return;
     }
 
-    // Ensure that commisery is installed
-    await prepareEnvironment();
+    // Load configuration
+    await getConfig(core.getInput("config"));
+    const config = new Configuration(".commisery.yml");
+
     // Validate each commit against Conventional Commit standard
     const messages = await getMessagesToValidate();
-    await validateMessages(messages);
+    await validateMessages(messages, config);
   } catch (ex) {
     core.setFailed((ex as Error).message);
   }

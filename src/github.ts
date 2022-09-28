@@ -24,22 +24,18 @@ const octokit = github.getOctokit(github_token);
 export const IS_PULLREQUEST_EVENT = github.context.eventName === "pull_request";
 export const PULLREQUEST_ID = github.context.issue.number;
 
+const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
+
 /**
  * Retrieves a list of commits associated with the specified Pull Request
- * @param owner GitHub owner
- * @param repo GitHub repository
  * @param pullrequest_id GitHub Pullrequest ID
  * @returns List of commit objects
  */
-export async function getCommits(
-  owner: string,
-  repo: string,
-  pullrequest_id: string
-) {
+export async function getCommits(pullrequest_id: string) {
   // Retrieve commits from provided Pull Request
   const { data: commits } = await octokit.rest.pulls.listCommits({
-    owner: owner,
-    repo: repo,
+    owner: OWNER,
+    repo: REPO,
     pull_number: pullrequest_id,
   });
 
@@ -48,19 +44,13 @@ export async function getCommits(
 
 /**
  * Retrieves the Pull Request associated with the specified Pull Request ID
- * @param owner GitHub owner
- * @param repo GitHub repository
  * @param pullrequest_id GitHub Pullrequest ID
  * @returns Pull Request
  */
-export async function getPullRequest(
-  owner: string,
-  repo: string,
-  pullrequest_id: string
-) {
+export async function getPullRequest(pullrequest_id: string) {
   const { data: pr } = await octokit.rest.pulls.get({
-    owner: owner,
-    repo: repo,
+    owner: OWNER,
+    repo: REPO,
     pull_number: pullrequest_id,
   });
 
@@ -69,18 +59,13 @@ export async function getPullRequest(
 
 /**
  * Creates a GitHub release named `tag_name` on the main branch of the provided repo
- * @param owner GitHub owner
- * @param repo GitHub repository
+
  * @param tag_name Name of the tag (and release)
  */
-export async function createRelease(
-  owner: string,
-  repo: string,
-  tag_name: string
-) {
+export async function createRelease(tag_name: string) {
   await octokit.rest.repos.createRelease({
-    owner: owner,
-    repo: repo,
+    owner: OWNER,
+    repo: REPO,
     tag_name: tag_name,
     name: tag_name,
     body: "",
@@ -91,15 +76,13 @@ export async function createRelease(
 
 /**
  * Downloads the requested configuration file in case it exists.
- * @param owner GitHub owner
- * @param repo GitHub repository
  * @param path Path towards the Commisery configuration file
  */
-export async function getConfig(owner: string, repo: string, path: string) {
+export async function getConfig(path: string) {
   try {
     const { data: config_file } = await octokit.rest.repos.getContent({
-      owner: owner,
-      repo: repo,
+      owner: OWNER,
+      repo: REPO,
       path: path,
       ref: github.context.ref,
     });
@@ -109,8 +92,32 @@ export async function getConfig(owner: string, repo: string, path: string) {
       Buffer.from(config_file.content, "base64")
     );
   } catch (error) {
-    console.log("Unable to download the specified configuration file!");
     core.debug(error);
     return;
   }
+}
+
+/**
+ * Retrieve the latest tag from GitHub
+ */
+export async function getLatestTag() {
+  const tags = await octokit.paginate(octokit.rest.repos.listTags, {
+    owner: OWNER,
+    repo: REPO,
+  });
+
+  return tags[0].name;
+}
+
+/**
+ * Retrieve all commits since specified tag
+ */
+export async function getCommitsSinceTag(tag: string) {
+  const commits = await octokit.paginate(octokit.rest.repos.listCommits, {
+    owner: OWNER,
+    repo: REPO,
+    sha: `refs/tags/${tag}`,
+  });
+
+  return commits;
 }
