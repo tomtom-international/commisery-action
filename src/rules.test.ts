@@ -444,7 +444,25 @@ describe("Rules", () => {
    * [C019] The commit message's subject should not contain a ticket reference
    */
   test(`[C019] The commit message's subject should not contain a ticket reference`, () => {
-    // TODO: Implement rule
+    for (const message of [
+      "feat(ISS-1): add something",
+      "fix: [ISS-2] do something",
+      "chore: based on ISS-3",
+    ]) {
+      assertRuleValidationError(message, getConventionalCommitRule("C019"));
+    }
+
+    for (const message of [
+      dedent(`chore: this is a chore
+      
+      Implementation of ISS-1`),
+      dedent(`feat(scope)!: breaking change with scope
+      
+      Implements: ISS-1`),
+      "chore: remove UTF-8 implementation",
+    ]) {
+      assertRuleNoValidationError(message, getConventionalCommitRule("C019"));
+    }
   });
 
   /**
@@ -489,6 +507,8 @@ describe("Rules", () => {
     for (const message of [
       dedent(`feat: multiple whitespaces in footers
       
+      BREAKING CHANGE: Now we allow for whitespaces
+
       correct-token: value
 
       Implements: 1234`),
