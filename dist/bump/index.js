@@ -12633,14 +12633,18 @@ function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const { owner, repo } = github_2.context.repo;
-            const commits = yield octokit.paginate(octokit.rest.repos.listCommits, {
+            core.debug(`Fetching last 100 commits from ${github_2.context.sha}..`);
+            const { data: commits } = yield octokit.rest.repos.listCommits({
                 owner: owner,
                 repo: repo,
                 sha: github_2.context.sha,
+                per_page: 100,
             });
-            const tags = yield octokit.paginate(octokit.rest.repos.listTags, {
+            core.debug("Fetching last 100 tags in repo..");
+            const { data: tags } = yield octokit.rest.repos.listTags({
                 owner: owner,
                 repo: repo,
+                per_page: 100,
             });
             core.startGroup("🔍 Finding latest topological tag..");
             let latest_semver = null;

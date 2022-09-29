@@ -51,14 +51,18 @@ const octokit = getOctokit(core.getInput("token"));
 async function run() {
   try {
     const { owner, repo } = context.repo;
-    const commits = await octokit.paginate(octokit.rest.repos.listCommits, {
+    core.debug(`Fetching last 100 commits from ${context.sha}..`);
+    const { data: commits } = await octokit.rest.repos.listCommits({
       owner: owner,
       repo: repo,
       sha: context.sha,
+      per_page: 100,
     });
-    const tags = await octokit.paginate(octokit.rest.repos.listTags, {
+    core.debug("Fetching last 100 tags in repo..");
+    const { data: tags } = await octokit.rest.repos.listTags({
       owner: owner,
       repo: repo,
+      per_page: 100,
     });
     core.startGroup("🔍 Finding latest topological tag..");
 
