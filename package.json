@@ -37,7 +37,7 @@
     "commander": "^9.4.1",
     "difflib": "^0.2.4",
     "fs": "^0.0.1-security",
-    "yaml": "^2.1.1"
+    "yaml": "^2.1.2"
   },
   "devDependencies": {
     "@babel/plugin-transform-modules-commonjs": "^7.18.6",
