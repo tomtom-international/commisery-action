@@ -31,7 +31,7 @@ inputs:
     description: 'GitHub token used to access GitHub (eg. github.token)'
     required: true
   create-release:
-    description: 'Create a GitHub Release if a version bump is performed outside a pull request event'
+    description: 'Create a GitHub Release if a version bump is performed (outside a pull request event)'
     default: false
     required: false
   version-prefix:
