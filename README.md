@@ -75,8 +75,8 @@ An example workflow that creates a release on every commit or merge to the `main
           uses: tomtom-international/commisery-action/bump@v1
           with:
             token: ${{ github.token }}
-            create-release: true # OPTIONAL, default: `true`
-            version-prefix: v # OPTIONAL
+            create-release: true  # OPTIONAL, default: `false`
+            version-prefix: v  # OPTIONAL
 
         - run: echo "Current version is ${{steps.release-version.outputs.current-version}}"
 
@@ -89,7 +89,7 @@ An example workflow that creates a release on every commit or merge to the `main
 | Item | Mandatory | Description |
 | --- | --- | --- |
 | `token` | YES | GitHub Token provided by GitHub, see [Authenticating with the GITHUB_TOKEN]|
-| `create-release` | NO | Can optionally be set to `false` to disable release creation on version bump.|
+| `create-release` | NO | Can optionally be set to `true` to create a GitHub release on version bump.|
 | `version-prefix` | NO | An optional prefix specifying the tags to consider, eg. `v`, `componentX-`.
 | `config` | NO | Location of the Commisery configuration file (default: `.commisery.yml`)
 
