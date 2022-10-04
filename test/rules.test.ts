@@ -16,9 +16,12 @@
 
 import dedent from "dedent";
 
-import { ConventionalCommitMessage } from "./commit";
-import { getConventionalCommitRule, IConventionalCommitRule } from "./rules";
-import { ConventionalCommitError } from "./errors";
+import { ConventionalCommitMessage } from "../src/commit";
+import {
+  getConventionalCommitRule,
+  IConventionalCommitRule,
+} from "../src/rules";
+import { ConventionalCommitError } from "../src/errors";
 
 function assertRuleValidationError(
   message: string,
