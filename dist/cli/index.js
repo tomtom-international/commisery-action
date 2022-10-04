@@ -2276,7 +2276,12 @@ const DEFAULT_ACCEPTED_TAGS = {
     improvement: "Introduces improvements to the code quality of the codebase",
 };
 const DEFAULT_IGNORED_RULES = [];
-const CONFIG_ITEMS = ["max-subject-length", "tags", "disable"];
+const CONFIG_ITEMS = [
+    "max-subject-length",
+    "tags",
+    "disable",
+    "allowed-branches",
+];
 /**
  * Configuration (from file)
  */
@@ -2286,6 +2291,7 @@ class Configuration {
      */
     constructor(config_path = DEFAULT_CONFIGURATION_FILE) {
         this.max_subject_length = 80;
+        this.allowed_branches = ".*";
         this.tags = DEFAULT_ACCEPTED_TAGS;
         this.ignore = DEFAULT_IGNORED_RULES;
         this.rules = {};
@@ -2347,6 +2353,14 @@ class Configuration {
                     }
                     else {
                         throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.tags}'!`);
+                    }
+                    break;
+                case "allowed-branches":
+                    if (typeof data[key] === "string") {
+                        this.allowed_branches = data[key];
+                    }
+                    else {
+                        throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.allowed_branches}'!`);
                     }
                     break;
             }
