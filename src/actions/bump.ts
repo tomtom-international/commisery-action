@@ -15,143 +15,132 @@
  */
 
 const core = require("@actions/core");
-const exec = require("@actions/exec");
 
-import { createRelease, IS_PULLREQUEST_EVENT } from "../github";
-import { context, getOctokit } from "@actions/github";
+import { context } from "@actions/github";
 
-import { ConventionalCommitMessage } from "../commit";
-import { SemVer, SemVerType } from "../semver";
+import { getVersionBumpTypeAndMessages } from "../bump";
+import { Configuration } from "../config";
 import {
-  ConventionalCommitError,
-  FixupCommitError,
-  MergeCommitError,
-} from "../errors";
-
-const octokit = getOctokit(core.getInput("token"));
+  createRelease,
+  createTag,
+  getConfig,
+  IS_PULLREQUEST_EVENT,
+} from "../github";
+import { SemVer } from "../semver";
 
 /**
  * Bump action entrypoint
+ * Finds out the current version based on SemVer Git tags, optionally creates a
+ * GitHub release or a lightweight Git tag, and sets outputs that can be used in
+ * other jobs.
  *
- * This action will:
- *  - get a list of commits reachable from `context.sha`
- *  - get a list of tags in the repo
- *  - match commit- and tag-hashes
- *    - find the nearest commit-tag combo representing a SemVer (with optional prefix)
- *  - go through the list of commits _before_ said tag
- *    - parse them as Conventional Commit messages
- *    - keep track of the highest-order bump by the CC type
- *       (breaking: major, feat: minor, fix: patch)
- *
- *  - bump the found SemVer accordingly
- *  - set `current-version` and `next-version` outputs
- *  - if not running on a `pull_request` event and `create-release` input is not false:
- *    - create a GitHub release (and, implicitly, git tag)
+ * This action:
+ *  - takes inputs `config`, `version-prefix`, `create-release` and `create-tag`
+ *  - sets outputs `current-version` and `next-version`
  */
 async function run() {
-  try {
-    const { owner, repo } = context.repo;
-    core.debug(`Fetching last 100 commits from ${context.sha}..`);
-    const { data: commits } = await octokit.rest.repos.listCommits({
-      owner: owner,
-      repo: repo,
-      sha: context.sha,
-      per_page: 100,
-    });
-    core.debug("Fetching last 100 tags in repo..");
-    const { data: tags } = await octokit.rest.repos.listTags({
-      owner: owner,
-      repo: repo,
-      per_page: 100,
-    });
-    core.startGroup("🔍 Finding latest topological tag..");
+  // Try to download and load configuration
+  await getConfig(core.getInput("config"));
+  const config = new Configuration(".commisery.yml");
 
-    let latest_semver: SemVer | null = null;
-    let bump_type: SemVerType = SemVerType.NONE;
-    const prefix = core.getInput("version-prefix");
+  const allowedBranchesRegEx = config.allowed_branches;
+  const branchName = context.ref.replace("refs/heads/", "");
+  let isBranchAllowedToPublish = false;
 
-    commits: for (const commit of commits) {
-      // Try and match this commit's sha to a tag
-      for (const tag of tags) {
-        if (tag.name.startsWith(prefix) && commit.sha === tag.commit.sha) {
-          core.debug(
-            ` - Tag '${tag.name}' on commit '${commit.sha.slice(
-              0,
-              6
-            )}' matches prefix`
-          );
-          latest_semver = SemVer.from_string(tag.name);
-          if (latest_semver != null) {
-            core.info(`ℹ️ Found SemVer tag: ${tag.name}`);
-            core.setOutput("current-version", latest_semver.to_string());
-            break commits;
-          } else {
-            core.debug(
-              `Commit ${commit.sha.slice(0, 6)} has non-matching tag: "${
-                tag.name
-              }"`
-            );
-          }
-        }
-      }
-      core.debug(
-        `Commit ${commit.sha.slice(0, 6)} is not associated with a tag`
+  if (context.ref.startsWith("refs/heads/")) {
+    try {
+      isBranchAllowedToPublish = new RegExp(allowedBranchesRegEx).test(
+        branchName
       );
+      console.log(
+        `Regex ${allowedBranchesRegEx} result on ${branchName}: ${isBranchAllowedToPublish}`
+      );
+    } catch (e) {
+      core.startGroup(
+        "❌ Configuration error - invalid 'allowed-branches' RegEx"
+      );
+      core.setFailed((e as Error).message);
+      core.endGroup();
+    }
+  }
 
-      // Determine the required bump if this is a Conventional Commit
-      if (bump_type !== SemVerType.MAJOR) {
-        try {
-          core.debug(`Examining message: ${commit.commit.message}`);
-          const msg = new ConventionalCommitMessage(commit.commit.message);
-          bump_type = msg.bump > bump_type ? msg.bump : bump_type;
-          core.debug(
-            `After commit type '${msg.type}', bump is: ${SemVerType[bump_type]}`
-          );
-        } catch (error) {
-          // Ignore compliancy errors, but rethrow other errors
-          if (
-            !(
-              error instanceof ConventionalCommitError ||
-              error instanceof MergeCommitError ||
-              error instanceof FixupCommitError
-            )
-          ) {
-            throw error;
-          }
-        }
-      }
+  try {
+    const prefix = core.getInput("version-prefix");
+    const release = core.getBooleanInput("create-release");
+    let tag = core.getBooleanInput("create-tag");
+
+    if (release && tag) {
+      core.warning(
+        'Defining both inputs "create-release" and "create-tag" as "true" is not needed; ' +
+          'a Git tag is implicitly created when using "create-release".'
+      );
+      tag = false;
     }
 
-    if (latest_semver == null) {
+    core.startGroup("🔍 Finding latest topological tag..");
+    const bumpInfo = await getVersionBumpTypeAndMessages(
+      prefix,
+      context.sha,
+      config
+    );
+
+    if (!bumpInfo.foundVersion) {
       // We haven't found a (matching) SemVer tag in the commit and tag list
       core.setOutput("current-version", "");
       core.setOutput("next-version", "");
-      core.warning("⚠️ No SemVer-compatible tags found.");
+      core.warning(`⚠️ No matching SemVer tags found.`);
       core.endGroup();
       return;
+    } else {
+      const currentVersion = bumpInfo.foundVersion.to_string();
+      core.info(`ℹ️ Found SemVer tag: ${currentVersion}`);
+      core.setOutput("current-version", currentVersion);
     }
     core.endGroup();
 
     core.startGroup("🔍 Determining bump");
-    const next_version: SemVer | null = latest_semver.bump(bump_type);
-    if (next_version) {
-      const nv = next_version.to_string();
+    const nextVersion: SemVer | null = bumpInfo.foundVersion.bump(
+      bumpInfo.requiredBump
+    );
+    if (nextVersion) {
+      const nv = nextVersion.to_string();
       core.info(`ℹ️ Next version: ${nv}`);
       core.setOutput("next-version", nv);
       core.endGroup();
-
-      if (core.getInput("create-release") === "true") {
-        if (!IS_PULLREQUEST_EVENT) {
-          core.startGroup(`ℹ️ Creating release ${nv}..`);
-          createRelease(nv);
+      if (release || tag) {
+        const relType = tag ? "tag" : "release";
+        if (!isBranchAllowedToPublish) {
+          core.startGroup(`ℹ️ Branch ${branchName} is not allowed to publish`);
+          core.info(
+            `Only branches that match the following regex may publish:\n${allowedBranchesRegEx}`
+          );
+        } else if (IS_PULLREQUEST_EVENT) {
+          core.startGroup(
+            `ℹ️ Not creating ${relType} on a pull request event.`
+          );
+          core.info(
+            "We cannot create a release or tag in a pull request context, due to " +
+              "potential parallelism (i.e. races) in pull request builds."
+          );
         } else {
-          core.startGroup("ℹ️ Not creating a release on a pull request event.");
+          core.startGroup(`ℹ️ Creating ${relType} ${nv}..`);
+          if (tag) {
+            createTag(nv, context.sha);
+          } else {
+            createRelease(nv, context.sha);
+          }
         }
       } else {
-        core.startGroup(`ℹ️ Not creating release for ${nv}..`);
+        core.startGroup(`ℹ️ Not creating tag or release for ${nv}..`);
+        core.info(
+          "To create a lightweight Git tag or GitHub release when the version is bumped, run this action with:\n" +
+            ' - "create-release" set to "true" to create a GitHub release, or\n' +
+            ' - "create-tag" set to "true" for a lightweight Git tag.\n' +
+            "Note that setting both options is not needed, since a GitHub release implicitly creates a Git tag."
+        );
       }
     } else {
-      core.info("ℹ️ No bump");
+      core.info("ℹ️ No bump necessary");
       core.setOutput("next-version", "");
     }
     core.endGroup();

@@ -11614,7 +11614,12 @@ const DEFAULT_ACCEPTED_TAGS = {
     improvement: "Introduces improvements to the code quality of the codebase",
 };
 const DEFAULT_IGNORED_RULES = [];
-const CONFIG_ITEMS = ["max-subject-length", "tags", "disable"];
+const CONFIG_ITEMS = [
+    "max-subject-length",
+    "tags",
+    "disable",
+    "allowed-branches",
+];
 /**
  * Configuration (from file)
  */
@@ -11624,6 +11629,7 @@ class Configuration {
      */
     constructor(config_path = DEFAULT_CONFIGURATION_FILE) {
         this.max_subject_length = 80;
+        this.allowed_branches = ".*";
         this.tags = DEFAULT_ACCEPTED_TAGS;
         this.ignore = DEFAULT_IGNORED_RULES;
         this.rules = {};
@@ -11685,6 +11691,14 @@ class Configuration {
                     }
                     else {
                         throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.tags}'!`);
+                    }
+                    break;
+                case "allowed-branches":
+                    if (typeof data[key] === "string") {
+                        this.allowed_branches = data[key];
+                    }
+                    else {
+                        throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.allowed_branches}'!`);
                     }
                     break;
             }
@@ -11774,7 +11788,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getCommitsSinceTag = exports.getLatestTag = exports.getConfig = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.PULLREQUEST_ID = exports.IS_PULLREQUEST_EVENT = void 0;
+exports.getTags = exports.getCommitsSince = exports.getConfig = exports.createTag = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.PULLREQUEST_ID = exports.IS_PULLREQUEST_EVENT = void 0;
 const core = __nccwpck_require__(2186);
 const fs = __nccwpck_require__(7147);
 const github = __nccwpck_require__(5438);
@@ -11818,15 +11832,16 @@ function getPullRequest(pullrequest_id) {
 exports.getPullRequest = getPullRequest;
 /**
  * Creates a GitHub release named `tag_name` on the main branch of the provided repo
-
  * @param tag_name Name of the tag (and release)
+ * @param commitish The commitish (ref, sha, ..) the release shall be made from
  */
-function createRelease(tag_name) {
+function createRelease(tag_name, commitish) {
     return __awaiter(this, void 0, void 0, function* () {
         yield octokit.rest.repos.createRelease({
             owner: OWNER,
             repo: REPO,
             tag_name: tag_name,
+            target_commitish: commitish,
             name: tag_name,
             body: "",
             draft: false,
@@ -11835,6 +11850,22 @@ function createRelease(tag_name) {
     });
 }
 exports.createRelease = createRelease;
+/**
+ * Creates a lightweight tag named `tag_name` on the provided sha
+ * @param tag_name Name of the tag
+ * @param sha The SHA1 value of the tag
+ */
+function createTag(tag_name, sha) {
+    return __awaiter(this, void 0, void 0, function* () {
+        yield octokit.rest.git.createRef({
+            owner: OWNER,
+            repo: REPO,
+            ref: tag_name.startsWith("refs/tags/") ? tag_name : `refs/tags/${tag_name}`,
+            sha: sha,
+        });
+    });
+}
+exports.createTag = createTag;
 /**
  * Downloads the requested configuration file in case it exists.
  * @param path Path towards the Commisery configuration file
@@ -11858,32 +11889,34 @@ function getConfig(path) {
 }
 exports.getConfig = getConfig;
 /**
- * Retrieve the latest tag from GitHub
+ * Retrieve `pageSize` commits since specified hash in the current repo
  */
-function getLatestTag() {
+function getCommitsSince(sha, pageSize) {
     return __awaiter(this, void 0, void 0, function* () {
-        const tags = yield octokit.paginate(octokit.rest.repos.listTags, {
+        const { data: commits } = yield octokit.rest.repos.listCommits({
             owner: OWNER,
             repo: REPO,
-        });
-        return tags[0].name;
-    });
-}
-exports.getLatestTag = getLatestTag;
-/**
- * Retrieve all commits since specified tag
- */
-function getCommitsSinceTag(tag) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const commits = yield octokit.paginate(octokit.rest.repos.listCommits, {
-            owner: OWNER,
-            repo: REPO,
-            sha: `refs/tags/${tag}`,
+            sha: sha,
+            per_page: pageSize,
         });
         return commits;
     });
 }
-exports.getCommitsSinceTag = getCommitsSinceTag;
+exports.getCommitsSince = getCommitsSince;
+/**
+ * Retrieve `pageSize` tags in the current repo
+ */
+function getTags(pageSize) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const { data: tags } = yield octokit.rest.repos.listTags({
+            owner: OWNER,
+            repo: REPO,
+            per_page: pageSize,
+        });
+        return tags;
+    });
+}
+exports.getTags = getTags;
 
 
 /***/ }),

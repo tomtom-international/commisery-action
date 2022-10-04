@@ -59,18 +59,33 @@ export async function getPullRequest(pullrequest_id: string) {
 
 /**
  * Creates a GitHub release named `tag_name` on the main branch of the provided repo
-
  * @param tag_name Name of the tag (and release)
+ * @param commitish The commitish (ref, sha, ..) the release shall be made from
  */
-export async function createRelease(tag_name: string) {
+export async function createRelease(tag_name: string, commitish: string) {
   await octokit.rest.repos.createRelease({
     owner: OWNER,
     repo: REPO,
     tag_name: tag_name,
+    target_commitish: commitish,
     name: tag_name,
     body: "",
     draft: false,
     prerelease: false,
+  });
+}
+
+/**
+ * Creates a lightweight tag named `tag_name` on the provided sha
+ * @param tag_name Name of the tag
+ * @param sha The SHA1 value of the tag
+ */
+export async function createTag(tag_name: string, sha: string) {
+  await octokit.rest.git.createRef({
+    owner: OWNER,
+    repo: REPO,
+    ref: tag_name.startsWith("refs/tags/") ? tag_name : `refs/tags/${tag_name}`,
+    sha: sha,
   });
 }
 
@@ -98,26 +113,28 @@ export async function getConfig(path: string) {
 }
 
 /**
- * Retrieve the latest tag from GitHub
+ * Retrieve `pageSize` commits since specified hash in the current repo
  */
-export async function getLatestTag() {
-  const tags = await octokit.paginate(octokit.rest.repos.listTags, {
+export async function getCommitsSince(sha: string, pageSize: number) {
+  const { data: commits } = await octokit.rest.repos.listCommits({
     owner: OWNER,
     repo: REPO,
-  });
-
-  return tags[0].name;
-}
-
-/**
- * Retrieve all commits since specified tag
- */
-export async function getCommitsSinceTag(tag: string) {
-  const commits = await octokit.paginate(octokit.rest.repos.listCommits, {
-    owner: OWNER,
-    repo: REPO,
-    sha: `refs/tags/${tag}`,
+    sha: sha,
+    per_page: pageSize,
   });
 
   return commits;
+}
+
+/**
+ * Retrieve `pageSize` tags in the current repo
+ */
+export async function getTags(pageSize: number) {
+  const { data: tags } = await octokit.rest.repos.listTags({
+    owner: OWNER,
+    repo: REPO,
+    per_page: pageSize,
+  });
+
+  return tags;
 }
