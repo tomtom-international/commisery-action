@@ -16,7 +16,7 @@
 
 import dedent from "dedent";
 
-import { SemVer, SemVerType } from "./semver";
+import { SemVer, SemVerType } from "../src/semver";
 
 describe("Semantic Version parsing correct input", () => {
   test("Full", () => {

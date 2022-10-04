@@ -16,13 +16,13 @@
 
 import dedent from "dedent";
 
-import { ConventionalCommitMessage } from "./commit";
-import { SemVerType } from "./semver";
+import { ConventionalCommitMessage } from "../src/commit";
+import { SemVerType } from "../src/semver";
 import {
   ConventionalCommitError,
   FixupCommitError,
   MergeCommitError,
-} from "./errors";
+} from "../src/errors";
 
 // Validate non-compliant Commit Messages
 //
