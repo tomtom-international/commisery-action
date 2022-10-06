@@ -86,6 +86,11 @@ An example workflow that creates a release on every commit or merge to the `main
           run: echo "Version bumped to ${{steps.release-version.outputs.next-version}}
 ```
 
+The GitHub release will be automatically populated with a changelog based on the released Conventional
+Commit messages, for example:
+
+![changelog](resources/changelog.png)
+
 ### Inputs
 
 | Item | Mandatory | Description |

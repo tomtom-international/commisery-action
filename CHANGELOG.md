@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Added
+- Ability to specify the branches from which you allow release to be created (part of the configuration file).
+- You can avoid the creation of GitHub Releases (and instead only rely on tags) by using `create-tag: true` in combination with `create-release: false`
+- Automatic generation of a changelog based on the release Conventional Commit messages
+
 ## [2.0.1] - 2022-09-29
 ### Fixed
 - The bump action no longer tries to fetch the repository's complete commit history, but is limited to the last 100 commits and tags.
