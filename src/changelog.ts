@@ -88,11 +88,10 @@ export function generateChangelog(bump: IVersionBumpTypeAndMessages): string {
     }
   });
 
-  changelog_formatted += `\n\n*Diff since last release: [${bump.foundVersion.to_string()}...${bump.foundVersion.bump(
-    bump.requiredBump
-  )}](https://github.com/${owner}/${repo}/compare/${bump.foundVersion.to_string()}...${bump.foundVersion.bump(
-    bump.requiredBump
-  )})*`;
+  const diff_range = `${bump.foundVersion.to_string()}...${bump.foundVersion
+    .bump(bump.requiredBump)
+    ?.to_string()}`;
+  changelog_formatted += `\n\n*Diff since last release: [${diff_range}](https://github.com/${owner}/${repo}/compare/${diff_range})*`;
 
   return changelog_formatted;
 }

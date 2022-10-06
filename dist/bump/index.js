@@ -11540,9 +11540,9 @@ function getSemVerIfMatches(prefix, tagName, tagSha, commitSha) {
     }
     return null;
 }
-function getMessageAsConventionalCommit(commitMessage, config) {
+function getMessageAsConventionalCommit(commitMessage, hexsha, config) {
     try {
-        return new commit_1.ConventionalCommitMessage(commitMessage, undefined, config);
+        return new commit_1.ConventionalCommitMessage(commitMessage, hexsha, config);
     }
     catch (error) {
         // Ignore compliancy errors, but rethrow other errors
@@ -11598,7 +11598,7 @@ function getVersionBumpTypeAndMessages(prefix, targetSha, config) {
             }
             core.debug(`Commit ${commit.sha.slice(0, 6)} is not associated with a tag`);
             core.debug(`Examining message: ${commit.commit.message}`);
-            const msg = getMessageAsConventionalCommit(commit.commit.message, config);
+            const msg = getMessageAsConventionalCommit(commit.commit.message, commit.sha, config);
             // Determine the required bump if this is a conventional commit
             if (msg) {
                 if (highestBump !== semver_1.SemVerType.MAJOR) {
@@ -11655,7 +11655,7 @@ exports.generateChangelog = void 0;
 const github_1 = __nccwpck_require__(5438);
 const semver_1 = __nccwpck_require__(8593);
 function generateChangelog(bump) {
-    var _a;
+    var _a, _b;
     if (bump.foundVersion === null) {
         return "";
     }
@@ -11711,7 +11711,9 @@ function generateChangelog(bump) {
             }
         }
     });
-    changelog_formatted += `\n\n*Diff since last release: [${bump.foundVersion.to_string()}...${bump.foundVersion.bump(bump.requiredBump)}](https://github.com/${owner}/${repo}/compare/${bump.foundVersion.to_string()}...${bump.foundVersion.bump(bump.requiredBump)})*`;
+    const diff_range = `${bump.foundVersion.to_string()}...${(_b = bump.foundVersion
+        .bump(bump.requiredBump)) === null || _b === void 0 ? void 0 : _b.to_string()}`;
+    changelog_formatted += `\n\n*Diff since last release: [${diff_range}](https://github.com/${owner}/${repo}/compare/${diff_range})*`;
     return changelog_formatted;
 }
 exports.generateChangelog = generateChangelog;
