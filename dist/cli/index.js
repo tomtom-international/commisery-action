@@ -7080,6 +7080,7 @@ function resolveBlockMap({ composeNode, composeEmptyNode }, ctx, bm, onError) {
     if (ctx.atRoot)
         ctx.atRoot = false;
     let offset = bm.offset;
+    let commentEnd = null;
     for (const collItem of bm.items) {
         const { start, key, sep, value } = collItem;
         // key properties
@@ -7099,7 +7100,7 @@ function resolveBlockMap({ composeNode, composeEmptyNode }, ctx, bm, onError) {
                     onError(offset, 'BAD_INDENT', startColMsg);
             }
             if (!keyProps.anchor && !keyProps.tag && !sep) {
-                // TODO: assert being at last item?
+                commentEnd = keyProps.end;
                 if (keyProps.comment) {
                     if (map.comment)
                         map.comment += '\n' + keyProps.comment;
@@ -7169,7 +7170,9 @@ function resolveBlockMap({ composeNode, composeEmptyNode }, ctx, bm, onError) {
             map.items.push(pair);
         }
     }
-    map.range = [bm.offset, offset, offset];
+    if (commentEnd && commentEnd < offset)
+        onError(commentEnd, 'IMPOSSIBLE', 'Map comment with trailing content');
+    map.range = [bm.offset, offset, commentEnd ?? offset];
     return map;
 }
 
@@ -7397,6 +7400,7 @@ function resolveBlockSeq({ composeNode, composeEmptyNode }, ctx, bs, onError) {
     if (ctx.atRoot)
         ctx.atRoot = false;
     let offset = bs.offset;
+    let commentEnd = null;
     for (const { start, value } of bs.items) {
         const props = resolveProps.resolveProps(start, {
             indicator: 'seq-item-ind',
@@ -7405,16 +7409,15 @@ function resolveBlockSeq({ composeNode, composeEmptyNode }, ctx, bs, onError) {
             onError,
             startOnNewline: true
         });
-        offset = props.end;
         if (!props.found) {
             if (props.anchor || props.tag || value) {
                 if (value && value.type === 'block-seq')
-                    onError(offset, 'BAD_INDENT', 'All sequence items must start at the same column');
+                    onError(props.end, 'BAD_INDENT', 'All sequence items must start at the same column');
                 else
                     onError(offset, 'MISSING_CHAR', 'Sequence item without - indicator');
             }
             else {
-                // TODO: assert being at last item?
+                commentEnd = props.end;
                 if (props.comment)
                     seq.comment = props.comment;
                 continue;
@@ -7422,13 +7425,13 @@ function resolveBlockSeq({ composeNode, composeEmptyNode }, ctx, bs, onError) {
         }
         const node = value
             ? composeNode(ctx, value, props, onError)
-            : composeEmptyNode(ctx, offset, start, null, props, onError);
+            : composeEmptyNode(ctx, props.end, start, null, props, onError);
         if (ctx.schema.compat)
             utilFlowIndentCheck.flowIndentCheck(bs.indent, value, onError);
         offset = node.range[2];
         seq.items.push(node);
     }
-    seq.range = [bs.offset, offset, offset];
+    seq.range = [bs.offset, offset, commentEnd ?? offset];
     return seq;
 }
 
