@@ -11654,32 +11654,44 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.generateChangelog = void 0;
 const github_1 = __nccwpck_require__(5438);
 const semver_1 = __nccwpck_require__(8593);
+/**
+ * Returns a default Changelog Configuration mapping
+ * SemVer types to a readable element.
+ */
+function getChangelogConfiguration() {
+    const config = new Map();
+    config.set(semver_1.SemVerType.MAJOR, {
+        title: "Breaking Changes",
+        emoji: "warning",
+        changes: [],
+    });
+    config.set(semver_1.SemVerType.MINOR, {
+        title: "New Features",
+        emoji: "rocket",
+        changes: [],
+    });
+    config.set(semver_1.SemVerType.PATCH, {
+        title: "Bug Fixes",
+        emoji: "bug",
+        changes: [],
+    });
+    config.set(semver_1.SemVerType.NONE, {
+        title: "Other changes",
+        emoji: "construction_worker",
+        changes: [],
+    });
+    return config;
+}
+/**
+ * Returns a pretty-formatted Changelog (markdown) based on the
+ * provided Conventional Commit messages.
+ */
 function generateChangelog(bump) {
     var _a, _b;
     if (bump.foundVersion === null) {
         return "";
     }
-    const changelog = new Map();
-    changelog.set(semver_1.SemVerType.MAJOR, {
-        title: "Breaking Changes",
-        emoji: "warning",
-        changes: [],
-    });
-    changelog.set(semver_1.SemVerType.MINOR, {
-        title: "New Features",
-        emoji: "rocket",
-        changes: [],
-    });
-    changelog.set(semver_1.SemVerType.PATCH, {
-        title: "Bug Fixes",
-        emoji: "bug",
-        changes: [],
-    });
-    changelog.set(semver_1.SemVerType.NONE, {
-        title: "Other changes",
-        emoji: "construction_worker",
-        changes: [],
-    });
+    const config = getChangelogConfiguration();
     const { owner, repo } = github_1.context.repo;
     const ISSUE_REGEX = new RegExp(`[A-Z]+-[0-9]+`, "g");
     for (const commit of bump.messages) {
@@ -11700,10 +11712,10 @@ function generateChangelog(bump) {
             const sha_link = `[${commit.hexsha.slice(0, 6)}](https://github.com/${owner}/${repo}/commit/${commit.hexsha})`;
             msg += ` [${sha_link}]`;
         }
-        (_a = changelog.get(commit.bump)) === null || _a === void 0 ? void 0 : _a.changes.push(msg);
+        (_a = config.get(commit.bump)) === null || _a === void 0 ? void 0 : _a.changes.push(msg);
     }
     let changelog_formatted = "## What's changed\n";
-    changelog.forEach((value) => {
+    config.forEach((value) => {
         if (value.changes.length > 0) {
             changelog_formatted += `### :${value.emoji}: ${value.title}\n`;
             for (const msg of value.changes) {

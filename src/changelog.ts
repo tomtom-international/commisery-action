@@ -18,37 +18,58 @@ import { context } from "@actions/github";
 import { IVersionBumpTypeAndMessages } from "./interfaces";
 import { SemVerType } from "./semver";
 
-export function generateChangelog(bump: IVersionBumpTypeAndMessages): string {
-  if (bump.foundVersion === null) {
-    return "";
-  }
+/**
+ * Changelog Configuration entry
+ */
+interface IChangelogCategory {
+  /* Title message to use in the Changelog */
+  title: string;
+  /* Emoji to display in the Changelog */
+  emoji: string;
+  /* List of changes associated with this Changelog category */
+  changes: string[];
+}
 
-  interface IChangelogEntry {
-    title: string;
-    emoji: string;
-    changes: string[];
-  }
-  const changelog = new Map<SemVerType, IChangelogEntry>();
-  changelog.set(SemVerType.MAJOR, {
+/**
+ * Returns a default Changelog Configuration mapping
+ * SemVer types to a readable element.
+ */
+function getChangelogConfiguration(): Map<SemVerType, IChangelogCategory> {
+  const config = new Map<SemVerType, IChangelogCategory>();
+  config.set(SemVerType.MAJOR, {
     title: "Breaking Changes",
     emoji: "warning",
     changes: [],
   });
-  changelog.set(SemVerType.MINOR, {
+  config.set(SemVerType.MINOR, {
     title: "New Features",
     emoji: "rocket",
     changes: [],
   });
-  changelog.set(SemVerType.PATCH, {
+  config.set(SemVerType.PATCH, {
     title: "Bug Fixes",
     emoji: "bug",
     changes: [],
   });
-  changelog.set(SemVerType.NONE, {
+  config.set(SemVerType.NONE, {
     title: "Other changes",
     emoji: "construction_worker",
     changes: [],
   });
+
+  return config;
+}
+
+/**
+ * Returns a pretty-formatted Changelog (markdown) based on the
+ * provided Conventional Commit messages.
+ */
+export function generateChangelog(bump: IVersionBumpTypeAndMessages): string {
+  if (bump.foundVersion === null) {
+    return "";
+  }
+  const config: Map<SemVerType, IChangelogCategory> =
+    getChangelogConfiguration();
 
   const { owner, repo } = context.repo;
   const ISSUE_REGEX = new RegExp(`[A-Z]+-[0-9]+`, "g");
@@ -77,11 +98,11 @@ export function generateChangelog(bump: IVersionBumpTypeAndMessages): string {
       msg += ` [${sha_link}]`;
     }
 
-    changelog.get(commit.bump)?.changes.push(msg);
+    config.get(commit.bump)?.changes.push(msg);
   }
 
   let changelog_formatted = "## What's changed\n";
-  changelog.forEach((value: IChangelogEntry) => {
+  config.forEach((value: IChangelogCategory) => {
     if (value.changes.length > 0) {
       changelog_formatted += `### :${value.emoji}: ${value.title}\n`;
       for (const msg of value.changes) {
