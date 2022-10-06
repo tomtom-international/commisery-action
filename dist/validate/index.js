@@ -11835,7 +11835,7 @@ exports.getPullRequest = getPullRequest;
  * @param tag_name Name of the tag (and release)
  * @param commitish The commitish (ref, sha, ..) the release shall be made from
  */
-function createRelease(tag_name, commitish) {
+function createRelease(tag_name, commitish, body) {
     return __awaiter(this, void 0, void 0, function* () {
         yield octokit.rest.repos.createRelease({
             owner: OWNER,
@@ -11843,7 +11843,7 @@ function createRelease(tag_name, commitish) {
             tag_name: tag_name,
             target_commitish: commitish,
             name: tag_name,
-            body: "",
+            body: body,
             draft: false,
             prerelease: false,
         });

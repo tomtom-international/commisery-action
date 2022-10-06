@@ -75,10 +75,11 @@ function getSemVerIfMatches(
 
 function getMessageAsConventionalCommit(
   commitMessage: string,
+  hexsha: string,
   config: Configuration
 ): ConventionalCommitMessage | null {
   try {
-    return new ConventionalCommitMessage(commitMessage, undefined, config);
+    return new ConventionalCommitMessage(commitMessage, hexsha, config);
   } catch (error) {
     // Ignore compliancy errors, but rethrow other errors
     if (
@@ -144,7 +145,11 @@ export async function getVersionBumpTypeAndMessages(
     core.debug(`Commit ${commit.sha.slice(0, 6)} is not associated with a tag`);
 
     core.debug(`Examining message: ${commit.commit.message}`);
-    const msg = getMessageAsConventionalCommit(commit.commit.message, config);
+    const msg = getMessageAsConventionalCommit(
+      commit.commit.message,
+      commit.sha,
+      config
+    );
     // Determine the required bump if this is a conventional commit
     if (msg) {
       if (highestBump !== SemVerType.MAJOR) {

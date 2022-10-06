@@ -11355,6 +11355,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __nccwpck_require__(2186);
 const github_1 = __nccwpck_require__(5438);
 const bump_1 = __nccwpck_require__(1692);
+const changelog_1 = __nccwpck_require__(8598);
 const config_1 = __nccwpck_require__(6373);
 const github_2 = __nccwpck_require__(978);
 /**
@@ -11435,7 +11436,7 @@ function run() {
                             (0, github_2.createTag)(nv, github_1.context.sha);
                         }
                         else {
-                            (0, github_2.createRelease)(nv, github_1.context.sha);
+                            (0, github_2.createRelease)(nv, github_1.context.sha, (0, changelog_1.generateChangelog)(bumpInfo));
                         }
                     }
                 }
@@ -11539,9 +11540,9 @@ function getSemVerIfMatches(prefix, tagName, tagSha, commitSha) {
     }
     return null;
 }
-function getMessageAsConventionalCommit(commitMessage, config) {
+function getMessageAsConventionalCommit(commitMessage, hexsha, config) {
     try {
-        return new commit_1.ConventionalCommitMessage(commitMessage, undefined, config);
+        return new commit_1.ConventionalCommitMessage(commitMessage, hexsha, config);
     }
     catch (error) {
         // Ignore compliancy errors, but rethrow other errors
@@ -11597,7 +11598,7 @@ function getVersionBumpTypeAndMessages(prefix, targetSha, config) {
             }
             core.debug(`Commit ${commit.sha.slice(0, 6)} is not associated with a tag`);
             core.debug(`Examining message: ${commit.commit.message}`);
-            const msg = getMessageAsConventionalCommit(commit.commit.message, config);
+            const msg = getMessageAsConventionalCommit(commit.commit.message, commit.sha, config);
             // Determine the required bump if this is a conventional commit
             if (msg) {
                 if (highestBump !== semver_1.SemVerType.MAJOR) {
@@ -11625,6 +11626,109 @@ function getVersionBumpTypeAndMessages(prefix, targetSha, config) {
     });
 }
 exports.getVersionBumpTypeAndMessages = getVersionBumpTypeAndMessages;
+
+
+/***/ }),
+
+/***/ 8598:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+/**
+ * Copyright (C) 2022, TomTom (http://tomtom.com).
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.generateChangelog = void 0;
+const github_1 = __nccwpck_require__(5438);
+const semver_1 = __nccwpck_require__(8593);
+/**
+ * Returns a default Changelog Configuration mapping
+ * SemVer types to a readable element.
+ */
+function getChangelogConfiguration() {
+    const config = new Map();
+    config.set(semver_1.SemVerType.MAJOR, {
+        title: "Breaking Changes",
+        emoji: "warning",
+        changes: [],
+    });
+    config.set(semver_1.SemVerType.MINOR, {
+        title: "New Features",
+        emoji: "rocket",
+        changes: [],
+    });
+    config.set(semver_1.SemVerType.PATCH, {
+        title: "Bug Fixes",
+        emoji: "bug",
+        changes: [],
+    });
+    config.set(semver_1.SemVerType.NONE, {
+        title: "Other changes",
+        emoji: "construction_worker",
+        changes: [],
+    });
+    return config;
+}
+/**
+ * Returns a pretty-formatted Changelog (markdown) based on the
+ * provided Conventional Commit messages.
+ */
+function generateChangelog(bump) {
+    var _a, _b;
+    if (bump.foundVersion === null) {
+        return "";
+    }
+    const config = getChangelogConfiguration();
+    const { owner, repo } = github_1.context.repo;
+    const ISSUE_REGEX = new RegExp(`[A-Z]+-[0-9]+`, "g");
+    for (const commit of bump.messages) {
+        let msg = `${commit.description
+            .charAt(0)
+            .toUpperCase()}${commit.description.slice(1)}`;
+        let issue_references = [];
+        for (const footer of commit.footers) {
+            const matches = footer.value.matchAll(ISSUE_REGEX);
+            for (const match of matches) {
+                issue_references.push(match[0]);
+            }
+        }
+        if (issue_references.length > 0) {
+            msg += ` (${issue_references.join(", ")})`;
+        }
+        if (commit.hexsha) {
+            const sha_link = `[${commit.hexsha.slice(0, 6)}](https://github.com/${owner}/${repo}/commit/${commit.hexsha})`;
+            msg += ` [${sha_link}]`;
+        }
+        (_a = config.get(commit.bump)) === null || _a === void 0 ? void 0 : _a.changes.push(msg);
+    }
+    let changelog_formatted = "## What's changed\n";
+    config.forEach((value) => {
+        if (value.changes.length > 0) {
+            changelog_formatted += `### :${value.emoji}: ${value.title}\n`;
+            for (const msg of value.changes) {
+                changelog_formatted += `* ${msg}\n`;
+            }
+        }
+    });
+    const diff_range = `${bump.foundVersion.to_string()}...${(_b = bump.foundVersion
+        .bump(bump.requiredBump)) === null || _b === void 0 ? void 0 : _b.to_string()}`;
+    changelog_formatted += `\n\n*Diff since last release: [${diff_range}](https://github.com/${owner}/${repo}/compare/${diff_range})*`;
+    return changelog_formatted;
+}
+exports.generateChangelog = generateChangelog;
 
 
 /***/ }),
@@ -12084,7 +12188,7 @@ exports.getPullRequest = getPullRequest;
  * @param tag_name Name of the tag (and release)
  * @param commitish The commitish (ref, sha, ..) the release shall be made from
  */
-function createRelease(tag_name, commitish) {
+function createRelease(tag_name, commitish, body) {
     return __awaiter(this, void 0, void 0, function* () {
         yield octokit.rest.repos.createRelease({
             owner: OWNER,
@@ -12092,7 +12196,7 @@ function createRelease(tag_name, commitish) {
             tag_name: tag_name,
             target_commitish: commitish,
             name: tag_name,
-            body: "",
+            body: body,
             draft: false,
             prerelease: false,
         });
