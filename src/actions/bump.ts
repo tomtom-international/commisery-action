@@ -19,6 +19,7 @@ const core = require("@actions/core");
 import { context } from "@actions/github";
 
 import { getVersionBumpTypeAndMessages } from "../bump";
+import { generateChangelog } from "../changelog";
 import { Configuration } from "../config";
 import {
   createRelease,
@@ -26,6 +27,7 @@ import {
   getConfig,
   IS_PULLREQUEST_EVENT,
 } from "../github";
+import { IVersionBumpTypeAndMessages } from "../interfaces";
 import { SemVer } from "../semver";
 
 /**
@@ -78,11 +80,8 @@ async function run() {
     }
 
     core.startGroup("🔍 Finding latest topological tag..");
-    const bumpInfo = await getVersionBumpTypeAndMessages(
-      prefix,
-      context.sha,
-      config
-    );
+    const bumpInfo: IVersionBumpTypeAndMessages =
+      await getVersionBumpTypeAndMessages(prefix, context.sha, config);
 
     if (!bumpInfo.foundVersion) {
       // We haven't found a (matching) SemVer tag in the commit and tag list
@@ -127,7 +126,7 @@ async function run() {
           if (tag) {
             createTag(nv, context.sha);
           } else {
-            createRelease(nv, context.sha);
+            createRelease(nv, context.sha, generateChangelog(bumpInfo));
           }
         }
       } else {

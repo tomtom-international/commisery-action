@@ -62,14 +62,18 @@ export async function getPullRequest(pullrequest_id: string) {
  * @param tag_name Name of the tag (and release)
  * @param commitish The commitish (ref, sha, ..) the release shall be made from
  */
-export async function createRelease(tag_name: string, commitish: string) {
+export async function createRelease(
+  tag_name: string,
+  commitish: string,
+  body: string
+) {
   await octokit.rest.repos.createRelease({
     owner: OWNER,
     repo: REPO,
     tag_name: tag_name,
     target_commitish: commitish,
     name: tag_name,
-    body: "",
+    body: body,
     draft: false,
     prerelease: false,
   });
