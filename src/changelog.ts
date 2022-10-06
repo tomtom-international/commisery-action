@@ -87,7 +87,12 @@ export function generateChangelog(bump: IVersionBumpTypeAndMessages): string {
       }
     }
   });
-  changelog_formatted += `\n\n*Diff since last release: [${bump.foundVersion.toString()}...${bump.requiredBump.toString()}](https://github.com/${owner}/${repo}/compare/${bump.foundVersion.toString()}...${bump.requiredBump.toString()})*`;
+
+  changelog_formatted += `\n\n*Diff since last release: [${bump.foundVersion.to_string()}...${bump.foundVersion.bump(
+    bump.requiredBump
+  )}](https://github.com/${owner}/${repo}/compare/${bump.foundVersion.to_string()}...${bump.foundVersion.bump(
+    bump.requiredBump
+  )})*`;
 
   return changelog_formatted;
 }
