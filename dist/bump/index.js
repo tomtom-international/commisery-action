@@ -11686,10 +11686,6 @@ function generateChangelog(bump) {
         let msg = `${commit.description
             .charAt(0)
             .toUpperCase()}${commit.description.slice(1)}`;
-        if (commit.hexsha) {
-            const sha_link = `[${commit.hexsha.slice(0, 6)}](https://github.com/${owner}/${repo}/commit/${commit.hexsha})`;
-            msg += ` [${sha_link}]`;
-        }
         let issue_references = [];
         for (const footer of commit.footers) {
             const matches = footer.value.matchAll(ISSUE_REGEX);
@@ -11698,7 +11694,11 @@ function generateChangelog(bump) {
             }
         }
         if (issue_references.length > 0) {
-            msg += `(${issue_references.join(", ")})`;
+            msg += ` (${issue_references.join(", ")})`;
+        }
+        if (commit.hexsha) {
+            const sha_link = `[${commit.hexsha.slice(0, 6)}](https://github.com/${owner}/${repo}/commit/${commit.hexsha})`;
+            msg += ` [${sha_link}]`;
         }
         (_a = changelog.get(commit.bump)) === null || _a === void 0 ? void 0 : _a.changes.push(msg);
     }

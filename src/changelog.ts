@@ -56,13 +56,6 @@ export function generateChangelog(bump: IVersionBumpTypeAndMessages): string {
     let msg = `${commit.description
       .charAt(0)
       .toUpperCase()}${commit.description.slice(1)}`;
-    if (commit.hexsha) {
-      const sha_link = `[${commit.hexsha.slice(
-        0,
-        6
-      )}](https://github.com/${owner}/${repo}/commit/${commit.hexsha})`;
-      msg += ` [${sha_link}]`;
-    }
 
     let issue_references: string[] = [];
     for (const footer of commit.footers) {
@@ -71,8 +64,17 @@ export function generateChangelog(bump: IVersionBumpTypeAndMessages): string {
         issue_references.push(match[0]);
       }
     }
+
     if (issue_references.length > 0) {
-      msg += `(${issue_references.join(", ")})`;
+      msg += ` (${issue_references.join(", ")})`;
+    }
+
+    if (commit.hexsha) {
+      const sha_link = `[${commit.hexsha.slice(
+        0,
+        6
+      )}](https://github.com/${owner}/${repo}/commit/${commit.hexsha})`;
+      msg += ` [${sha_link}]`;
     }
 
     changelog.get(commit.bump)?.changes.push(msg);
