@@ -22,7 +22,7 @@ import { getMessagesToValidate, validateMessages } from "../validate";
 
 async function run() {
   try {
-    if (!isPullRequestEvent) {
+    if (!isPullRequestEvent()) {
       core.warning(
         "Conventional Commit Message validation requires a workflow using the `pull_request` trigger!"
       );

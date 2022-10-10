@@ -11359,7 +11359,7 @@ const validate_1 = __nccwpck_require__(4953);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            if (!github_1.isPullRequestEvent) {
+            if (!(0, github_1.isPullRequestEvent)()) {
                 core.warning("Conventional Commit Message validation requires a workflow using the `pull_request` trigger!");
                 return;
             }
