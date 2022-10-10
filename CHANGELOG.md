@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Added
+- Pull Request references are now added to each commit in the GitHub Releases' changelog
+
 ## [2.1.0] - 2022-10-06
 ### Added
 - Ability to specify the branches from which you allow release to be created (part of the configuration file).
