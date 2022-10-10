@@ -11929,10 +11929,15 @@ class ConventionalCommitMessage {
         if (metadata.breaking_change === "!") {
             return semver_1.SemVerType.MAJOR;
         }
-        if (metadata.type.trim().toLowerCase() === "feat") {
+        if (metadata.type.trim() === "feat") {
             return semver_1.SemVerType.MINOR;
         }
-        if (metadata.type.trim().toLowerCase() === "fix") {
+        let patchBumpingTypes = Object.entries(this.config.tags)
+            .map(([key, value]) => (value.bump ? key : undefined))
+            .filter((e) => !!e);
+        if (!patchBumpingTypes.includes("fix"))
+            patchBumpingTypes.push("fix");
+        if (patchBumpingTypes.includes(metadata.type.trim())) {
             return semver_1.SemVerType.PATCH;
         }
         return semver_1.SemVerType.NONE;
@@ -11994,26 +11999,55 @@ const fs = __nccwpck_require__(7147);
 const yaml = __nccwpck_require__(4083);
 const DEFAULT_CONFIGURATION_FILE = ".commisery.yml";
 const DEFAULT_ACCEPTED_TAGS = {
-    fix: "Patches a bug in your codebase",
-    feat: "Introduces a new feature to the codebase",
-    build: "Changes towards the build system",
-    chore: "General maintenance changes to the codebase",
-    ci: "Changes related to your CI configuration",
-    docs: "Documentation changes (not part of the public API)",
-    perf: "Performance improvements",
-    refactor: "Refactoring the code base (no behaviorial changes)",
-    revert: "Reverts previous change(s) from your codebase",
-    style: "Coding style improvements",
-    test: "Updates tests",
-    improvement: "Introduces improvements to the code quality of the codebase",
+    fix: {
+        description: "Patches a bug in your codebase",
+        bump: true,
+    },
+    feat: {
+        description: "Introduces a new feature to the codebase",
+        bump: false,
+    },
+    build: { description: "Changes towards the build system", bump: false },
+    chore: {
+        description: "General maintenance changes to the codebase",
+        bump: false,
+    },
+    ci: { description: "Changes related to your CI configuration", bump: false },
+    docs: {
+        description: "Documentation changes (not part of the public API)",
+        bump: false,
+    },
+    perf: { description: "Performance improvements", bump: false },
+    refactor: {
+        description: "Refactoring the code base (no behaviorial changes)",
+        bump: false,
+    },
+    revert: {
+        description: "Reverts previous change(s) from your codebase",
+        bump: false,
+    },
+    style: { description: "Coding style improvements", bump: false },
+    test: { description: "Updates tests", bump: false },
+    improvement: {
+        description: "Introduces improvements to the code quality of the codebase",
+        bump: false,
+    },
 };
-const DEFAULT_IGNORED_RULES = [];
+const DEFAULT_IGNORED_RULES = (/* unused pure expression or super */ null && ([]));
 const CONFIG_ITEMS = [
     "max-subject-length",
     "tags",
     "disable",
     "allowed-branches",
 ];
+/**
+ * This function takes two values and throws when their types don't match.
+ */
+function verifyTypeMatches(name, typeToTest, typeItShouldBe) {
+    if (typeof typeToTest !== typeof typeItShouldBe) {
+        throw new Error(`Incorrect type '${typeof typeToTest}' for '${name}', must be '${typeof typeItShouldBe}'`);
+    }
+}
 /**
  * Configuration (from file)
  */
@@ -12025,7 +12059,6 @@ class Configuration {
         this.max_subject_length = 80;
         this.allowed_branches = ".*";
         this.tags = DEFAULT_ACCEPTED_TAGS;
-        this.ignore = DEFAULT_IGNORED_RULES;
         this.rules = new Map();
         // Enable all rules by default
         for (const rule of rules_1.ALL_RULES) {
@@ -12045,6 +12078,8 @@ class Configuration {
         }
     }
     loadFromData(data) {
+        var _a;
+        var _b;
         for (const key in data) {
             if (CONFIG_ITEMS.indexOf(key) === -1) {
                 throw new Error(`Unknown configuration item '${key} detected!`);
@@ -12066,6 +12101,9 @@ class Configuration {
                     }
                     break;
                 case "max-subject-length":
+                    /* Example YAML:
+                     *   max-subject-length: 80
+                     */
                     if (typeof data[key] === "number") {
                         this.max_subject_length = data[key];
                     }
@@ -12074,25 +12112,67 @@ class Configuration {
                     }
                     break;
                 case "tags":
-                    if (typeof data[key] == "object") {
-                        for (const tag in data[key]) {
-                            if (typeof data[key][tag] !== "string") {
-                                throw new Error(`Incorrect type '${typeof data[key][tag]}' for '${key}.${tag}', must be 'string'`);
-                            }
-                        }
-                        this.tags = data[key];
-                        if (!("feat" in this.tags)) {
-                            this.tags["feat"] = DEFAULT_ACCEPTED_TAGS["feat"];
-                        }
-                        if (!("fix" in this.tags)) {
-                            this.tags["fix"] = DEFAULT_ACCEPTED_TAGS["fix"];
+                    /* Example YAML:
+                     *   tags:
+                     *     perf:
+                     *       description: Non-functional performance improvement
+                     *       bump: true
+                     *     improvement: General non-functional improvements
+                     *     revert:
+                     *       bump: true
+                     */
+                    verifyTypeMatches(key, data[key], {});
+                    this.tags = {};
+                    for (const typ of Object.keys(data[key])) {
+                        const typeValue = data[key][typ];
+                        switch (typeof typeValue) {
+                            case "string":
+                                this.tags[typ] = { description: typeValue, bump: false };
+                                break;
+                            case "object":
+                                for (const entry of Object.keys(typeValue)) {
+                                    if (["description", "bump"].includes(entry)) {
+                                        if (entry === "description") {
+                                            verifyTypeMatches(`${typ}.${entry}`, typeValue[entry], "");
+                                        }
+                                        else if (entry === "bump") {
+                                            verifyTypeMatches(`${typ}.${entry}`, typeValue[entry], true);
+                                        }
+                                        this.tags[typ] = this.tags[typ] ? this.tags[typ] : {};
+                                        this.tags[typ][entry] = typeValue[entry];
+                                    }
+                                    else {
+                                        console.log(`Warning: "${key}.${typ}.${entry}" is unknown and has no effect.`);
+                                    }
+                                }
+                                break;
+                            default:
+                                break;
                         }
                     }
-                    else {
-                        throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.tags}'!`);
+                    if (!("fix" in this.tags)) {
+                        this.tags["fix"] = DEFAULT_ACCEPTED_TAGS["fix"];
+                    }
+                    if (!("feat" in this.tags)) {
+                        this.tags["feat"] = DEFAULT_ACCEPTED_TAGS["feat"];
+                    }
+                    // Make sure both description and bump values are set for all entries in `tags`
+                    for (const typ in this.tags) {
+                        if (this.tags[typ].description === undefined) {
+                            let desc = "";
+                            // Use the default description if it's one of the default tags
+                            if (typ in DEFAULT_ACCEPTED_TAGS) {
+                                desc = DEFAULT_ACCEPTED_TAGS[typ].description;
+                            }
+                            this.tags[typ].description = desc;
+                        }
+                        (_a = (_b = this.tags[typ]).bump) !== null && _a !== void 0 ? _a : (_b.bump = false);
                     }
                     break;
                 case "allowed-branches":
+                    /* Example YAML:
+                     *   allowed-branches: "^ma(in|ster)$"
+                     */
                     if (typeof data[key] === "string") {
                         this.allowed_branches = data[key];
                     }

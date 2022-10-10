@@ -58,14 +58,17 @@ jobs:
 ### Create GitHub Releases based on unreleased Conventional Commits
 
 With the `/bump` GitHub Action, you can create a new Git tag or a GitHub release (also implicitly a Git tag),
-based on the [Conventional Commits] since the latest found [Semantic Versioning]-compatible tag.
+based on the types of [Conventional Commits] since the latest found [Semantic Versioning]-compatible tag.
+Breaking changes bump `MAJOR`, `feat`s bump `MINOR`, and `fix`es bump `PATCH`.
+You may also specify additional types that bump `PATCH` using the [`tags.<tag>.bump`](#configuration-parameters)
+configuration item.
 
 Both the current and bumped versions are available as outputs.
 Optional inputs can be provided to enable automatic tag or release creation when a bump is performed.
 When running from a pull request event, tag/release creation is forcibly disabled, but the outputs are
 still available.
 
-Filtering the tags is also possible, by providing a `version-prefix` input. If set, only tags matching
+Filtering the Git version tags is also possible, by providing a `version-prefix` input. If set, only tags matching
 _exactly_ with the value of `version-prefix` shall be taken into account while determining and bumping versions.
 As an example, for version tag `componentX-1.2.3`, the version prefix would be `componentX-`.
 
@@ -111,7 +114,7 @@ Commit messages, for example:
 | `token` | YES | GitHub Token provided by GitHub, see [Authenticating with the GITHUB_TOKEN]|
 | `create-release` | NO | Can optionally be set to `true` to create a GitHub release on version bump.|
 | `create-tag` | NO | Can optionally be set to `true` to create a lightweight Git tag on version bump.|
-| `version-prefix` | NO | An optional prefix specifying the tags to consider, eg. `v`, `componentX-`.
+| `version-prefix` | NO | An optional prefix specifying the tags to consider, eg. `v`, `componentX-`, `""`.
 | `config` | NO | Location of the Commisery configuration file (default: `.commisery.yml`)
 
 > :bulb: Note that setting both `create-release` and `create-tag` to `true` is never needed, since a GitHub
@@ -131,7 +134,12 @@ You can configure `commisery-action` using a YAML-based configuration file, i.e.
 max-subject-length: 120
 tags:
   docs: Documentation changes not part of the API
-  example: Changes to example code in the repository
+  example:
+    description: Changes to example code in the repository
+  perf:
+    description: Performance improvements
+    bump: true
+
 disable:
   - C001
   - C018
@@ -141,9 +149,9 @@ allowed-branches: "^ma(in|ster)$"
 | Item | Default value |Description | 
 | --- | --- | --- |
 | `max-subject-length` | `80` | The maximum length of the subject of the commit message |
-| `tags` | `fix`, `feat`, `build`, `chore`, `ci`, `docs`, `perf`, `refactor`, `revert`, `style`, `test`, `improvement` | Additional tags (including description). These tags will not result in a version bump.<br><br>**NOTE:** The tags `feat` and `fix` will automatically be provided |
+| `tags` | `fix`, `feat`, `build`, `chore`, `ci`, `docs`, `perf`, `refactor`, `revert`, `style`, `test`, `improvement` | Specify a custom list of Conventional Commit types to allow. If provided, this will overwrite the default list, so be sure to include those if you want to retain them.<br>`tags` takes a dict per type tag, with two values that can be set:<ul><li>`description`: a human-readable description of what the type should be used for.</li><li>`bump`: if set to `true`, will cause commits with this type to also bump the `PATCH` version component, same as `fix`.</li></ul>If you only specify YAML string, it shall be treated as the `description`; the `bump` will be `false` implicitly. <br><br>**NOTE:** The type tags `feat` and `fix` will automatically be provided. |
 | `disabled` | `None` | List of rules to disable as part of the checker |
-| `allowed-branches` | `.*` | A regex specifying from which branch(es) releases and tags are allowed to be created |
+| `allowed-branches` | `.*` | A regex specifying from which branch(es) releases and Git tags are allowed to be created |
 
 > :bulb: By default `commisery-action` will search for the file `.commisery.yml`. 
 You can specify a different file with the `config` input parameter.

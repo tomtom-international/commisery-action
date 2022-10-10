@@ -27,6 +27,11 @@ export interface IVersionBumpTypeAndMessages {
   messages: ConventionalCommitMessage[];
 }
 
+export interface ITypeTagConfigItem {
+  description?: string;
+  bump?: boolean;
+}
+
 export interface IRuleConfigItem {
   description: string;
   enabled: boolean;

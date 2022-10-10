@@ -26,6 +26,11 @@ import { Configuration } from "../config";
 import { ConventionalCommitError } from "../errors";
 
 const program = new Command();
+const gray = "\x1b[90m",
+  red = "\x1b[91m",
+  green = "\x1b[92m",
+  yellow = "\x1b[93m",
+  reset = "\x1b[0m";
 
 program
   .name("commisery")
@@ -54,19 +59,25 @@ program
 program
   .command("overview")
   .description(
-    "Lists the accepted Conventional Commit tags and Rules (including description)"
+    "Lists the accepted Conventional Commit types and Rules (including description)"
   )
   .action(() => {
     const config = new Configuration(program.opts().config);
 
     console.log(
       dedent(`
-    Conventional Commit tags
-    ------------------------`)
+    Conventional Commit types
+    -------------------------`)
     );
 
     for (const key in config.tags) {
-      console.log(`${key}: \x1b[90m${config.tags[key]}\x1b[0m`);
+      const bumps =
+        config.tags[key].bump && key !== "fix"
+          ? ` ${yellow}(bumps patch)${reset}`
+          : "";
+      console.log(
+        `${key}: ${gray}${config.tags[key].description}${reset}${bumps}`
+      );
     }
 
     console.log(os.EOL);
@@ -75,7 +86,7 @@ program
       dedent(`
     Commisery Validation rules
     --------------------------
-    [\x1b[92mo\x1b[0m]: \x1b[90mrule is enabled\x1b[0m, [\x1b[91mx\x1b[0m]: \x1b[90mrule has been disabled\x1b[0m
+    [${green}o${reset}]: ${gray}rule is enabled${reset}, [${red}x${reset}]: ${gray}rule has been disabled${reset}
     `)
     );
 
@@ -83,10 +94,10 @@ program
 
     for (const rule in config.rules) {
       const status = config.rules[rule].enabled
-        ? `\x1b[92mo\x1b[0m`
-        : `\x1b[91mx\x1b[0m`;
+        ? `${green}o${reset}`
+        : `${red}x${reset}`;
       console.log(
-        `[${status}] ${rule}: \x1b[90m${config.rules[rule].description}\x1b[0m`
+        `[${status}] ${rule}: ${gray}${config.rules[rule].description}${reset}`
       );
     }
   });
