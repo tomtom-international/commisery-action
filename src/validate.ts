@@ -18,7 +18,7 @@ const core = require("@actions/core");
 
 import { ConventionalCommitMessage } from "./commit";
 import { Configuration } from "./config";
-import { getCommits, getPullRequest, PULLREQUEST_ID } from "./github";
+import { getCommits, getPullRequest, getPullRequestId } from "./github";
 import { LlvmError } from "./logging";
 import {
   ConventionalCommitError,
@@ -35,7 +35,7 @@ interface Message {
  * Determines the list of messages to validate (Pull Request and/or Commits)
  */
 export async function getMessagesToValidate() {
-  const pullrequest_id = PULLREQUEST_ID;
+  const pullrequest_id = getPullRequestId();
 
   let to_validate: Message[] = [];
 

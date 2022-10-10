@@ -25,7 +25,7 @@ import {
   createRelease,
   createTag,
   getConfig,
-  IS_PULLREQUEST_EVENT,
+  isPullRequestEvent,
 } from "../github";
 import { IVersionBumpTypeAndMessages } from "../interfaces";
 import { SemVer } from "../semver";
@@ -113,7 +113,7 @@ async function run() {
           core.info(
             `Only branches that match the following regex may publish:\n${allowedBranchesRegEx}`
           );
-        } else if (IS_PULLREQUEST_EVENT) {
+        } else if (isPullRequestEvent()) {
           core.startGroup(
             `ℹ️ Not creating ${relType} on a pull request event.`
           );
@@ -126,7 +126,8 @@ async function run() {
           if (tag) {
             createTag(nv, context.sha);
           } else {
-            createRelease(nv, context.sha, generateChangelog(bumpInfo));
+            const changelog = await generateChangelog(bumpInfo);
+            createRelease(nv, context.sha, changelog);
           }
         }
       } else {

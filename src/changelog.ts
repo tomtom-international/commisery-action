@@ -15,6 +15,8 @@
  */
 
 import { context } from "@actions/github";
+import { ConventionalCommitMessage } from "./commit";
+import { getAssociatedPullRequests } from "./github";
 import { IVersionBumpTypeAndMessages } from "./interfaces";
 import { SemVerType } from "./semver";
 
@@ -61,10 +63,56 @@ function getChangelogConfiguration(): Map<SemVerType, IChangelogCategory> {
 }
 
 /**
+ * Generates a Pull Request suffix `(#123)` in case this is not yet present
+ * in the commit description.
+ */
+async function getPullRequestSuffix(commit: ConventionalCommitMessage) {
+  if (commit.hexsha && !commit.description.match(/\s\(#[0-9]+\)$/)) {
+    const pull_requests = await getAssociatedPullRequests(commit.hexsha);
+
+    let pr_references: string[] = [];
+
+    for (const pull_request of pull_requests) {
+      pr_references.push(`#${pull_request.number}`);
+    }
+
+    if (pr_references.length > 0) {
+      return ` (${pr_references.join(", ")})`;
+    }
+  }
+
+  return "";
+}
+
+/**
+ * Generates an Issue suffix `(TEST-123, TEST-456)` based on the issue
+ * references in the git trailer
+ */
+function getIssueReferenceSuffix(commit: ConventionalCommitMessage) {
+  const ISSUE_REGEX = new RegExp(`[A-Z]+-[0-9]+`, "g");
+
+  let issue_references: string[] = [];
+  for (const footer of commit.footers) {
+    const matches = footer.value.matchAll(ISSUE_REGEX);
+    for (const match of matches) {
+      issue_references.push(match[0]);
+    }
+  }
+
+  if (issue_references.length > 0) {
+    return ` (${issue_references.join(", ")})`;
+  }
+
+  return "";
+}
+
+/**
  * Returns a pretty-formatted Changelog (markdown) based on the
  * provided Conventional Commit messages.
  */
-export function generateChangelog(bump: IVersionBumpTypeAndMessages): string {
+export async function generateChangelog(
+  bump: IVersionBumpTypeAndMessages
+): Promise<string> {
   if (bump.foundVersion === null) {
     return "";
   }
@@ -72,23 +120,14 @@ export function generateChangelog(bump: IVersionBumpTypeAndMessages): string {
     getChangelogConfiguration();
 
   const { owner, repo } = context.repo;
-  const ISSUE_REGEX = new RegExp(`[A-Z]+-[0-9]+`, "g");
+
   for (const commit of bump.messages) {
     let msg = `${commit.description
       .charAt(0)
       .toUpperCase()}${commit.description.slice(1)}`;
 
-    let issue_references: string[] = [];
-    for (const footer of commit.footers) {
-      const matches = footer.value.matchAll(ISSUE_REGEX);
-      for (const match of matches) {
-        issue_references.push(match[0]);
-      }
-    }
-
-    if (issue_references.length > 0) {
-      msg += ` (${issue_references.join(", ")})`;
-    }
+    msg += await getPullRequestSuffix(commit);
+    msg += getIssueReferenceSuffix(commit);
 
     if (commit.hexsha) {
       const sha_link = `[${commit.hexsha.slice(
