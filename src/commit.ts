@@ -214,11 +214,17 @@ export class ConventionalCommitMessage {
       return SemVerType.MAJOR;
     }
 
-    if (metadata.type.trim().toLowerCase() === "feat") {
+    if (metadata.type.trim() === "feat") {
       return SemVerType.MINOR;
     }
 
-    if (metadata.type.trim().toLowerCase() === "fix") {
+    let patchBumpingTypes: string[] = Object.entries(this.config.tags)
+      .map(([key, value]) => (value.bump ? key : undefined))
+      .filter((e): e is string => !!e);
+
+    if (!patchBumpingTypes.includes("fix")) patchBumpingTypes.push("fix");
+
+    if (patchBumpingTypes.includes(metadata.type.trim())) {
       return SemVerType.PATCH;
     }
 
