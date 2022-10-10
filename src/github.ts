@@ -18,13 +18,29 @@ const core = require("@actions/core");
 const fs = require("fs");
 const github = require("@actions/github");
 
-const github_token = core.getInput("token");
-const octokit = github.getOctokit(github_token);
-
-export const IS_PULLREQUEST_EVENT = github.context.eventName === "pull_request";
-export const PULLREQUEST_ID = github.context.issue.number;
-
 const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
+
+/**
+ * Get Octokit instance
+ */
+function getOctokit() {
+  const github_token = core.getInput("token");
+  return github.getOctokit(github_token);
+}
+
+/**
+ * Returns whether we are running in context of a Pull Request event
+ */
+export function isPullRequestEvent() {
+  return github.context.eventName === "pull_request";
+}
+
+/**
+ * Identifier of the current Pull Request
+ */
+export function getPullRequestId() {
+  return github.context.issue.number;
+}
 
 /**
  * Retrieves a list of commits associated with the specified Pull Request
@@ -33,7 +49,7 @@ const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
  */
 export async function getCommits(pullrequest_id: string) {
   // Retrieve commits from provided Pull Request
-  const { data: commits } = await octokit.rest.pulls.listCommits({
+  const { data: commits } = await getOctokit().rest.pulls.listCommits({
     owner: OWNER,
     repo: REPO,
     pull_number: pullrequest_id,
@@ -48,7 +64,7 @@ export async function getCommits(pullrequest_id: string) {
  * @returns Pull Request
  */
 export async function getPullRequest(pullrequest_id: string) {
-  const { data: pr } = await octokit.rest.pulls.get({
+  const { data: pr } = await getOctokit().rest.pulls.get({
     owner: OWNER,
     repo: REPO,
     pull_number: pullrequest_id,
@@ -67,7 +83,7 @@ export async function createRelease(
   commitish: string,
   body: string
 ) {
-  await octokit.rest.repos.createRelease({
+  await getOctokit().rest.repos.createRelease({
     owner: OWNER,
     repo: REPO,
     tag_name: tag_name,
@@ -85,7 +101,7 @@ export async function createRelease(
  * @param sha The SHA1 value of the tag
  */
 export async function createTag(tag_name: string, sha: string) {
-  await octokit.rest.git.createRef({
+  await getOctokit().rest.git.createRef({
     owner: OWNER,
     repo: REPO,
     ref: tag_name.startsWith("refs/tags/") ? tag_name : `refs/tags/${tag_name}`,
@@ -99,7 +115,7 @@ export async function createTag(tag_name: string, sha: string) {
  */
 export async function getConfig(path: string) {
   try {
-    const { data: config_file } = await octokit.rest.repos.getContent({
+    const { data: config_file } = await getOctokit().rest.repos.getContent({
       owner: OWNER,
       repo: REPO,
       path: path,
@@ -120,7 +136,7 @@ export async function getConfig(path: string) {
  * Retrieve `pageSize` commits since specified hash in the current repo
  */
 export async function getCommitsSince(sha: string, pageSize: number) {
-  const { data: commits } = await octokit.rest.repos.listCommits({
+  const { data: commits } = await getOctokit().rest.repos.listCommits({
     owner: OWNER,
     repo: REPO,
     sha: sha,
@@ -134,11 +150,25 @@ export async function getCommitsSince(sha: string, pageSize: number) {
  * Retrieve `pageSize` tags in the current repo
  */
 export async function getTags(pageSize: number) {
-  const { data: tags } = await octokit.rest.repos.listTags({
+  const { data: tags } = await getOctokit().rest.repos.listTags({
     owner: OWNER,
     repo: REPO,
     per_page: pageSize,
   });
 
   return tags;
+}
+
+/**
+ * Retrieve the Pull Requests associated with the specified commit SHA
+ */
+export async function getAssociatedPullRequests(sha: string) {
+  const { data: prs } =
+    await getOctokit().rest.repos.listPullRequestsAssociatedWithCommit({
+      owner: OWNER,
+      repo: REPO,
+      commit_sha: sha,
+    });
+
+  return prs;
 }

@@ -17,12 +17,12 @@
 const core = require("@actions/core");
 
 import { Configuration } from "../config";
-import { getConfig, IS_PULLREQUEST_EVENT } from "../github";
+import { getConfig, isPullRequestEvent } from "../github";
 import { getMessagesToValidate, validateMessages } from "../validate";
 
 async function run() {
   try {
-    if (!IS_PULLREQUEST_EVENT) {
+    if (!isPullRequestEvent) {
       core.warning(
         "Conventional Commit Message validation requires a workflow using the `pull_request` trigger!"
       );

@@ -11359,7 +11359,7 @@ const validate_1 = __nccwpck_require__(4953);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            if (!github_1.IS_PULLREQUEST_EVENT) {
+            if (!github_1.isPullRequestEvent) {
                 core.warning("Conventional Commit Message validation requires a workflow using the `pull_request` trigger!");
                 return;
             }
@@ -11788,15 +11788,32 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getTags = exports.getCommitsSince = exports.getConfig = exports.createTag = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.PULLREQUEST_ID = exports.IS_PULLREQUEST_EVENT = void 0;
+exports.getAssociatedPullRequests = exports.getTags = exports.getCommitsSince = exports.getConfig = exports.createTag = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
 const core = __nccwpck_require__(2186);
 const fs = __nccwpck_require__(7147);
 const github = __nccwpck_require__(5438);
-const github_token = core.getInput("token");
-const octokit = github.getOctokit(github_token);
-exports.IS_PULLREQUEST_EVENT = github.context.eventName === "pull_request";
-exports.PULLREQUEST_ID = github.context.issue.number;
 const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
+/**
+ * Get Octokit instance
+ */
+function getOctokit() {
+    const github_token = core.getInput("token");
+    return github.getOctokit(github_token);
+}
+/**
+ * Returns whether we are running in context of a Pull Request event
+ */
+function isPullRequestEvent() {
+    return github.context.eventName === "pull_request";
+}
+exports.isPullRequestEvent = isPullRequestEvent;
+/**
+ * Identifier of the current Pull Request
+ */
+function getPullRequestId() {
+    return github.context.issue.number;
+}
+exports.getPullRequestId = getPullRequestId;
 /**
  * Retrieves a list of commits associated with the specified Pull Request
  * @param pullrequest_id GitHub Pullrequest ID
@@ -11805,7 +11822,7 @@ const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
 function getCommits(pullrequest_id) {
     return __awaiter(this, void 0, void 0, function* () {
         // Retrieve commits from provided Pull Request
-        const { data: commits } = yield octokit.rest.pulls.listCommits({
+        const { data: commits } = yield getOctokit().rest.pulls.listCommits({
             owner: OWNER,
             repo: REPO,
             pull_number: pullrequest_id,
@@ -11821,7 +11838,7 @@ exports.getCommits = getCommits;
  */
 function getPullRequest(pullrequest_id) {
     return __awaiter(this, void 0, void 0, function* () {
-        const { data: pr } = yield octokit.rest.pulls.get({
+        const { data: pr } = yield getOctokit().rest.pulls.get({
             owner: OWNER,
             repo: REPO,
             pull_number: pullrequest_id,
@@ -11837,7 +11854,7 @@ exports.getPullRequest = getPullRequest;
  */
 function createRelease(tag_name, commitish, body) {
     return __awaiter(this, void 0, void 0, function* () {
-        yield octokit.rest.repos.createRelease({
+        yield getOctokit().rest.repos.createRelease({
             owner: OWNER,
             repo: REPO,
             tag_name: tag_name,
@@ -11857,7 +11874,7 @@ exports.createRelease = createRelease;
  */
 function createTag(tag_name, sha) {
     return __awaiter(this, void 0, void 0, function* () {
-        yield octokit.rest.git.createRef({
+        yield getOctokit().rest.git.createRef({
             owner: OWNER,
             repo: REPO,
             ref: tag_name.startsWith("refs/tags/") ? tag_name : `refs/tags/${tag_name}`,
@@ -11873,7 +11890,7 @@ exports.createTag = createTag;
 function getConfig(path) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const { data: config_file } = yield octokit.rest.repos.getContent({
+            const { data: config_file } = yield getOctokit().rest.repos.getContent({
                 owner: OWNER,
                 repo: REPO,
                 path: path,
@@ -11893,7 +11910,7 @@ exports.getConfig = getConfig;
  */
 function getCommitsSince(sha, pageSize) {
     return __awaiter(this, void 0, void 0, function* () {
-        const { data: commits } = yield octokit.rest.repos.listCommits({
+        const { data: commits } = yield getOctokit().rest.repos.listCommits({
             owner: OWNER,
             repo: REPO,
             sha: sha,
@@ -11908,7 +11925,7 @@ exports.getCommitsSince = getCommitsSince;
  */
 function getTags(pageSize) {
     return __awaiter(this, void 0, void 0, function* () {
-        const { data: tags } = yield octokit.rest.repos.listTags({
+        const { data: tags } = yield getOctokit().rest.repos.listTags({
             owner: OWNER,
             repo: REPO,
             per_page: pageSize,
@@ -11917,6 +11934,20 @@ function getTags(pageSize) {
     });
 }
 exports.getTags = getTags;
+/**
+ * Retrieve the Pull Requests associated with the specified commit SHA
+ */
+function getAssociatedPullRequests(sha) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const { data: prs } = yield getOctokit().rest.repos.listPullRequestsAssociatedWithCommit({
+            owner: OWNER,
+            repo: REPO,
+            commit_sha: sha,
+        });
+        return prs;
+    });
+}
+exports.getAssociatedPullRequests = getAssociatedPullRequests;
 
 
 /***/ }),
@@ -12759,7 +12790,7 @@ const errors_1 = __nccwpck_require__(6976);
  */
 function getMessagesToValidate() {
     return __awaiter(this, void 0, void 0, function* () {
-        const pullrequest_id = github_1.PULLREQUEST_ID;
+        const pullrequest_id = (0, github_1.getPullRequestId)();
         let to_validate = [];
         // Include Pull Request title
         if (core.getBooleanInput("validate-pull-request")) {

@@ -11425,7 +11425,7 @@ function run() {
                         core.startGroup(`ℹ️ Branch ${branchName} is not allowed to publish`);
                         core.info(`Only branches that match the following regex may publish:\n${allowedBranchesRegEx}`);
                     }
-                    else if (github_2.IS_PULLREQUEST_EVENT) {
+                    else if ((0, github_2.isPullRequestEvent)()) {
                         core.startGroup(`ℹ️ Not creating ${relType} on a pull request event.`);
                         core.info("We cannot create a release or tag in a pull request context, due to " +
                             "potential parallelism (i.e. races) in pull request builds.");
@@ -11436,7 +11436,8 @@ function run() {
                             (0, github_2.createTag)(nv, github_1.context.sha);
                         }
                         else {
-                            (0, github_2.createRelease)(nv, github_1.context.sha, (0, changelog_1.generateChangelog)(bumpInfo));
+                            const changelog = yield (0, changelog_1.generateChangelog)(bumpInfo);
+                            (0, github_2.createRelease)(nv, github_1.context.sha, changelog);
                         }
                     }
                 }
@@ -11631,7 +11632,7 @@ exports.getVersionBumpTypeAndMessages = getVersionBumpTypeAndMessages;
 /***/ }),
 
 /***/ 8598:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
@@ -11650,9 +11651,19 @@ exports.getVersionBumpTypeAndMessages = getVersionBumpTypeAndMessages;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.generateChangelog = void 0;
 const github_1 = __nccwpck_require__(5438);
+const github_2 = __nccwpck_require__(978);
 const semver_1 = __nccwpck_require__(8593);
 /**
  * Returns a default Changelog Configuration mapping
@@ -11683,50 +11694,80 @@ function getChangelogConfiguration() {
     return config;
 }
 /**
+ * Generates a Pull Request suffix `(#123)` in case this is not yet present
+ * in the commit description.
+ */
+function getPullRequestSuffix(commit) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (commit.hexsha && !commit.description.match(/\s\(#[0-9]+\)$/)) {
+            const pull_requests = yield (0, github_2.getAssociatedPullRequests)(commit.hexsha);
+            let pr_references = [];
+            for (const pull_request of pull_requests) {
+                pr_references.push(`#${pull_request.number}`);
+            }
+            if (pr_references.length > 0) {
+                return ` (${pr_references.join(", ")})`;
+            }
+        }
+        return "";
+    });
+}
+/**
+ * Generates an Issue suffix `(TEST-123, TEST-456)` based on the issue
+ * references in the git trailer
+ */
+function getIssueReferenceSuffix(commit) {
+    const ISSUE_REGEX = new RegExp(`[A-Z]+-[0-9]+`, "g");
+    let issue_references = [];
+    for (const footer of commit.footers) {
+        const matches = footer.value.matchAll(ISSUE_REGEX);
+        for (const match of matches) {
+            issue_references.push(match[0]);
+        }
+    }
+    if (issue_references.length > 0) {
+        return ` (${issue_references.join(", ")})`;
+    }
+    return "";
+}
+/**
  * Returns a pretty-formatted Changelog (markdown) based on the
  * provided Conventional Commit messages.
  */
 function generateChangelog(bump) {
     var _a, _b;
-    if (bump.foundVersion === null) {
-        return "";
-    }
-    const config = getChangelogConfiguration();
-    const { owner, repo } = github_1.context.repo;
-    const ISSUE_REGEX = new RegExp(`[A-Z]+-[0-9]+`, "g");
-    for (const commit of bump.messages) {
-        let msg = `${commit.description
-            .charAt(0)
-            .toUpperCase()}${commit.description.slice(1)}`;
-        let issue_references = [];
-        for (const footer of commit.footers) {
-            const matches = footer.value.matchAll(ISSUE_REGEX);
-            for (const match of matches) {
-                issue_references.push(match[0]);
+    return __awaiter(this, void 0, void 0, function* () {
+        if (bump.foundVersion === null) {
+            return "";
+        }
+        const config = getChangelogConfiguration();
+        const { owner, repo } = github_1.context.repo;
+        for (const commit of bump.messages) {
+            let msg = `${commit.description
+                .charAt(0)
+                .toUpperCase()}${commit.description.slice(1)}`;
+            msg += yield getPullRequestSuffix(commit);
+            msg += getIssueReferenceSuffix(commit);
+            if (commit.hexsha) {
+                const sha_link = `[${commit.hexsha.slice(0, 6)}](https://github.com/${owner}/${repo}/commit/${commit.hexsha})`;
+                msg += ` [${sha_link}]`;
             }
+            (_a = config.get(commit.bump)) === null || _a === void 0 ? void 0 : _a.changes.push(msg);
         }
-        if (issue_references.length > 0) {
-            msg += ` (${issue_references.join(", ")})`;
-        }
-        if (commit.hexsha) {
-            const sha_link = `[${commit.hexsha.slice(0, 6)}](https://github.com/${owner}/${repo}/commit/${commit.hexsha})`;
-            msg += ` [${sha_link}]`;
-        }
-        (_a = config.get(commit.bump)) === null || _a === void 0 ? void 0 : _a.changes.push(msg);
-    }
-    let changelog_formatted = "## What's changed\n";
-    config.forEach((value) => {
-        if (value.changes.length > 0) {
-            changelog_formatted += `### :${value.emoji}: ${value.title}\n`;
-            for (const msg of value.changes) {
-                changelog_formatted += `* ${msg}\n`;
+        let changelog_formatted = "## What's changed\n";
+        config.forEach((value) => {
+            if (value.changes.length > 0) {
+                changelog_formatted += `### :${value.emoji}: ${value.title}\n`;
+                for (const msg of value.changes) {
+                    changelog_formatted += `* ${msg}\n`;
+                }
             }
-        }
+        });
+        const diff_range = `${bump.foundVersion.to_string()}...${(_b = bump.foundVersion
+            .bump(bump.requiredBump)) === null || _b === void 0 ? void 0 : _b.to_string()}`;
+        changelog_formatted += `\n\n*Diff since last release: [${diff_range}](https://github.com/${owner}/${repo}/compare/${diff_range})*`;
+        return changelog_formatted;
     });
-    const diff_range = `${bump.foundVersion.to_string()}...${(_b = bump.foundVersion
-        .bump(bump.requiredBump)) === null || _b === void 0 ? void 0 : _b.to_string()}`;
-    changelog_formatted += `\n\n*Diff since last release: [${diff_range}](https://github.com/${owner}/${repo}/compare/${diff_range})*`;
-    return changelog_formatted;
 }
 exports.generateChangelog = generateChangelog;
 
@@ -12141,15 +12182,32 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getTags = exports.getCommitsSince = exports.getConfig = exports.createTag = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.PULLREQUEST_ID = exports.IS_PULLREQUEST_EVENT = void 0;
+exports.getAssociatedPullRequests = exports.getTags = exports.getCommitsSince = exports.getConfig = exports.createTag = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
 const core = __nccwpck_require__(2186);
 const fs = __nccwpck_require__(7147);
 const github = __nccwpck_require__(5438);
-const github_token = core.getInput("token");
-const octokit = github.getOctokit(github_token);
-exports.IS_PULLREQUEST_EVENT = github.context.eventName === "pull_request";
-exports.PULLREQUEST_ID = github.context.issue.number;
 const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
+/**
+ * Get Octokit instance
+ */
+function getOctokit() {
+    const github_token = core.getInput("token");
+    return github.getOctokit(github_token);
+}
+/**
+ * Returns whether we are running in context of a Pull Request event
+ */
+function isPullRequestEvent() {
+    return github.context.eventName === "pull_request";
+}
+exports.isPullRequestEvent = isPullRequestEvent;
+/**
+ * Identifier of the current Pull Request
+ */
+function getPullRequestId() {
+    return github.context.issue.number;
+}
+exports.getPullRequestId = getPullRequestId;
 /**
  * Retrieves a list of commits associated with the specified Pull Request
  * @param pullrequest_id GitHub Pullrequest ID
@@ -12158,7 +12216,7 @@ const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
 function getCommits(pullrequest_id) {
     return __awaiter(this, void 0, void 0, function* () {
         // Retrieve commits from provided Pull Request
-        const { data: commits } = yield octokit.rest.pulls.listCommits({
+        const { data: commits } = yield getOctokit().rest.pulls.listCommits({
             owner: OWNER,
             repo: REPO,
             pull_number: pullrequest_id,
@@ -12174,7 +12232,7 @@ exports.getCommits = getCommits;
  */
 function getPullRequest(pullrequest_id) {
     return __awaiter(this, void 0, void 0, function* () {
-        const { data: pr } = yield octokit.rest.pulls.get({
+        const { data: pr } = yield getOctokit().rest.pulls.get({
             owner: OWNER,
             repo: REPO,
             pull_number: pullrequest_id,
@@ -12190,7 +12248,7 @@ exports.getPullRequest = getPullRequest;
  */
 function createRelease(tag_name, commitish, body) {
     return __awaiter(this, void 0, void 0, function* () {
-        yield octokit.rest.repos.createRelease({
+        yield getOctokit().rest.repos.createRelease({
             owner: OWNER,
             repo: REPO,
             tag_name: tag_name,
@@ -12210,7 +12268,7 @@ exports.createRelease = createRelease;
  */
 function createTag(tag_name, sha) {
     return __awaiter(this, void 0, void 0, function* () {
-        yield octokit.rest.git.createRef({
+        yield getOctokit().rest.git.createRef({
             owner: OWNER,
             repo: REPO,
             ref: tag_name.startsWith("refs/tags/") ? tag_name : `refs/tags/${tag_name}`,
@@ -12226,7 +12284,7 @@ exports.createTag = createTag;
 function getConfig(path) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const { data: config_file } = yield octokit.rest.repos.getContent({
+            const { data: config_file } = yield getOctokit().rest.repos.getContent({
                 owner: OWNER,
                 repo: REPO,
                 path: path,
@@ -12246,7 +12304,7 @@ exports.getConfig = getConfig;
  */
 function getCommitsSince(sha, pageSize) {
     return __awaiter(this, void 0, void 0, function* () {
-        const { data: commits } = yield octokit.rest.repos.listCommits({
+        const { data: commits } = yield getOctokit().rest.repos.listCommits({
             owner: OWNER,
             repo: REPO,
             sha: sha,
@@ -12261,7 +12319,7 @@ exports.getCommitsSince = getCommitsSince;
  */
 function getTags(pageSize) {
     return __awaiter(this, void 0, void 0, function* () {
-        const { data: tags } = yield octokit.rest.repos.listTags({
+        const { data: tags } = yield getOctokit().rest.repos.listTags({
             owner: OWNER,
             repo: REPO,
             per_page: pageSize,
@@ -12270,6 +12328,20 @@ function getTags(pageSize) {
     });
 }
 exports.getTags = getTags;
+/**
+ * Retrieve the Pull Requests associated with the specified commit SHA
+ */
+function getAssociatedPullRequests(sha) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const { data: prs } = yield getOctokit().rest.repos.listPullRequestsAssociatedWithCommit({
+            owner: OWNER,
+            repo: REPO,
+            commit_sha: sha,
+        });
+        return prs;
+    });
+}
+exports.getAssociatedPullRequests = getAssociatedPullRequests;
 
 
 /***/ }),
