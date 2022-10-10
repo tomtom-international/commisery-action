@@ -23,24 +23,6 @@ import {
   FixupCommitError,
   MergeCommitError,
 } from "../src/errors";
-import { Configuration, _testData } from "../src/config";
-
-const fs = require("fs");
-jest.mock("fs");
-
-afterEach(() => {
-  jest.restoreAllMocks();
-});
-
-function withConfig(contents: string, func) {
-  const exists = jest.spyOn(fs, "existsSync").mockImplementation(() => true);
-  const read = jest
-    .spyOn(fs, "readFileSync")
-    .mockImplementation(() => contents);
-  func();
-  exists.mockRestore();
-  read.mockRestore();
-}
 
 // Validate non-compliant Commit Messages
 //
@@ -89,12 +71,14 @@ describe("Breaking Change", () => {
 
   test("Using BREAKING-CHANGE footer, with body", () => {
     const msg = new ConventionalCommitMessage(
-      dedent(`feat: this is breaking
+      dedent(
+        `feat: this is breaking
 
-This is a multiline
-body!
+         This is a multiline
+         body!
 
-BREAKING-CHANGE: Remove API x`)
+         BREAKING-CHANGE: Remove API x`
+      )
     );
     expect(msg.breaking_change).toBe(true);
   });
@@ -104,10 +88,10 @@ BREAKING-CHANGE: Remove API x`)
       dedent(
         `fix: this is breaking
 
-      This is a multiline
-      body!
+         This is a multiline
+         body!
 
-      BREAKING CHANGE: Remove API x`
+         BREAKING CHANGE: Remove API x`
       )
     );
     expect(msg.breaking_change).toBe(true);
@@ -117,7 +101,7 @@ BREAKING-CHANGE: Remove API x`)
     const msg = new ConventionalCommitMessage(
       dedent(`feat: this is breaking
     
-    BREAKING-CHANGE: Remove API x`)
+              BREAKING-CHANGE: Remove API x`)
     );
     expect(msg.breaking_change).toBe(true);
   });
@@ -127,7 +111,7 @@ BREAKING-CHANGE: Remove API x`)
       dedent(
         `fix: this is breaking
     
-    BREAKING CHANGE: Remove API x`
+         BREAKING CHANGE: Remove API x`
       )
     );
     expect(msg.breaking_change).toBe(true);
@@ -144,9 +128,11 @@ describe("Body", () => {
 
   test("Single line body", () => {
     const msg = new ConventionalCommitMessage(
-      dedent(`fix: this is a single line body
+      dedent(
+        `fix: this is a single line body
     
-    This is the body`)
+         This is the body`
+      )
     );
 
     expect(msg.body).toBe("This is the body");
@@ -154,10 +140,12 @@ describe("Body", () => {
 
   test("Multiline body", () => {
     const msg = new ConventionalCommitMessage(
-      dedent(`fix: this is a multiline body
+      dedent(
+        `fix: this is a multiline body
     
-    This is the body!
-    Consisting of multiple lines!`)
+         This is the body!
+         Consisting of multiple lines!`
+      )
     );
 
     expect(msg.body).toBe("This is the body!\nConsisting of multiple lines!");
@@ -198,9 +186,11 @@ describe("Bump", () => {
 
   test("Bump Major (BREAKING-CHANGE)", () => {
     const msg = new ConventionalCommitMessage(
-      dedent(`chore: this will bump MAJOR
+      dedent(
+        `chore: this will bump MAJOR
     
-    BREAKING-CHANGE: As this is a breaking change!`)
+         BREAKING-CHANGE: As this is a breaking change!`
+      )
     );
     expect(msg.bump).toBe(SemVerType.MAJOR);
   });
@@ -223,7 +213,7 @@ describe("Footer", () => {
       dedent(
         `fix: this commit has no footers
       
-      only a body!`
+         only a body!`
       )
     );
     expect(msg.footers.length).toBe(0);
@@ -231,11 +221,13 @@ describe("Footer", () => {
 
   test("Basic footer", () => {
     const msg = new ConventionalCommitMessage(
-      dedent(`fix: this commit has footers
+      dedent(
+        `fix: this commit has footers
       
-      this is the body
+         this is the body
       
-      Implements: TEST-123`)
+         Implements: TEST-123`
+      )
     );
     expect(msg.footers.length).toBe(1);
     expect(msg.footers[0].token).toBe("Implements");
@@ -244,11 +236,13 @@ describe("Footer", () => {
 
   test("Discarded footer element due to paragraph break", () => {
     const msg = new ConventionalCommitMessage(
-      dedent(`fix: this commit has footers
+      dedent(
+        `fix: this commit has footers
       
-      Ignored: Item
+         Ignored: Item
       
-      Implements: TEST-123`)
+         Implements: TEST-123`
+      )
     );
     expect(msg.footers.length).toBe(1);
     expect(msg.footers[0].token).toBe("Implements");
@@ -257,11 +251,13 @@ describe("Footer", () => {
 
   test("Line break allowed after BREAKING-CHANGE", () => {
     const msg = new ConventionalCommitMessage(
-      dedent(`fix: this commit has footers
+      dedent(
+        `fix: this commit has footers
       
-      BREAKING-CHANGE: This change is breaking
+         BREAKING-CHANGE: This change is breaking
 
-      Implements: TEST-123`)
+         Implements: TEST-123`
+      )
     );
     expect(msg.footers.length).toBe(2);
     expect(msg.footers[0].token).toBe("BREAKING-CHANGE");
@@ -272,10 +268,12 @@ describe("Footer", () => {
 
   test("Multiline footer element", () => {
     const msg = new ConventionalCommitMessage(
-      dedent(`chore: this contains a multiline footer element
+      dedent(
+        `chore: this contains a multiline footer element
     
-    BREAKING-CHANGE: This is a multiline
-     paragraph in the footer`)
+         BREAKING-CHANGE: This is a multiline
+          paragraph in the footer`
+      )
     );
 
     expect(msg.footers.length).toBe(1);
@@ -318,44 +316,5 @@ describe("Type", () => {
   test("Fix Commit", () => {
     const msg = new ConventionalCommitMessage("fix!: breaking change");
     expect(msg.type).toBe("fix");
-  });
-});
-
-// Validation of the Configuration parameters
-//
-describe("Configurable options", () => {
-  test("Disable specific rule", () => {
-    withConfig(
-      dedent(`
-        max-subject-length: 100
-        disable:
-          - C003
-          - C016
-        `),
-      () => {
-        expect(() => {
-          new ConventionalCommitMessage("fix: updated testing");
-        }).not.toThrow(ConventionalCommitError);
-      }
-    );
-  });
-
-  test("Override maximum subject length", () => {
-    withConfig(
-      dedent(`
-        max-subject-length: 100
-        disable:
-          - C003
-          - C016
-        `),
-      () => {
-        expect(() => {
-          new ConventionalCommitMessage(`fix: add ${"0".repeat(91)}`);
-        }).not.toThrow(ConventionalCommitError);
-        expect(() => {
-          new ConventionalCommitMessage(`fix: add ${"0".repeat(92)}`);
-        }).toThrow(ConventionalCommitError);
-      }
-    );
   });
 });
