@@ -473,13 +473,18 @@ describe("Rules", () => {
    */
   test(`[C020] Git-trailer should not contain whitespace(s)`, () => {
     for (const message of [
-      dedent(`feat: single whitespace in footer
-      
-      Some token: value`),
       dedent(`feat: multiple whitespaces in footers
       
       correct-token: value
-      Another strange token: value`),
+      Co-Authored by: value
+      Approved by: value`),
+      dedent(`feat: body containing colon
+
+      Start of body describing the changes.
+
+      Approved by: value
+      Addresses: value
+      `),
     ]) {
       assertRuleValidationError(message, getConventionalCommitRule("C020"));
     }
@@ -535,6 +540,80 @@ describe("Rules", () => {
       Implements: 1234`),
     ]) {
       assertRuleNoValidationError(message, getConventionalCommitRule("C022"));
+    }
+  });
+
+  /**
+   * [C024] A colon is required in git-trailers
+   */
+  test(`[C024] A colon is required in git-trailers`, () => {
+    for (const message of [
+      dedent(`feat: single line body with addresses
+
+      Addresses TICKET-1234`),
+      dedent(`feat: single line body with implements
+
+      Implements OTHERTICKET-1234`),
+      dedent(`feat: two-line body
+
+      Make things.
+      Addresses TICKET-1234, TICKET-2345 and TICKETj-8731
+      Addresses TICKET-1234 and TICKET-2345, TICKETj-8731
+
+      Reviewed-by: R. Blythe`),
+      dedent(`test: keyword in body
+      
+      Addresses 321 and 322 were not available, so we use address 323.
+
+      Fixes SOMETHING-123
+
+      Refs: TICKET-1234`),
+    ]) {
+      assertRuleValidationError(message, getConventionalCommitRule("C024"));
+    }
+
+    for (const message of [
+      dedent(`test: keyword in body
+
+        Addresses 321 and 322 were not available, so we use address 323.
+
+        Implements: TICKET-1234`),
+      dedent(`feat: use default trailer keyword
+
+        References: TICKET-1234
+
+        BREAKING CHANGE: This should go above, but it shouldn't trigger this rule,
+          what with there being a space in the trailer keyword and such.`),
+    ]) {
+      assertRuleNoValidationError(message, getConventionalCommitRule("C024"));
+    }
+  });
+
+  test(`[C025] Only a single ticket or issue must be referenced per trailer`, () => {
+    for (const message of [
+      dedent(`feat: single line body with addresses
+
+        Implements: TICKET-1234, but also TICKET-2345 and TICKET-8731`),
+      dedent(`feat: mixed tickets
+
+        Fixes: ISSUE-1234 and #45`),
+    ]) {
+      assertRuleValidationError(message, getConventionalCommitRule("C025"));
+    }
+
+    for (const message of [
+      dedent(`test: keyword in body
+
+        Addresses 321 and 322 were not available, so we use address 323.
+
+        Implements: TICKET-1234`),
+      dedent(`test: reference multiple tickets correctly
+
+        Addresses: TICKET-12
+        Addresses: TICKET-23
+        References: TICKET-42`),
+    ]) {
+      assertRuleNoValidationError(message, getConventionalCommitRule("C025"));
     }
   });
 });
