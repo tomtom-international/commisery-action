@@ -177,9 +177,6 @@ export async function getAssociatedPullRequests(sha: string) {
       throw error;
     }
 
-    core.warning(
-      "Could not retrieve Pull Request references, did you forget to enable the `pull_requests` permission?"
-    );
     return [];
   }
 }

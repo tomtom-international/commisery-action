@@ -12345,7 +12345,6 @@ function getAssociatedPullRequests(sha) {
             if (error.message !== "Resource not accessible by integration") {
                 throw error;
             }
-            core.warning("Could not retrieve Pull Request references, did you forget to enable the `pull_requests` permission?");
             return [];
         }
     });

@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Fixed
-- Missing `pull_requests` permission is no longer fatal when creating a new GitHub Release
+- Missing `pull-requests` permission is no longer fatal when creating a new GitHub Release
 
 ## [2.2.0] - 2022-10-10
 ### Added
