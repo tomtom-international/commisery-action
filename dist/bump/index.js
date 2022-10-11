@@ -12333,12 +12333,21 @@ exports.getTags = getTags;
  */
 function getAssociatedPullRequests(sha) {
     return __awaiter(this, void 0, void 0, function* () {
-        const { data: prs } = yield getOctokit().rest.repos.listPullRequestsAssociatedWithCommit({
-            owner: OWNER,
-            repo: REPO,
-            commit_sha: sha,
-        });
-        return prs;
+        try {
+            const { data: prs } = yield getOctokit().rest.repos.listPullRequestsAssociatedWithCommit({
+                owner: OWNER,
+                repo: REPO,
+                commit_sha: sha,
+            });
+            return prs;
+        }
+        catch (error) {
+            if (error.message !== "Resource not accessible by integration") {
+                throw error;
+            }
+            core.warning("Could not retrieve Pull Request references, did you forget to enable the `pull_requests` permission?");
+            return [];
+        }
     });
 }
 exports.getAssociatedPullRequests = getAssociatedPullRequests;

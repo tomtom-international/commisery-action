@@ -163,12 +163,23 @@ export async function getTags(pageSize: number) {
  * Retrieve the Pull Requests associated with the specified commit SHA
  */
 export async function getAssociatedPullRequests(sha: string) {
-  const { data: prs } =
-    await getOctokit().rest.repos.listPullRequestsAssociatedWithCommit({
-      owner: OWNER,
-      repo: REPO,
-      commit_sha: sha,
-    });
+  try {
+    const { data: prs } =
+      await getOctokit().rest.repos.listPullRequestsAssociatedWithCommit({
+        owner: OWNER,
+        repo: REPO,
+        commit_sha: sha,
+      });
 
-  return prs;
+    return prs;
+  } catch (error: any) {
+    if (error.message !== "Resource not accessible by integration") {
+      throw error;
+    }
+
+    core.warning(
+      "Could not retrieve Pull Request references, did you forget to enable the `pull_requests` permission?"
+    );
+    return [];
+  }
 }
