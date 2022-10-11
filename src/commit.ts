@@ -29,7 +29,7 @@ const BREAKING_CHANGE_TOKEN = "BREAKING-CHANGE";
 const CONVENTIONAL_COMMIT_REGEX =
   /(?<type>\w+)?((\s*)?\((?<scope>[^()]*)\)(\s*)?)?(?<breaking_change>((\s*)+[!]+(\s*)?)?)(?<separator>((\s+)?:?(\s+)?))(?<description>.*)/;
 const FOOTER_REGEX =
-  /^(?<token>[\w\- ]+|BREAKING\sCHANGE)(?::[ ]|[ ](?=[#]))(?<value>.*)/;
+  /^(?<token>[\w-]+|BREAKING\sCHANGE|[\w-\s]+\sby)(?::[ ]|[ ](?=[#]))(?<value>.*)/;
 
 /**
  * Conventional Commit Metadata used for validating
@@ -80,7 +80,6 @@ export function getConventionalCommitMetadata(message: string[]) {
     var end_of_body = 1;
     message.slice(1).forEach((line, index) => {
       let matches = line.match(FOOTER_REGEX)?.groups;
-
       if (matches) {
         footers.push(new Footer(matches.token, matches.value));
         if (footers[footers.length - 1].token == BREAKING_CHANGE_TOKEN) {

@@ -2075,7 +2075,7 @@ const semver_1 = __nccwpck_require__(8593);
 const os = __nccwpck_require__(2037);
 const BREAKING_CHANGE_TOKEN = "BREAKING-CHANGE";
 const CONVENTIONAL_COMMIT_REGEX = /(?<type>\w+)?((\s*)?\((?<scope>[^()]*)\)(\s*)?)?(?<breaking_change>((\s*)+[!]+(\s*)?)?)(?<separator>((\s+)?:?(\s+)?))(?<description>.*)/;
-const FOOTER_REGEX = /^(?<token>[\w\- ]+|BREAKING\sCHANGE)(?::[ ]|[ ](?=[#]))(?<value>.*)/;
+const FOOTER_REGEX = /^(?<token>[\w-]+|BREAKING\sCHANGE|[\w-\s]+\sby)(?::[ ]|[ ](?=[#]))(?<value>.*)/;
 /**
  * Footer class containing key, value pairs
  */
@@ -3100,12 +3100,12 @@ class GitTrailerContainsWhitespace {
     }
     validate(message, _) {
         message.footers.forEach((item) => {
-            if (item.token.indexOf(" ") >= 0) {
+            if (item.token.includes(" ")) {
                 let msg = new logging_1.LlvmError();
                 msg.message = `[${this.id}] ${this.description}`;
                 msg.line = `${item.token}: ${item.value}`;
                 msg.column_number = new logging_1.LlvmRange(1, item.token.length);
-                msg.expectations = item.token.replace(" ", "-");
+                msg.expectations = item.token.replace(/ /g, "-");
                 throw msg;
             }
         });
@@ -3150,6 +3150,81 @@ class BreakingChangeMustBeFirstGitTrailer {
         });
     }
 }
+/**
+ * A colon is required in git-trailers
+ */
+class GitTrailerNeedAColon {
+    constructor() {
+        this.id = "C024";
+        this.description = "A colon is required in git-trailers";
+    }
+    validate(message, config) {
+        const trailer_formats = [
+            /^Addresses:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
+            /^Closes:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
+            /^Fixes:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
+            /^Implements:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
+            /^References:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
+            /^Refs:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
+            /^Acked-by/,
+            /^Authored-by/,
+            /^BREAKING CHANGE/,
+            /^BREAKING-CHANGE/,
+            /^Co-authored-by/,
+            /^Helped-by/,
+            /^Merged-by/,
+            /^Reported-by/,
+            /^Reviewed-by/,
+            /^Signed-off-by/,
+        ];
+        // If a trailer doesn't have a colon, it won't be in the footers list,
+        // so we examine the body here, from the bottom to the top.
+        for (let i = message.body.length - 1; i >= 0; --i) {
+            const line = message.body[i];
+            // The one exception we need to handle is "BREAKING CHANGE"
+            const checkLine = line.replace(/^BREAKING CHANGE/, "BREAKING-CHANGE");
+            if (trailer_formats.some((key) => checkLine.match(key))) {
+                if (checkLine.match(/^[A-Za-z0-9-]+ /)) {
+                    let msg = new logging_1.LlvmError();
+                    const idx = checkLine.indexOf(" ");
+                    msg.message = `[${this.id}] ${this.description}`;
+                    msg.line = line;
+                    msg.column_number = new logging_1.LlvmRange(idx + 1, line.substring(idx).length);
+                    msg.expectations = `: ${line.substring(idx + 1)}`;
+                    throw msg;
+                }
+            }
+        }
+    }
+}
+/**
+ * Only a single ticket or issue must be referenced per trailer
+ */
+class SingleTicketReferencePerTrailer {
+    constructor() {
+        this.id = "C025";
+        this.description = "Only a single ticket or issue may be referenced per trailer";
+    }
+    validate(message, config) {
+        const C025_RE = new RegExp(/([A-Z]+-[0-9]+|#[0-9]+)/g);
+        message.footers.forEach((item) => {
+            let matches;
+            C025_RE.lastIndex = 0;
+            if ((matches = C025_RE.exec(item.value))) {
+                // One match is fine, two or more matches is invalid
+                if ((matches = C025_RE.exec(item.value))) {
+                    const tokenAndSeparator = `${item.token}: `;
+                    const matchIndex = tokenAndSeparator.length + matches.index + 1;
+                    let msg = new logging_1.LlvmError();
+                    msg.message = `[${this.id}] ${this.description}`;
+                    msg.line = `${tokenAndSeparator}${item.value}`;
+                    msg.column_number = new logging_1.LlvmRange(matchIndex, tokenAndSeparator.length + item.value.length - matchIndex + 1);
+                    throw msg;
+                }
+            }
+        });
+    }
+}
 exports.ALL_RULES = [
     new NonLowerCaseType(),
     new OneWhitelineBetweenSubjectAndBody(),
@@ -3173,6 +3248,8 @@ exports.ALL_RULES = [
     new GitTrailerContainsWhitespace(),
     new FooterContainsBlankLine(),
     new BreakingChangeMustBeFirstGitTrailer(),
+    new GitTrailerNeedAColon(),
+    new SingleTicketReferencePerTrailer(),
 ];
 function getConventionalCommitRule(id) {
     for (const rule of exports.ALL_RULES) {

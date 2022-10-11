@@ -575,12 +575,12 @@ class GitTrailerContainsWhitespace implements IConventionalCommitRule {
 
   validate(message: ConventionalCommitMetadata, _: Configuration) {
     message.footers.forEach((item) => {
-      if (item.token.indexOf(" ") >= 0) {
+      if (item.token.includes(" ")) {
         let msg = new LlvmError();
         msg.message = `[${this.id}] ${this.description}`;
         msg.line = `${item.token}: ${item.value}`;
         msg.column_number = new LlvmRange(1, item.token.length);
-        msg.expectations = item.token.replace(" ", "-");
+        msg.expectations = item.token.replace(/ /g, "-");
 
         throw msg;
       }
@@ -630,6 +630,93 @@ class BreakingChangeMustBeFirstGitTrailer implements IConventionalCommitRule {
   }
 }
 
+/**
+ * A colon is required in git-trailers
+ */
+class GitTrailerNeedAColon implements IConventionalCommitRule {
+  id = "C024";
+  description = "A colon is required in git-trailers";
+
+  validate(message: ConventionalCommitMetadata, config: Configuration) {
+    const trailer_formats = [
+      /^Addresses:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
+      /^Closes:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
+      /^Fixes:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
+      /^Implements:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
+      /^References:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
+      /^Refs:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
+      /^Acked-by/,
+      /^Authored-by/,
+      /^BREAKING CHANGE/,
+      /^BREAKING-CHANGE/,
+      /^Co-authored-by/,
+      /^Helped-by/,
+      /^Merged-by/,
+      /^Reported-by/,
+      /^Reviewed-by/,
+      /^Signed-off-by/,
+    ];
+    // If a trailer doesn't have a colon, it won't be in the footers list,
+    // so we examine the body here, from the bottom to the top.
+    for (let i = message.body.length - 1; i >= 0; --i) {
+      const line = message.body[i];
+
+      // The one exception we need to handle is "BREAKING CHANGE"
+      const checkLine = line.replace(/^BREAKING CHANGE/, "BREAKING-CHANGE");
+      if (trailer_formats.some((key) => checkLine.match(key))) {
+        if (checkLine.match(/^[A-Za-z0-9-]+ /)) {
+          let msg = new LlvmError();
+          const idx = checkLine.indexOf(" ");
+
+          msg.message = `[${this.id}] ${this.description}`;
+          msg.line = line;
+          msg.column_number = new LlvmRange(
+            idx + 1,
+            line.substring(idx).length
+          );
+          msg.expectations = `: ${line.substring(idx + 1)}`;
+
+          throw msg;
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Only a single ticket or issue must be referenced per trailer
+ */
+class SingleTicketReferencePerTrailer implements IConventionalCommitRule {
+  id = "C025";
+  description = "Only a single ticket or issue may be referenced per trailer";
+
+  validate(message: ConventionalCommitMetadata, config: Configuration) {
+    const C025_RE = new RegExp(/([A-Z]+-[0-9]+|#[0-9]+)/g);
+
+    message.footers.forEach((item) => {
+      let matches;
+      C025_RE.lastIndex = 0;
+
+      if ((matches = C025_RE.exec(item.value))) {
+        // One match is fine, two or more matches is invalid
+        if ((matches = C025_RE.exec(item.value))) {
+          const tokenAndSeparator = `${item.token}: `;
+          const matchIndex = tokenAndSeparator.length + matches.index + 1;
+          let msg = new LlvmError();
+          msg.message = `[${this.id}] ${this.description}`;
+          msg.line = `${tokenAndSeparator}${item.value}`;
+          msg.column_number = new LlvmRange(
+            matchIndex,
+            tokenAndSeparator.length + item.value.length - matchIndex + 1
+          );
+
+          throw msg;
+        }
+      }
+    });
+  }
+}
+
 export const ALL_RULES = [
   new NonLowerCaseType(),
   new OneWhitelineBetweenSubjectAndBody(),
@@ -653,6 +740,8 @@ export const ALL_RULES = [
   new GitTrailerContainsWhitespace(),
   new FooterContainsBlankLine(),
   new BreakingChangeMustBeFirstGitTrailer(),
+  new GitTrailerNeedAColon(),
+  new SingleTicketReferencePerTrailer(),
 ];
 
 export function getConventionalCommitRule(id: string): IConventionalCommitRule {
