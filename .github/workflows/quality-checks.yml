@@ -18,6 +18,10 @@ name: Quality Checks
 on:
   pull_request:
 
+permissions:
+  pull-requests: read
+  contents: read
+
 jobs:
   commit-message:
     name: Conventional Commits Compliance
