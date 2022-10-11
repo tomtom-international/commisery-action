@@ -12333,12 +12333,20 @@ exports.getTags = getTags;
  */
 function getAssociatedPullRequests(sha) {
     return __awaiter(this, void 0, void 0, function* () {
-        const { data: prs } = yield getOctokit().rest.repos.listPullRequestsAssociatedWithCommit({
-            owner: OWNER,
-            repo: REPO,
-            commit_sha: sha,
-        });
-        return prs;
+        try {
+            const { data: prs } = yield getOctokit().rest.repos.listPullRequestsAssociatedWithCommit({
+                owner: OWNER,
+                repo: REPO,
+                commit_sha: sha,
+            });
+            return prs;
+        }
+        catch (error) {
+            if (error.message !== "Resource not accessible by integration") {
+                throw error;
+            }
+            return [];
+        }
     });
 }
 exports.getAssociatedPullRequests = getAssociatedPullRequests;

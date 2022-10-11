@@ -5,26 +5,39 @@ This GitHub Action consists of two major components:
 - Scan all commits in your Pull Request against the [Conventional Commits] standard
 - Create GitHub Releases based on unreleased [Conventional Commits]
 
+## Permissions
+
+The following permissions need to be set in order to have full support of the Commisery Action:
+
+| Permission | Level | Notes |
+| --- | --- | --- |
+| `pull-requests` | `read` | Needed for Pull Request validation and (optionally) when creating a GitHub Release |
+| `contents` | `write`| Required in order to create tags and/or GitHub Releases |
+
+> :bulb: Please refer to the GitHub documentation for the
+[default permissions for your GitHub Token](https://docs.github.com/en/actions/security-guides/automatic-token-authentication#permissions-for-the-github_token)
+
 ## Check your Pull Request for Conventional Commit Compliance
 
 The workflow, usually declared in `.github/workflows/conventional-commit.yml`, looks like:
 
 ```yml
-    name: Commisery
-    on: 
-      pull_request:
+name: Commisery
+on:
+  pull_request:
 
-    jobs:
-      commit-message:
-        name: Conventional Commit compliance
-        runs-on: ubuntu-latest
+jobs:
+  commit-message:
+    name: Conventional Commit compliance
+    runs-on: ubuntu-latest
 
-        - name: Check for compliance
-          uses: tomtom-international/commisery-action@v2
-          with:
-            token: ${{ github.token }}
-            validate-pull-request: true # OPTIONAL, default: `true`
-            validate-commits: true # OPTIONAL, default: `true`
+    steps:
+      - name: Check for compliance
+        uses: tomtom-international/commisery-action@v2
+        with:
+          token: ${{ github.token }}
+          validate-pull-request: true # OPTIONAL, default: `true`
+          validate-commits: true # OPTIONAL, default: `true`
 ```
 
 ### Inputs
@@ -59,31 +72,31 @@ As an example, for version tag `componentX-1.2.3`, the version prefix would be `
 An example workflow that creates a release on every commit or merge to the `main` branch if necessary:
 
 ```yml
-    name: Bump version
-    on:
-      push:
-        branches: [ main ]
+name: Bump version
+on:
+  push:
+    branches: [ main ]
 
-    jobs:
-      bump-version:
-        name: Bump version and release
-        runs-on: ubuntu-latest
+jobs:
+  bump-version:
+    name: Bump version and release
+    runs-on: ubuntu-latest
 
-        steps:
-        - name: Release version
-          id: release-version
-          uses: tomtom-international/commisery-action/bump@v1
-          with:
-            token: ${{ github.token }}
-            create-release: true  # OPTIONAL, default: `false`
-            create-tag: false  # OPTIONAL
-            version-prefix: v  # OPTIONAL
-            config: .commisery.yml # OPTIONAL
+    steps:
+      - name: Release version
+        id: release-version
+        uses: tomtom-international/commisery-action/bump@v1
+        with:
+          token: ${{ github.token }}
+          create-release: true  # OPTIONAL, default: `false`
+          create-tag: false  # OPTIONAL
+          version-prefix: v  # OPTIONAL
+          config: .commisery.yml # OPTIONAL
 
-        - run: echo "Current version is ${{steps.release-version.outputs.current-version}}"
+      - run: echo "Current version is ${{steps.release-version.outputs.current-version}}"
 
-        - if: steps.release-version.outputs.next-version != ""
-          run: echo "Version bumped to ${{steps.release-version.outputs.next-version}}
+      - if: steps.release-version.outputs.next-version != ""
+        run: echo "Version bumped to ${{steps.release-version.outputs.next-version}}
 ```
 
 The GitHub release will be automatically populated with a changelog based on the released Conventional
