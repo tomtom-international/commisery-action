@@ -14,6 +14,9 @@ The following permissions need to be set in order to have full support of the Co
 | `pull-requests` | `read` | Needed for Pull Request validation and (optionally) when creating a GitHub Release |
 | `contents` | `write`| Required in order to create tags and/or GitHub Releases |
 
+> :bulb: Please refert to the GitHub documentation for the
+[default permissions for your GitHub Token](https://docs.github.com/en/actions/security-guides/automatic-token-authentication#permissions-for-the-github_token)
+
 ## Check your Pull Request for Conventional Commit Compliance
 
 The workflow, usually declared in `.github/workflows/conventional-commit.yml`, looks like:
