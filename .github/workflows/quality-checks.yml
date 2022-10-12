@@ -35,20 +35,6 @@ jobs:
         with:
           token: ${{ github.token }}
 
-  keepachangelog:
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Set-up Python 3.7
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.7'
-
-      - name: Validate CHANGELOG.md
-        uses: tomtom-international/keepachangelog-action@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
   prettier:
     name: Check for Coding Standards (Typescript)
     runs-on: ubuntu-latest
