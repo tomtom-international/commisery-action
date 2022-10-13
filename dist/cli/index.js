@@ -2294,7 +2294,7 @@ class Configuration {
         this.allowed_branches = ".*";
         this.tags = DEFAULT_ACCEPTED_TAGS;
         this.ignore = DEFAULT_IGNORED_RULES;
-        this.rules = {};
+        this.rules = new Map();
         // Enable all rules by default
         for (const rule of rules_1.ALL_RULES) {
             this.rules[rule.id] = {
@@ -2319,6 +2319,11 @@ class Configuration {
             }
             switch (key) {
                 case "disable":
+                    /* Example YAML:
+                     *   disable:
+                     *     - C001
+                     *     - C018
+                     */
                     if (typeof data[key] === "object") {
                         for (const item of data[key]) {
                             this.rules[item].enabled = false;
@@ -2556,9 +2561,12 @@ const logging_1 = __nccwpck_require__(1517);
  */
 function validateRules(message, config) {
     let errors = [];
+    const disabledRules = Object.entries(config.rules)
+        .map(([k, v]) => (!v.enabled ? k : undefined))
+        .filter((r) => !!r);
     for (const rule of exports.ALL_RULES) {
         try {
-            if (!(rule.id in config.ignore)) {
+            if (!disabledRules.includes(rule.id)) {
                 rule.validate(message, config);
             }
         }

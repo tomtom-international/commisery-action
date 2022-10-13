@@ -39,9 +39,13 @@ export function validateRules(
 ) {
   let errors: LlvmError[] = [];
 
+  const disabledRules = Object.entries(config.rules)
+    .map(([k, v]) => (!v.enabled ? k : undefined))
+    .filter((r): r is string => !!r);
+
   for (const rule of ALL_RULES) {
     try {
-      if (!(rule.id in config.ignore)) {
+      if (!disabledRules.includes(rule.id)) {
         rule.validate(message, config);
       }
     } catch (error) {
