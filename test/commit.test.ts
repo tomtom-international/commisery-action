@@ -333,7 +333,9 @@ describe("Configurable options", () => {
           - C016
         `),
       () => {
-        new ConventionalCommitMessage("fix: updated testing");
+        expect(() => {
+          new ConventionalCommitMessage("fix: updated testing");
+        }).not.toThrow(ConventionalCommitError);
       }
     );
   });
