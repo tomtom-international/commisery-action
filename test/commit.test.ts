@@ -23,6 +23,24 @@ import {
   FixupCommitError,
   MergeCommitError,
 } from "../src/errors";
+import { Configuration, _testData } from "../src/config";
+
+const fs = require("fs");
+jest.mock("fs");
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
+function withConfig(contents: string, func) {
+  const exists = jest.spyOn(fs, "existsSync").mockImplementation(() => true);
+  const read = jest
+    .spyOn(fs, "readFileSync")
+    .mockImplementation(() => contents);
+  func();
+  exists.mockRestore();
+  read.mockRestore();
+}
 
 // Validate non-compliant Commit Messages
 //
@@ -300,5 +318,42 @@ describe("Type", () => {
   test("Fix Commit", () => {
     const msg = new ConventionalCommitMessage("fix!: breaking change");
     expect(msg.type).toBe("fix");
+  });
+});
+
+// Validation of the Configuration parameters
+//
+describe("Configurable options", () => {
+  test("Disable specific rule", () => {
+    withConfig(
+      dedent(`
+        max-subject-length: 100
+        disable:
+          - C003
+          - C016
+        `),
+      () => {
+        new ConventionalCommitMessage("fix: updated testing");
+      }
+    );
+  });
+
+  test("Override maximum subject length", () => {
+    withConfig(
+      dedent(`
+        max-subject-length: 100
+        disable:
+          - C003
+          - C016
+        `),
+      () => {
+        expect(() => {
+          new ConventionalCommitMessage(`fix: add ${"0".repeat(91)}`);
+        }).not.toThrow(ConventionalCommitError);
+        expect(() => {
+          new ConventionalCommitMessage(`fix: add ${"0".repeat(92)}`);
+        }).toThrow(ConventionalCommitError);
+      }
+    );
   });
 });

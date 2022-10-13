@@ -11594,7 +11594,7 @@ module.exports = { ConventionalCommitMessage };
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.Configuration = void 0;
+exports._testData = exports.Configuration = void 0;
 const rules_1 = __nccwpck_require__(1058);
 const fs = __nccwpck_require__(7147);
 const yaml = __nccwpck_require__(4083);
@@ -11711,6 +11711,10 @@ class Configuration {
     }
 }
 exports.Configuration = Configuration;
+/* Exports for tests only */
+exports._testData = {
+    DEFAULT_ACCEPTED_TAGS,
+};
 
 
 /***/ }),

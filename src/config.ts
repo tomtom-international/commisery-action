@@ -157,3 +157,8 @@ export class Configuration {
     }
   }
 }
+
+/* Exports for tests only */
+export const _testData = {
+  DEFAULT_ACCEPTED_TAGS,
+};
