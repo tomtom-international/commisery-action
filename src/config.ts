@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { IRuleConfigItem } from "./interfaces";
 import { ALL_RULES } from "./rules";
 
 const fs = require("fs");
@@ -51,7 +52,7 @@ export class Configuration {
   allowed_branches: string = ".*";
   tags: {} = DEFAULT_ACCEPTED_TAGS;
   ignore: string[] = DEFAULT_IGNORED_RULES;
-  rules: {} = {};
+  rules: Map<string, IRuleConfigItem> = new Map<string, IRuleConfigItem>();
 
   private loadFromData(data: any) {
     for (const key in data) {
@@ -61,6 +62,11 @@ export class Configuration {
 
       switch (key) {
         case "disable":
+          /* Example YAML:
+           *   disable:
+           *     - C001
+           *     - C018
+           */
           if (typeof data[key] === "object") {
             for (const item of data[key]) {
               this.rules[item].enabled = false;
@@ -151,3 +157,8 @@ export class Configuration {
     }
   }
 }
+
+/* Exports for tests only */
+export const _testData = {
+  DEFAULT_ACCEPTED_TAGS,
+};

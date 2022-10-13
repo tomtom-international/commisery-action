@@ -11988,7 +11988,7 @@ module.exports = { ConventionalCommitMessage };
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.Configuration = void 0;
+exports._testData = exports.Configuration = void 0;
 const rules_1 = __nccwpck_require__(1058);
 const fs = __nccwpck_require__(7147);
 const yaml = __nccwpck_require__(4083);
@@ -12026,7 +12026,7 @@ class Configuration {
         this.allowed_branches = ".*";
         this.tags = DEFAULT_ACCEPTED_TAGS;
         this.ignore = DEFAULT_IGNORED_RULES;
-        this.rules = {};
+        this.rules = new Map();
         // Enable all rules by default
         for (const rule of rules_1.ALL_RULES) {
             this.rules[rule.id] = {
@@ -12051,6 +12051,11 @@ class Configuration {
             }
             switch (key) {
                 case "disable":
+                    /* Example YAML:
+                     *   disable:
+                     *     - C001
+                     *     - C018
+                     */
                     if (typeof data[key] === "object") {
                         for (const item of data[key]) {
                             this.rules[item].enabled = false;
@@ -12100,6 +12105,10 @@ class Configuration {
     }
 }
 exports.Configuration = Configuration;
+/* Exports for tests only */
+exports._testData = {
+    DEFAULT_ACCEPTED_TAGS,
+};
 
 
 /***/ }),
@@ -12490,9 +12499,12 @@ const logging_1 = __nccwpck_require__(1517);
  */
 function validateRules(message, config) {
     let errors = [];
+    const disabledRules = Object.entries(config.rules)
+        .map(([k, v]) => (!v.enabled ? k : undefined))
+        .filter((r) => !!r);
     for (const rule of exports.ALL_RULES) {
         try {
-            if (!(rule.id in config.ignore)) {
+            if (!disabledRules.includes(rule.id)) {
                 rule.validate(message, config);
             }
         }

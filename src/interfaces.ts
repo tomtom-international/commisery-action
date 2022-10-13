@@ -26,3 +26,8 @@ export interface IVersionBumpTypeAndMessages {
    * the commit associated with the nearest SemVer tag */
   messages: ConventionalCommitMessage[];
 }
+
+export interface IRuleConfigItem {
+  description: string;
+  enabled: boolean;
+}
