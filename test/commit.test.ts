@@ -23,7 +23,7 @@ import {
   FixupCommitError,
   MergeCommitError,
 } from "../src/errors";
-import { Configuration, _testData } from "../src/config";
+import { _testData } from "../src/config";
 
 const fs = require("fs");
 jest.mock("fs");
