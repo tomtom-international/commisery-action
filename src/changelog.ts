@@ -66,11 +66,12 @@ function getChangelogConfiguration(): Map<SemVerType, IChangelogCategory> {
  * Generates a Pull Request suffix `(#123)` in case this is not yet present
  * in the commit description.
  */
-async function getPullRequestSuffix(commit: ConventionalCommitMessage) {
+async function getPullRequestSuffix(
+  commit: ConventionalCommitMessage
+): Promise<string> {
   if (commit.hexsha && !commit.description.match(/\s\(#[0-9]+\)$/)) {
     const pull_requests = await getAssociatedPullRequests(commit.hexsha);
-
-    let pr_references: string[] = [];
+    const pr_references: string[] = [];
 
     for (const pull_request of pull_requests) {
       pr_references.push(`#${pull_request.number}`);
@@ -88,10 +89,10 @@ async function getPullRequestSuffix(commit: ConventionalCommitMessage) {
  * Generates an Issue suffix `(TEST-123, TEST-456)` based on the issue
  * references in the git trailer
  */
-function getIssueReferenceSuffix(commit: ConventionalCommitMessage) {
+function getIssueReferenceSuffix(commit: ConventionalCommitMessage): string {
   const ISSUE_REGEX = new RegExp(`[A-Z]+-[0-9]+`, "g");
 
-  let issue_references: string[] = [];
+  const issue_references: string[] = [];
   for (const footer of commit.footers) {
     const matches = footer.value.matchAll(ISSUE_REGEX);
     for (const match of matches) {
@@ -141,6 +142,7 @@ export async function generateChangelog(
   }
 
   let changelog_formatted = "## What's changed\n";
+  // eslint-disable-next-line github/array-foreach
   config.forEach((value: IChangelogCategory) => {
     if (value.changes.length > 0) {
       changelog_formatted += `### :${value.emoji}: ${value.title}\n`;

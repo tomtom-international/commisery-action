@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 
-import dedent from "dedent";
-const fs = require("fs");
-const os = require("os");
-const { Command } = require("commander");
+import { readFileSync } from "fs";
+import { EOL } from "os";
+import * as core from "@actions/core";
 
+import dedent from "dedent";
+import { Command } from "commander";
 import { ConventionalCommitMessage } from "../commit";
 import { Configuration } from "../config";
 import { ConventionalCommitError } from "../errors";
@@ -38,14 +39,14 @@ program
   .argument("<filehandle>", "Conventional Commit Message")
   .action((filehandle: string) => {
     const config = new Configuration(program.opts().config);
-    const message = fs.readFileSync(filehandle, "utf8");
+    const message = readFileSync(filehandle, "utf8");
 
     try {
       new ConventionalCommitMessage(message, undefined, config);
     } catch (error) {
       if (error instanceof ConventionalCommitError) {
         for (const err of error.errors) {
-          console.log(err.report());
+          core.info(err.report());
         }
       }
     }
@@ -59,19 +60,19 @@ program
   .action(() => {
     const config = new Configuration(program.opts().config);
 
-    console.log(
+    core.info(
       dedent(`
     Conventional Commit tags
     ------------------------`)
     );
 
     for (const key in config.tags) {
-      console.log(`${key}: \x1b[90m${config.tags[key]}\x1b[0m`);
+      core.info(`${key}: \x1b[90m${config.tags[key]}\x1b[0m`);
     }
 
-    console.log(os.EOL);
+    core.info(EOL);
 
-    console.log(
+    core.info(
       dedent(`
     Commisery Validation rules
     --------------------------
@@ -79,13 +80,13 @@ program
     `)
     );
 
-    console.log(os.EOL);
+    core.info(EOL);
 
     for (const rule in config.rules) {
       const status = config.rules[rule].enabled
         ? `\x1b[92mo\x1b[0m`
         : `\x1b[91mx\x1b[0m`;
-      console.log(
+      core.info(
         `[${status}] ${rule}: \x1b[90m${config.rules[rule].description}\x1b[0m`
       );
     }

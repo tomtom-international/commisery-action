@@ -23,7 +23,7 @@ import {
 } from "./errors";
 import { SemVerType } from "./semver";
 
-const os = require("os");
+import * as os from "os";
 
 const BREAKING_CHANGE_TOKEN = "BREAKING-CHANGE";
 const CONVENTIONAL_COMMIT_REGEX =
@@ -62,7 +62,7 @@ class Footer {
     this.value = value;
   }
 
-  appendParagrah(paragrah: string) {
+  appendParagrah(paragrah: string): void {
     this.value += os.EOL + paragrah;
   }
 }
@@ -71,19 +71,22 @@ class Footer {
  * Parses a commit message (array) and populates
  * the classes properties.
  */
-export function getConventionalCommitMetadata(message: string[]) {
+export function getConventionalCommitMetadata(
+  message: string[]
+): ConventionalCommitMetadata {
   let footers: Footer[] = [];
   let body: string[] = [];
   let has_breaking_change = false;
 
   if (message.length > 1) {
-    var end_of_body = 1;
+    let end_of_body = 1;
+    // eslint-disable-next-line github/array-foreach
     message.slice(1).forEach((line, index) => {
-      let matches = line.match(FOOTER_REGEX)?.groups;
+      const matches = line.match(FOOTER_REGEX)?.groups;
 
       if (matches) {
         footers.push(new Footer(matches.token, matches.value));
-        if (footers[footers.length - 1].token == BREAKING_CHANGE_TOKEN) {
+        if (footers[footers.length - 1].token === BREAKING_CHANGE_TOKEN) {
           has_breaking_change = true;
         }
       } else if (footers.length > 0 && line.startsWith(" ")) {
@@ -121,8 +124,8 @@ export function getConventionalCommitMetadata(message: string[]) {
   }
 
   const metadata: ConventionalCommitMetadata = {
-    body: body,
-    footers: footers,
+    body,
+    footers,
     type: conventional_subject.type,
     scope: conventional_subject.scope,
     subject: message[0],
@@ -200,7 +203,7 @@ export class ConventionalCommitMessage {
     this.breaking_change = this.bump === SemVerType.MAJOR;
   }
 
-  determineBump(metadata: ConventionalCommitMetadata) {
+  determineBump(metadata: ConventionalCommitMetadata): SemVerType {
     for (const footer of metadata.footers) {
       if (footer.token === BREAKING_CHANGE_TOKEN) {
         return SemVerType.MAJOR;
@@ -226,26 +229,26 @@ export class ConventionalCommitMessage {
   }
 }
 
-function isFixup(subject: string) {
+function isFixup(subject: string): boolean {
   const AUTOSQUASH_REGEX = /^(?:(?:fixup|squash)!\s+)+/;
   const autosquash = subject.match(AUTOSQUASH_REGEX);
 
   return autosquash !== null;
 }
 
-function isMerge(subject: string) {
+function isMerge(subject: string): boolean {
   const MERGE_REGEX = /^Merge.*?:?[\s\t]*?/;
   const merge = subject.match(MERGE_REGEX);
 
   return merge !== null;
 }
 
-function stripMessage(message) {
+function stripMessage(message): string {
   const cut_line = message.indexOf(
     "# ------------------------ >8 ------------------------\n"
   );
 
-  if (cut_line >= 0 && (cut_line == 0 || message[cut_line - 1] == "\n")) {
+  if (cut_line >= 0 && (cut_line === 0 || message[cut_line - 1] === "\n")) {
     message = message.substring(cut_line);
   }
 
@@ -258,5 +261,3 @@ function stripMessage(message) {
 
   return message;
 }
-
-module.exports = { ConventionalCommitMessage };

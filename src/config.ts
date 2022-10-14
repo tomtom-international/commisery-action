@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { IRuleConfigItem } from "./interfaces";
+import { IConfiguration, IRuleConfigItem } from "./interfaces";
 import { ALL_RULES } from "./rules";
 
-const fs = require("fs");
-const yaml = require("yaml");
+import * as fs from "fs";
+import * as yaml from "yaml";
 
 const DEFAULT_CONFIGURATION_FILE = ".commisery.yml";
 const DEFAULT_ACCEPTED_TAGS = {
@@ -48,15 +48,15 @@ const CONFIG_ITEMS = [
  * Configuration (from file)
  */
 export class Configuration {
-  max_subject_length: number = 80;
-  allowed_branches: string = ".*";
+  max_subject_length = 80;
+  allowed_branches = ".*";
   tags: {} = DEFAULT_ACCEPTED_TAGS;
   ignore: string[] = DEFAULT_IGNORED_RULES;
   rules: Map<string, IRuleConfigItem> = new Map<string, IRuleConfigItem>();
 
-  private loadFromData(data: any) {
+  private loadFromData(data: IConfiguration): void {
     for (const key in data) {
-      if (CONFIG_ITEMS.indexOf(key) === -1) {
+      if (!CONFIG_ITEMS.includes(key)) {
         throw new Error(`Unknown configuration item '${key} detected!`);
       }
 
@@ -93,7 +93,7 @@ export class Configuration {
           break;
 
         case "tags":
-          if (typeof data[key] == "object") {
+          if (typeof data[key] === "object") {
             for (const tag in data[key]) {
               if (typeof data[key][tag] !== "string") {
                 throw new Error(

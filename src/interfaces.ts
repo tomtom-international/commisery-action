@@ -31,3 +31,13 @@ export interface IRuleConfigItem {
   description: string;
   enabled: boolean;
 }
+
+export interface IConfigurationRule {
+  [key: string]: string;
+}
+export interface IConfiguration {
+  disable: string[];
+  "max-subject-length": number;
+  tags: [IConfigurationRule];
+  "allowed-branches": string;
+}
