@@ -27,12 +27,23 @@ export interface IVersionBumpTypeAndMessages {
   messages: ConventionalCommitMessage[];
 }
 
+export interface IRuleConfigItem {
+  description: string;
+  enabled: boolean;
+}
+
 export interface ITypeTagConfigItem {
   description?: string;
   bump?: boolean;
 }
 
-export interface IRuleConfigItem {
-  description: string;
-  enabled: boolean;
+export interface IConfigurationRules {
+  [key: string]: ITypeTagConfigItem;
+}
+
+export interface IConfiguration {
+  disable: string[];
+  "max-subject-length": number;
+  tags: IConfigurationRules;
+  "allowed-branches": string;
 }

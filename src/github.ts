@@ -14,16 +14,18 @@
  * limitations under the License.
  */
 
-const core = require("@actions/core");
-const fs = require("fs");
-const github = require("@actions/github");
+import * as core from "@actions/core";
+import * as fs from "fs";
+import * as github from "@actions/github";
+import * as octokit from "@octokit/plugin-rest-endpoint-methods";
+import { GitHub } from "@actions/github/lib/utils";
 
 const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
 
 /**
  * Get Octokit instance
  */
-function getOctokit() {
+function getOctokit(): InstanceType<typeof GitHub> {
   const github_token = core.getInput("token");
   return github.getOctokit(github_token);
 }
@@ -31,14 +33,14 @@ function getOctokit() {
 /**
  * Returns whether we are running in context of a Pull Request event
  */
-export function isPullRequestEvent() {
+export function isPullRequestEvent(): boolean {
   return github.context.eventName === "pull_request";
 }
 
 /**
  * Identifier of the current Pull Request
  */
-export function getPullRequestId() {
+export function getPullRequestId(): number {
   return github.context.issue.number;
 }
 
@@ -47,7 +49,11 @@ export function getPullRequestId() {
  * @param pullrequest_id GitHub Pullrequest ID
  * @returns List of commit objects
  */
-export async function getCommits(pullrequest_id: string) {
+export async function getCommits(
+  pullrequest_id: number
+): Promise<
+  octokit.RestEndpointMethodTypes["pulls"]["listCommits"]["response"]["data"]
+> {
   // Retrieve commits from provided Pull Request
   const { data: commits } = await getOctokit().rest.pulls.listCommits({
     owner: OWNER,
@@ -63,7 +69,11 @@ export async function getCommits(pullrequest_id: string) {
  * @param pullrequest_id GitHub Pullrequest ID
  * @returns Pull Request
  */
-export async function getPullRequest(pullrequest_id: string) {
+export async function getPullRequest(
+  pullrequest_id: number
+): Promise<
+  octokit.RestEndpointMethodTypes["pulls"]["get"]["response"]["data"]
+> {
   const { data: pr } = await getOctokit().rest.pulls.get({
     owner: OWNER,
     repo: REPO,
@@ -82,14 +92,14 @@ export async function createRelease(
   tag_name: string,
   commitish: string,
   body: string
-) {
+): Promise<void> {
   await getOctokit().rest.repos.createRelease({
     owner: OWNER,
     repo: REPO,
-    tag_name: tag_name,
+    tag_name,
     target_commitish: commitish,
     name: tag_name,
-    body: body,
+    body,
     draft: false,
     prerelease: false,
   });
@@ -100,12 +110,12 @@ export async function createRelease(
  * @param tag_name Name of the tag
  * @param sha The SHA1 value of the tag
  */
-export async function createTag(tag_name: string, sha: string) {
+export async function createTag(tag_name: string, sha: string): Promise<void> {
   await getOctokit().rest.git.createRef({
     owner: OWNER,
     repo: REPO,
     ref: tag_name.startsWith("refs/tags/") ? tag_name : `refs/tags/${tag_name}`,
-    sha: sha,
+    sha,
   });
 }
 
@@ -113,20 +123,24 @@ export async function createTag(tag_name: string, sha: string) {
  * Downloads the requested configuration file in case it exists.
  * @param path Path towards the Commisery configuration file
  */
-export async function getConfig(path: string) {
+export async function getConfig(path: string): Promise<void> {
   try {
-    const { data: config_file } = await getOctokit().rest.repos.getContent({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response: any = await getOctokit().rest.repos.getContent({
       owner: OWNER,
       repo: REPO,
-      path: path,
+      path,
       ref: github.context.ref,
     });
+
+    const config_file = response.data;
 
     fs.writeFileSync(
       ".commisery.yml",
       Buffer.from(config_file.content, "base64")
     );
-  } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
     core.debug(error);
     return;
   }
@@ -135,11 +149,16 @@ export async function getConfig(path: string) {
 /**
  * Retrieve `pageSize` commits since specified hash in the current repo
  */
-export async function getCommitsSince(sha: string, pageSize: number) {
+export async function getCommitsSince(
+  sha: string,
+  pageSize: number
+): Promise<
+  octokit.RestEndpointMethodTypes["repos"]["listCommits"]["response"]["data"]
+> {
   const { data: commits } = await getOctokit().rest.repos.listCommits({
     owner: OWNER,
     repo: REPO,
-    sha: sha,
+    sha,
     per_page: pageSize,
   });
 
@@ -149,7 +168,11 @@ export async function getCommitsSince(sha: string, pageSize: number) {
 /**
  * Retrieve `pageSize` tags in the current repo
  */
-export async function getTags(pageSize: number) {
+export async function getTags(
+  pageSize: number
+): Promise<
+  octokit.RestEndpointMethodTypes["repos"]["listTags"]["response"]["data"]
+> {
   const { data: tags } = await getOctokit().rest.repos.listTags({
     owner: OWNER,
     repo: REPO,
@@ -162,7 +185,11 @@ export async function getTags(pageSize: number) {
 /**
  * Retrieve the Pull Requests associated with the specified commit SHA
  */
-export async function getAssociatedPullRequests(sha: string) {
+export async function getAssociatedPullRequests(
+  sha: string
+): Promise<
+  octokit.RestEndpointMethodTypes["repos"]["listPullRequestsAssociatedWithCommit"]["response"]["data"]
+> {
   try {
     const { data: prs } =
       await getOctokit().rest.repos.listPullRequestsAssociatedWithCommit({
@@ -172,6 +199,7 @@ export async function getAssociatedPullRequests(sha: string) {
       });
 
     return prs;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     if (error.message !== "Resource not accessible by integration") {
       throw error;

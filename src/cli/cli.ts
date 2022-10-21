@@ -17,20 +17,21 @@
  */
 
 import dedent from "dedent";
-const fs = require("fs");
-const os = require("os");
-const { Command } = require("commander");
+import * as core from "@actions/core";
+import * as fs from "fs";
+import * as os from "os";
 
 import { ConventionalCommitMessage } from "../commit";
 import { Configuration } from "../config";
 import { ConventionalCommitError } from "../errors";
+import { Command } from "commander";
 
 const program = new Command();
-const gray = "\x1b[90m",
-  red = "\x1b[91m",
-  green = "\x1b[92m",
-  yellow = "\x1b[93m",
-  reset = "\x1b[0m";
+const gray = "\x1b[90m";
+const red = "\x1b[91m";
+const green = "\x1b[92m";
+const yellow = "\x1b[93m";
+const reset = "\x1b[0m";
 
 program
   .name("commisery")
@@ -50,7 +51,7 @@ program
     } catch (error) {
       if (error instanceof ConventionalCommitError) {
         for (const err of error.errors) {
-          console.log(err.report());
+          core.info(err.report());
         }
       }
     }
@@ -64,25 +65,25 @@ program
   .action(() => {
     const config = new Configuration(program.opts().config);
 
-    console.log(
+    core.info(
       dedent(`
     Conventional Commit types
     -------------------------`)
     );
 
     for (const key in config.tags) {
-      const bumps =
+      const bumps: string =
         config.tags[key].bump && key !== "fix"
           ? ` ${yellow}(bumps patch)${reset}`
           : "";
-      console.log(
+      core.info(
         `${key}: ${gray}${config.tags[key].description}${reset}${bumps}`
       );
     }
 
-    console.log(os.EOL);
+    core.info(os.EOL);
 
-    console.log(
+    core.info(
       dedent(`
     Commisery Validation rules
     --------------------------
@@ -90,13 +91,13 @@ program
     `)
     );
 
-    console.log(os.EOL);
+    core.info(os.EOL);
 
     for (const rule in config.rules) {
-      const status = config.rules[rule].enabled
+      const status: string = config.rules[rule].enabled
         ? `${green}o${reset}`
         : `${red}x${reset}`;
-      console.log(
+      core.info(
         `[${status}] ${rule}: ${gray}${config.rules[rule].description}${reset}`
       );
     }

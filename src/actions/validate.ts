@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-const core = require("@actions/core");
+import * as core from "@actions/core";
 
 import { Configuration } from "../config";
 import { getConfig, isPullRequestEvent } from "../github";
 import { getMessagesToValidate, validateMessages } from "../validate";
 
-async function run() {
+async function run(): Promise<void> {
   try {
     if (!isPullRequestEvent()) {
       core.warning(

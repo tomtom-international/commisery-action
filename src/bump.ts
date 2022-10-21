@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-const core = require("@actions/core");
+import * as core from "@actions/core";
 
 import { Configuration } from "./config";
 
@@ -53,11 +53,12 @@ function getSemVerIfMatches(
   commitSha: string
 ): SemVer | null {
   if (commitSha === tagSha) {
-    const dbg = function (tag, commit, message) {
+    // eslint-disable-next-line func-style
+    const dbg = function (tag: string, commit: string, message: string): void {
       core.debug(`Tag '${tag}' on commit '${commit.slice(0, 6)}' ${message}`);
     };
     // If provided, make sure that the prefix matches as well
-    let sv: SemVer | null = SemVer.from_string(tagName);
+    const sv: SemVer | null = SemVer.from_string(tagName);
     if (sv) {
       // Asterisk is a special case, meaning 'any prefix'
       if (sv.prefix === prefix || prefix === "*") {
@@ -124,8 +125,8 @@ export async function getVersionBumpTypeAndMessages(
 ): Promise<IVersionBumpTypeAndMessages> {
   let semVer: SemVer | null = null;
   let highestBump: SemVerType = SemVerType.NONE;
-  let conventionalCommits: ConventionalCommitMessage[] = [];
-  let nonConventionalCommits: string[] = [];
+  const conventionalCommits: ConventionalCommitMessage[] = [];
+  const nonConventionalCommits: string[] = [];
 
   core.debug(`Fetching last ${PAGE_SIZE} tags and commits from ${targetSha}..`);
   const [commits, tags] = await Promise.all([
@@ -150,6 +151,7 @@ export async function getVersionBumpTypeAndMessages(
       commit.sha,
       config
     );
+
     // Determine the required bump if this is a conventional commit
     if (msg) {
       if (highestBump !== SemVerType.MAJOR) {
@@ -166,7 +168,7 @@ export async function getVersionBumpTypeAndMessages(
     }
   }
   if (nonConventionalCommits.length > 0) {
-    const plural = nonConventionalCommits.length != 1;
+    const plural: boolean = nonConventionalCommits.length !== 1;
     core.info(
       `The following commit${plural ? "s were" : " was"} not accepted as ${
         plural ? "Conventional Commits" : " a Conventional Commit"

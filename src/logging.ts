@@ -14,14 +14,16 @@
  * limitations under the License.
  */
 
-const os = require("os");
+import * as os from "os";
 
+// eslint-disable-next-line no-shadow
 export enum LlvmLevel {
   ERROR = "ERROR",
   WARNING = "WARNING",
   NOTE = "NOTE",
 }
 
+// eslint-disable-next-line no-shadow
 enum TextFormat {
   BOLD = 1,
   RED = 31,
@@ -30,7 +32,7 @@ enum TextFormat {
   CYAN = 94,
 }
 
-function formatLevel(level: LlvmLevel) {
+function formatLevel(level: LlvmLevel): string {
   switch (level) {
     case LlvmLevel.ERROR:
       return formatString("error", TextFormat.RED);
@@ -41,15 +43,15 @@ function formatLevel(level: LlvmLevel) {
   }
 }
 
-function formatString(message: string, color: TextFormat) {
+function formatString(message: string, color: TextFormat): string {
   return `\x1b[${color.toString()}m${message}\x1b[0m`;
 }
 
 export class LlvmRange {
-  start: number = 1;
+  start = 1;
   range: number | undefined = undefined;
 
-  constructor(start: number = 1, range: number | undefined = undefined) {
+  constructor(start = 1, range: number | undefined = undefined) {
     this.start = start;
     this.range = range;
   }
@@ -64,7 +66,7 @@ export class LlvmMessage {
   line_number: LlvmRange = new LlvmRange();
   message: string | undefined = undefined;
 
-  report() {
+  report(): string {
     let _message = "";
 
     if (this.file_path) {

@@ -21,7 +21,13 @@ import { SemVerType } from "../src/semver";
 import { ConventionalCommitError } from "../src/errors";
 
 const fs = require("fs");
-jest.mock("fs");
+jest.mock("fs", () => ({
+  promises: {
+    access: jest.fn(),
+  },
+  existsSync: jest.fn(),
+  readFileSync: jest.fn(),
+}));
 
 afterEach(() => {
   jest.restoreAllMocks();

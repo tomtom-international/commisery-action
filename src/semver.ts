@@ -24,13 +24,14 @@ const SEMVER_RE = new RegExp(
     /(?:\+(?<build>[-0-9a-zA-Z]+(?:\.[-0-9a-zA-Z]+)*))?/,
     /\s*$/,
   ]
-    .map((r) => r.source)
+    .map(r => r.source)
     .join("")
 );
 
 /**
  * SemVer version core types
  */
+// eslint-disable-next-line no-shadow
 export enum SemVerType {
   NONE = 0,
   PATCH = 1,
@@ -62,7 +63,7 @@ export class SemVer {
     this.prefix = prefix;
   }
 
-  public static from_string(version: string): SemVer | null {
+  static from_string(version: string): SemVer | null {
     const match = SEMVER_RE.exec(version);
     if (match != null && match.groups != null) {
       return new SemVer(
@@ -77,22 +78,22 @@ export class SemVer {
     return null;
   }
 
-  public to_string(): string {
-    let prerelease = this.prerelease ? `-${this.prerelease}` : "";
-    let build = this.build ? `+${this.build}` : "";
+  to_string(): string {
+    const prerelease = this.prerelease ? `-${this.prerelease}` : "";
+    const build = this.build ? `+${this.build}` : "";
 
     return `${this.prefix}${this.major}.${this.minor}.${this.patch}${prerelease}${build}`;
   }
 
-  public next_major(): SemVer {
+  next_major(): SemVer {
     return new SemVer(this.major + 1, 0, 0, "", "", this.prefix);
   }
 
-  public next_minor(): SemVer {
+  next_minor(): SemVer {
     return new SemVer(this.major, this.minor + 1, 0, "", "", this.prefix);
   }
 
-  public next_patch(): SemVer {
+  next_patch(): SemVer {
     if (this.prerelease !== "") {
       return new SemVer(
         this.major,
@@ -117,7 +118,7 @@ export class SemVer {
    * Returns a new SemVer object bumped by the provided bump type, or `null` if the
    * provided type is NONE or unknown.
    */
-  public bump(what: SemVerType): SemVer | null {
+  bump(what: SemVerType): SemVer | null {
     switch (what) {
       case SemVerType.MAJOR:
         return this.next_major();
@@ -130,7 +131,7 @@ export class SemVer {
     }
   }
 
-  public lessThan(rhs: SemVer) {
+  lessThan(rhs: SemVer): boolean {
     if (this.major < rhs.major) return true;
     if (this.major === rhs.major) {
       if (this.minor < rhs.minor) {
@@ -152,7 +153,7 @@ export class SemVer {
     return false;
   }
 
-  public equals(rhs: SemVer) {
+  equals(rhs: SemVer): boolean {
     return (
       this.major === rhs.major &&
       this.minor === rhs.minor &&
@@ -161,5 +162,3 @@ export class SemVer {
     );
   }
 }
-
-module.exports = { SemVer, SemVerType };
