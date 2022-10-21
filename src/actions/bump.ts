@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-const core = require("@actions/core");
+import * as core from "@actions/core";
 
 import { context } from "@actions/github";
 
@@ -40,7 +40,7 @@ import { SemVer } from "../semver";
  *  - takes inputs `config`, `version-prefix`, `create-release` and `create-tag`
  *  - sets outputs `current-version` and `next-version`
  */
-async function run() {
+async function run(): Promise<void> {
   // Try to download and load configuration
   await getConfig(core.getInput("config"));
   const config = new Configuration(".commisery.yml");
@@ -54,7 +54,7 @@ async function run() {
       isBranchAllowedToPublish = new RegExp(allowedBranchesRegEx).test(
         branchName
       );
-      console.log(
+      core.info(
         `Regex ${allowedBranchesRegEx} result on ${branchName}: ${isBranchAllowedToPublish}`
       );
     } catch (e) {

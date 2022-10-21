@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-const core = require("@actions/core");
+import * as core from "@actions/core";
 
 import { ConventionalCommitMessage } from "./commit";
 import { Configuration } from "./config";
@@ -34,14 +34,14 @@ interface Message {
 /**
  * Determines the list of messages to validate (Pull Request and/or Commits)
  */
-export async function getMessagesToValidate() {
+export async function getMessagesToValidate(): Promise<Message[]> {
   const pullrequest_id = getPullRequestId();
 
-  let to_validate: Message[] = [];
+  const to_validate: Message[] = [];
 
   // Include Pull Request title
   if (core.getBooleanInput("validate-pull-request")) {
-    const pullrequest: any = await getPullRequest(pullrequest_id);
+    const pullrequest = await getPullRequest(pullrequest_id);
     to_validate.push({
       title: `Pull Request Title (#${pullrequest_id})`,
       message: pullrequest.title,
@@ -50,7 +50,7 @@ export async function getMessagesToValidate() {
 
   // Include commits associated to the Pull Request
   if (core.getBooleanInput("validate-commits")) {
-    let commits = await getCommits(pullrequest_id);
+    const commits = await getCommits(pullrequest_id);
     for (const commit of commits) {
       to_validate.push({
         title: `Commit SHA (${commit.sha})`,
@@ -68,7 +68,7 @@ export async function getMessagesToValidate() {
 export async function validateMessages(
   messages: Message[],
   config: Configuration
-) {
+): Promise<void> {
   let success = true;
 
   for (const item of messages) {
@@ -92,18 +92,22 @@ export async function validateMessages(
 
     if (errors.length > 0) {
       core.startGroup(`❌ ${item.title}: ${item.message}`);
-      for (var error of errors) {
-        console.log(error.report());
+      for (const error of errors) {
+        core.info(error.report());
       }
 
-      for (var error of errors) {
-        core.error(error.message, { title: `(${item.title}) ${item.message}` });
+      for (const error of errors) {
+        if (error.message !== undefined) {
+          core.error(error.message, {
+            title: `(${item.title}) ${item.message}`,
+          });
+        }
       }
       success = false;
 
       core.endGroup();
     } else {
-      console.log(`✅ ${item.title}`);
+      core.info(`✅ ${item.title}`);
     }
   }
 
@@ -112,7 +116,7 @@ export async function validateMessages(
       `Your Pull Request is not compliant to Conventional Commits`
     );
   } else {
-    console.log(
+    core.info(
       "✅ Your Pull Request complies to the conventional commit standard!"
     );
   }

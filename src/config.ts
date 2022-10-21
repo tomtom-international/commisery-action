@@ -15,13 +15,18 @@
  */
 
 import { ALL_RULES } from "./rules";
-import { ITypeTagConfigItem, IRuleConfigItem } from "./interfaces";
+import {
+  IRuleConfigItem,
+  IConfigurationRules,
+  IConfiguration,
+} from "./interfaces";
 
-const fs = require("fs");
-const yaml = require("yaml");
+import * as core from "@actions/core";
+import * as fs from "fs";
+import * as yaml from "yaml";
 
 const DEFAULT_CONFIGURATION_FILE = ".commisery.yml";
-const DEFAULT_ACCEPTED_TAGS: Record<string, ITypeTagConfigItem> = {
+const DEFAULT_ACCEPTED_TAGS: IConfigurationRules = {
   fix: {
     description: "Patches a bug in your codebase",
     bump: true,
@@ -57,8 +62,6 @@ const DEFAULT_ACCEPTED_TAGS: Record<string, ITypeTagConfigItem> = {
   },
 };
 
-const DEFAULT_IGNORED_RULES = [];
-
 const CONFIG_ITEMS = [
   "max-subject-length",
   "tags",
@@ -71,7 +74,9 @@ const CONFIG_ITEMS = [
  */
 function verifyTypeMatches(
   name: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   typeToTest: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   typeItShouldBe: any
 ): void {
   if (typeof typeToTest !== typeof typeItShouldBe) {
@@ -85,14 +90,14 @@ function verifyTypeMatches(
  * Configuration (from file)
  */
 export class Configuration {
-  max_subject_length: number = 80;
-  allowed_branches: string = ".*";
-  tags: Record<string, ITypeTagConfigItem> = DEFAULT_ACCEPTED_TAGS;
+  max_subject_length = 80;
+  allowed_branches = ".*";
+  tags: IConfigurationRules = DEFAULT_ACCEPTED_TAGS;
   rules: Map<string, IRuleConfigItem> = new Map<string, IRuleConfigItem>();
 
-  private loadFromData(data: any) {
+  private loadFromData(data: IConfiguration): void {
     for (const key in data) {
-      if (CONFIG_ITEMS.indexOf(key) === -1) {
+      if (!CONFIG_ITEMS.includes(key)) {
         throw new Error(`Unknown configuration item '${key} detected!`);
       }
 
@@ -169,7 +174,7 @@ export class Configuration {
                     this.tags[typ] = this.tags[typ] ? this.tags[typ] : {};
                     this.tags[typ][entry] = typeValue[entry];
                   } else {
-                    console.log(
+                    core.info(
                       `Warning: "${key}.${typ}.${entry}" is unknown and has no effect.`
                     );
                   }
@@ -192,7 +197,7 @@ export class Configuration {
               let desc = "";
               // Use the default description if it's one of the default tags
               if (typ in DEFAULT_ACCEPTED_TAGS) {
-                desc = DEFAULT_ACCEPTED_TAGS[typ].description!;
+                desc = DEFAULT_ACCEPTED_TAGS[typ].description ?? "";
               }
               this.tags[typ].description = desc;
             }
