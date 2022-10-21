@@ -24,13 +24,12 @@ import {
 import { SemVerType } from "./semver";
 
 import * as os from "os";
-import { IConfigurationRules, ITypeTagConfigItem } from "./interfaces";
 
 const BREAKING_CHANGE_TOKEN = "BREAKING-CHANGE";
 const CONVENTIONAL_COMMIT_REGEX =
-  /(?<type>\w+)?((\s*)?\((?<scope>[^()]*)\)(\s*)?)?(?<breaking_change>((\s*)+[!]+(\s*)?)?)(?<separator>((\s+)?:?(\s+)?))(?<description>.*)/;
+  /(?<type>\w+)?((\s*)?\((?<scope>[^()]*)\)(\s*)?)?(?<breaking_change>((\s*)+!+(\s*)?)?)(?<separator>((\s+)?:?(\s+)?))(?<description>.*)/;
 const FOOTER_REGEX =
-  /^(?<token>[\w-]+|BREAKING\sCHANGE|[\w-\s]+\sby)(?::[ ]|[ ](?=[#]))(?<value>.*)/;
+  /^(?<token>[\w-]+|BREAKING\sCHANGE|[\w-\s]+\sby)(?::\s|\s(?=#))(?<value>.*)/;
 
 /**
  * Conventional Commit Metadata used for validating
@@ -243,7 +242,7 @@ function isFixup(subject: string): boolean {
 }
 
 function isMerge(subject: string): boolean {
-  const MERGE_REGEX = /^Merge.*?:?[\s\t]*?/;
+  const MERGE_REGEX = /^Merge.*?:?\s*/;
   const merge = subject.match(MERGE_REGEX);
 
   return merge !== null;

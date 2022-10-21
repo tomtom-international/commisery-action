@@ -69,7 +69,7 @@ function getChangelogConfiguration(): Map<SemVerType, IChangelogCategory> {
 async function getPullRequestSuffix(
   commit: ConventionalCommitMessage
 ): Promise<string> {
-  if (commit.hexsha && !commit.description.match(/\s\(#[0-9]+\)$/)) {
+  if (commit.hexsha && !commit.description.match(/\s\(#\d+\)$/)) {
     const pull_requests = await getAssociatedPullRequests(commit.hexsha);
 
     const pr_references: string[] = [];
@@ -91,7 +91,7 @@ async function getPullRequestSuffix(
  * references in the git trailer
  */
 function getIssueReferenceSuffix(commit: ConventionalCommitMessage): string {
-  const ISSUE_REGEX = new RegExp(`[A-Z]+-[0-9]+`, "g");
+  const ISSUE_REGEX = /[A-Z]+-\d+/g;
 
   const issue_references: string[] = [];
   for (const footer of commit.footers) {

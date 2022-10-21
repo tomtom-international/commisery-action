@@ -74,11 +74,7 @@ export async function validateMessages(
   for (const item of messages) {
     let errors: LlvmError[] = [];
     try {
-      const commit = new ConventionalCommitMessage(
-        item.message,
-        undefined,
-        config
-      );
+      new ConventionalCommitMessage(item.message, undefined, config);
     } catch (error) {
       if (error instanceof ConventionalCommitError) {
         errors = error.errors;

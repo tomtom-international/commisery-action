@@ -4812,8 +4812,8 @@ const errors_1 = __nccwpck_require__(6976);
 const semver_1 = __nccwpck_require__(8593);
 const os = __importStar(__nccwpck_require__(2037));
 const BREAKING_CHANGE_TOKEN = "BREAKING-CHANGE";
-const CONVENTIONAL_COMMIT_REGEX = /(?<type>\w+)?((\s*)?\((?<scope>[^()]*)\)(\s*)?)?(?<breaking_change>((\s*)+[!]+(\s*)?)?)(?<separator>((\s+)?:?(\s+)?))(?<description>.*)/;
-const FOOTER_REGEX = /^(?<token>[\w-]+|BREAKING\sCHANGE|[\w-\s]+\sby)(?::[ ]|[ ](?=[#]))(?<value>.*)/;
+const CONVENTIONAL_COMMIT_REGEX = /(?<type>\w+)?((\s*)?\((?<scope>[^()]*)\)(\s*)?)?(?<breaking_change>((\s*)+!+(\s*)?)?)(?<separator>((\s+)?:?(\s+)?))(?<description>.*)/;
+const FOOTER_REGEX = /^(?<token>[\w-]+|BREAKING\sCHANGE|[\w-\s]+\sby)(?::\s|\s(?=#))(?<value>.*)/;
 /**
  * Footer class containing key, value pairs
  */
@@ -4961,7 +4961,7 @@ function isFixup(subject) {
     return autosquash !== null;
 }
 function isMerge(subject) {
-    const MERGE_REGEX = /^Merge.*?:?[\s\t]*?/;
+    const MERGE_REGEX = /^Merge.*?:?\s*/;
     const merge = subject.match(MERGE_REGEX);
     return merge !== null;
 }
@@ -5884,7 +5884,7 @@ class SubjectContainsIssueReference {
         this.description = "The commit message's subject should not contain a ticket reference";
     }
     validate(message, _) {
-        const ISSUE_REGEX = new RegExp(`[A-Z]+-[0-9]+`, "g");
+        const ISSUE_REGEX = /[A-Z]+-\d+/g;
         const matches = message.subject.matchAll(ISSUE_REGEX);
         for (const match of matches) {
             let err = true;
@@ -5973,12 +5973,12 @@ class GitTrailerNeedAColon {
     }
     validate(message, config) {
         const trailer_formats = [
-            /^Addresses:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
-            /^Closes:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
-            /^Fixes:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
-            /^Implements:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
-            /^References:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
-            /^Refs:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
+            /^Addresses:* (?:[A-Z]+-\d+|#\d+)/,
+            /^Closes:* (?:[A-Z]+-\d+|#\d+)/,
+            /^Fixes:* (?:[A-Z]+-\d+|#\d+)/,
+            /^Implements:* (?:[A-Z]+-\d+|#\d+)/,
+            /^References:* (?:[A-Z]+-\d+|#\d+)/,
+            /^Refs:* (?:[A-Z]+-\d+|#\d+)/,
             /^Acked-by/,
             /^Authored-by/,
             /^BREAKING CHANGE/,
@@ -6019,13 +6019,14 @@ class SingleTicketReferencePerTrailer {
         this.description = "Only a single ticket or issue may be referenced per trailer";
     }
     validate(message, config) {
-        const C025_RE = new RegExp(/([A-Z]+-[0-9]+|#[0-9]+)/g);
+        const C025_RE = new RegExp(/([A-Z]+-\d+|#\d+)/g);
         for (const item of message.footers) {
-            let matches;
             C025_RE.lastIndex = 0;
-            if ((matches = C025_RE.exec(item.value))) {
+            let matches = C025_RE.exec(item.value);
+            if (matches) {
+                matches = C025_RE.exec(item.value);
                 // One match is fine, two or more matches is invalid
-                if ((matches = C025_RE.exec(item.value))) {
+                if (matches) {
                     const tokenAndSeparator = `${item.token}: `;
                     const matchIndex = tokenAndSeparator.length + matches.index + 1;
                     const msg = new logging_1.LlvmError();

@@ -542,7 +542,7 @@ class SubjectContainsIssueReference implements IConventionalCommitRule {
     "The commit message's subject should not contain a ticket reference";
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
-    const ISSUE_REGEX = new RegExp(`[A-Z]+-[0-9]+`, "g");
+    const ISSUE_REGEX = /[A-Z]+-\d+/g;
     const matches = message.subject.matchAll(ISSUE_REGEX);
 
     for (const match of matches) {
@@ -637,12 +637,12 @@ class GitTrailerNeedAColon implements IConventionalCommitRule {
 
   validate(message: ConventionalCommitMetadata, config: Configuration): void {
     const trailer_formats = [
-      /^Addresses:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
-      /^Closes:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
-      /^Fixes:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
-      /^Implements:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
-      /^References:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
-      /^Refs:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
+      /^Addresses:* (?:[A-Z]+-\d+|#\d+)/,
+      /^Closes:* (?:[A-Z]+-\d+|#\d+)/,
+      /^Fixes:* (?:[A-Z]+-\d+|#\d+)/,
+      /^Implements:* (?:[A-Z]+-\d+|#\d+)/,
+      /^References:* (?:[A-Z]+-\d+|#\d+)/,
+      /^Refs:* (?:[A-Z]+-\d+|#\d+)/,
       /^Acked-by/,
       /^Authored-by/,
       /^BREAKING CHANGE/,
@@ -689,15 +689,16 @@ class SingleTicketReferencePerTrailer implements IConventionalCommitRule {
   description = "Only a single ticket or issue may be referenced per trailer";
 
   validate(message: ConventionalCommitMetadata, config: Configuration): void {
-    const C025_RE = new RegExp(/([A-Z]+-[0-9]+|#[0-9]+)/g);
+    const C025_RE = new RegExp(/([A-Z]+-\d+|#\d+)/g);
 
     for (const item of message.footers) {
-      let matches: RegExpExecArray | null;
       C025_RE.lastIndex = 0;
+      let matches: RegExpExecArray | null = C025_RE.exec(item.value);
 
-      if ((matches = C025_RE.exec(item.value))) {
+      if (matches) {
+        matches = C025_RE.exec(item.value);
         // One match is fine, two or more matches is invalid
-        if ((matches = C025_RE.exec(item.value))) {
+        if (matches) {
           const tokenAndSeparator = `${item.token}: `;
           const matchIndex = tokenAndSeparator.length + matches.index + 1;
           const msg = new LlvmError();
