@@ -487,7 +487,7 @@ class DescriptionInImperativeMood implements IConventionalCommitRule {
     ];
     if (
       message.description.match(
-        new RegExp(`${common_non_imperative_verbs.join("|")}`, "i")
+        new RegExp(`^(${common_non_imperative_verbs.join("|")})`, "i")
       )
     ) {
       const msg = new LlvmError();

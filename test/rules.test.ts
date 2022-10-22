@@ -401,6 +401,7 @@ describe("Rules", () => {
       "chore: this is a chore",
       "feat(scope)!: breaking change with scope",
       "chore: remove API call",
+      "fix(ttlock): use new traffic-client that has updated gtest",
     ]) {
       assertRuleNoValidationError(message, getConventionalCommitRule("C016"));
     }
