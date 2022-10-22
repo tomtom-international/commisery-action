@@ -12791,7 +12791,7 @@ class DescriptionInImperativeMood {
             "verifies",
             "verifying",
         ];
-        if (message.description.match(new RegExp(`${common_non_imperative_verbs.join("|")}`, "i"))) {
+        if (message.description.match(new RegExp(`^(${common_non_imperative_verbs.join("|")})`, "i"))) {
             const msg = new logging_1.LlvmError();
             msg.message = `[${this.id}] ${this.description}`;
             msg.line = message.subject;
