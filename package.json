@@ -45,7 +45,7 @@
     "@octokit/plugin-rest-endpoint-methods": "^6.7.0",
     "@types/dedent": "^0.7.0",
     "@types/jest": "^29.1.2",
-    "@types/node": "^18.8.4",
+    "@types/node": "^18.11.5",
     "@typescript-eslint/eslint-plugin": "^5.40.0",
     "@vercel/ncc": "^0.34.0",
     "eslint": "^8.25.0",
