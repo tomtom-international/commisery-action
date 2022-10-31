@@ -18,8 +18,9 @@ import * as core from "@actions/core";
 
 import { ConventionalCommitMessage } from "./commit";
 import { Configuration } from "./config";
-import { getCommits, getPullRequest, getPullRequestId } from "./github";
+import { getCommits, getPullRequestId, getPullRequestTitle } from "./github";
 import { LlvmError } from "./logging";
+import { SemVerType } from "./semver";
 import {
   ConventionalCommitError,
   FixupCommitError,
@@ -41,10 +42,9 @@ export async function getMessagesToValidate(): Promise<Message[]> {
 
   // Include Pull Request title
   if (core.getBooleanInput("validate-pull-request")) {
-    const pullrequest = await getPullRequest(pullrequest_id);
     to_validate.push({
       title: `Pull Request Title (#${pullrequest_id})`,
-      message: pullrequest.title,
+      message: await getPullRequestTitle(),
     });
   }
 
@@ -104,7 +104,6 @@ export async function validateMessages(
         }
       }
       success = false;
-
       core.endGroup();
     } else {
       core.info(`✅ ${item.title}`);
@@ -113,11 +112,70 @@ export async function validateMessages(
 
   if (!success) {
     core.setFailed(
-      `Your Pull Request is not compliant to Conventional Commits`
+      `Your Pull Request is not compliant with the Conventional Commits specification`
     );
   } else {
     core.info(
-      "✅ Your Pull Request complies to the conventional commit standard!"
+      "✅ Your Pull Request complies with the Conventional Commits specification!"
+    );
+  }
+}
+
+/**
+ * Validates bump level consistency between the PR title and its commits
+ */
+export async function validatePrTitleBump(
+  config: Configuration
+): Promise<void> {
+  const prTitleText = await getPullRequestTitle();
+  const commits: string[] = (await getCommits(getPullRequestId())).map(m => {
+    return m.commit.message;
+  });
+  let highestBump: SemVerType = SemVerType.NONE;
+  const prTitle = (() => {
+    try {
+      return new ConventionalCommitMessage(prTitleText);
+    } catch (error) {
+      throw new Error(
+        `The PR title does not conform to the Conventional Commits specification.`
+      );
+    }
+  })();
+
+  for (const commit of commits) {
+    try {
+      const cc = new ConventionalCommitMessage(commit);
+      highestBump = cc.bump > highestBump ? cc.bump : highestBump;
+    } catch (error) {
+      if (
+        // We'll just ignore non-compliant commits
+        !(
+          error instanceof ConventionalCommitError ||
+          error instanceof MergeCommitError ||
+          error instanceof FixupCommitError
+        )
+      ) {
+        throw error;
+      }
+    }
+  }
+
+  if (highestBump !== prTitle.bump) {
+    const messageList = ` - ${commits.join("\n - ")}`;
+
+    core.setFailed(
+      `The PR title's bump level is not consistent with its commits.`
+    );
+
+    core.error(`The PR title represents bump level ${
+      SemVerType[prTitle.bump]
+    }, while the highest bump in the commits is ${SemVerType[highestBump]}.
+PR title: "${prTitleText}"
+Commit list:
+${messageList}`);
+  } else {
+    core.info(
+      `✅ Pull request title bump level is consistent with its commits`
     );
   }
 }

@@ -18,7 +18,11 @@ import * as core from "@actions/core";
 
 import { Configuration } from "../config";
 import { getConfig, isPullRequestEvent } from "../github";
-import { getMessagesToValidate, validateMessages } from "../validate";
+import {
+  getMessagesToValidate,
+  validateMessages,
+  validatePrTitleBump,
+} from "../validate";
 
 async function run(): Promise<void> {
   try {
@@ -36,6 +40,9 @@ async function run(): Promise<void> {
     // Validate each commit against Conventional Commit standard
     const messages = await getMessagesToValidate();
     await validateMessages(messages, config);
+    if (core.getBooleanInput("validate-pull-request-title-bump")) {
+      await validatePrTitleBump(config);
+    }
   } catch (ex) {
     core.setFailed((ex as Error).message);
   }

@@ -12478,7 +12478,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getAssociatedPullRequests = exports.getTags = exports.getCommitsSince = exports.getConfig = exports.createTag = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
+exports.getAssociatedPullRequests = exports.getTags = exports.getCommitsSince = exports.getConfig = exports.createTag = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.getPullRequestTitle = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const fs = __importStar(__nccwpck_require__(7147));
 const github = __importStar(__nccwpck_require__(5438));
@@ -12504,6 +12504,15 @@ function getPullRequestId() {
     return github.context.issue.number;
 }
 exports.getPullRequestId = getPullRequestId;
+/**
+ * The current pull request's title
+ */
+function getPullRequestTitle() {
+    return __awaiter(this, void 0, void 0, function* () {
+        return (yield getPullRequest(getPullRequestId())).title;
+    });
+}
+exports.getPullRequestTitle = getPullRequestTitle;
 /**
  * Retrieves a list of commits associated with the specified Pull Request
  * @param pullrequest_id GitHub Pullrequest ID

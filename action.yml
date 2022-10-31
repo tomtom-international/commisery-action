@@ -32,6 +32,11 @@ inputs:
     required: false
     default: true
 
+  validate-pull-request-title-bump:
+    description: 'Validates the version bump level of the Pull Request title against the highest bump level in its commits'
+    required: false
+    default: true
+
   validate-commits:
     description: 'Validates the commits within the current context'
     required: false
