@@ -91,7 +91,7 @@ async function getPullRequestSuffix(
  * references in the git trailer
  */
 function getIssueReferenceSuffix(commit: ConventionalCommitMessage): string {
-  const ISSUE_REGEX = new RegExp(`[A-Z]+-[0-9]+`, "g");
+  const ISSUE_REGEX = new RegExp(/([A-Z]+-[0-9]+|#[0-9]+)/g);
 
   const issue_references: string[] = [];
   for (const footer of commit.footers) {
