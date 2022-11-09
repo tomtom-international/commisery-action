@@ -129,6 +129,12 @@ describe("Generate Changelog", () => {
         new ConventionalCommitMessage(
           "feat: add pull request reference\n\nThis is the body\n\nImplements: TEST-123"
         ),
+        new ConventionalCommitMessage(
+          "feat: do GitHub things\n\nThis is the body\n\nImplements #42"
+        ),
+        new ConventionalCommitMessage(
+          "feat: make GitHub stuff\n\nThis is the body\n\nImplements: #51"
+        ),
       ],
     };
     const changelog = await generateChangelog(bump);
@@ -137,6 +143,8 @@ describe("Generate Changelog", () => {
         `## What's changed
         ### :rocket: New Features
         * Add pull request reference (TEST-123)
+        * Do GitHub things (#42)
+        * Make GitHub stuff (#51)
 
 
         *Diff since last release: [1.0.0...1.1.0](https://github.com/tomtom-international/commisery-action/compare/1.0.0...1.1.0)*`
