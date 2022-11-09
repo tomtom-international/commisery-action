@@ -62,6 +62,22 @@ describe("Configurable options", () => {
     );
   });
 
+  test("Disable nonexistent rule", () => {
+    withConfig(
+      dedent(`
+        disable:
+          - C001
+          - XYZZY0123
+          - C002
+        `),
+      () => {
+        expect(() => {
+          new ConventionalCommitMessage("ci: make things");
+        }).not.toThrow(ConventionalCommitError);
+      }
+    );
+  });
+
   test("Override maximum subject length", () => {
     withConfig(
       dedent(`

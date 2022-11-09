@@ -681,39 +681,12 @@ class GitTrailerNeedAColon implements IConventionalCommitRule {
   }
 }
 
-/**
- * Only a single ticket or issue must be referenced per trailer
+/* Rule ID C025 was historically known as:
+ *     SingleTicketReferencePerTrailer
+ * with description:
+ *     "Only a single ticket or issue may be referenced per trailer";
+ * This rule has been removed and its ID should therefore not be re-used.
  */
-class SingleTicketReferencePerTrailer implements IConventionalCommitRule {
-  id = "C025";
-  description = "Only a single ticket or issue may be referenced per trailer";
-
-  validate(message: ConventionalCommitMetadata, config: Configuration): void {
-    const C025_RE = new RegExp(/([A-Z]+-[0-9]+|#[0-9]+)/g);
-
-    for (const item of message.footers) {
-      let matches: RegExpExecArray | null;
-      C025_RE.lastIndex = 0;
-
-      if ((matches = C025_RE.exec(item.value))) {
-        // One match is fine, two or more matches is invalid
-        if ((matches = C025_RE.exec(item.value))) {
-          const tokenAndSeparator = `${item.token}: `;
-          const matchIndex = tokenAndSeparator.length + matches.index + 1;
-          const msg = new LlvmError();
-          msg.message = `[${this.id}] ${this.description}`;
-          msg.line = `${tokenAndSeparator}${item.value}`;
-          msg.column_number = new LlvmRange(
-            matchIndex,
-            tokenAndSeparator.length + item.value.length - matchIndex + 1
-          );
-
-          throw msg;
-        }
-      }
-    }
-  }
-}
 
 export const ALL_RULES = [
   new NonLowerCaseType(),
@@ -739,7 +712,6 @@ export const ALL_RULES = [
   new FooterContainsBlankLine(),
   new BreakingChangeMustBeFirstGitTrailer(),
   new GitTrailerNeedAColon(),
-  new SingleTicketReferencePerTrailer(),
 ];
 
 export function getConventionalCommitRule(id: string): IConventionalCommitRule {

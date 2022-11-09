@@ -110,7 +110,13 @@ export class Configuration {
            */
           if (typeof data[key] === "object") {
             for (const item of data[key]) {
-              this.rules[item].enabled = false;
+              if (item in this.rules) {
+                this.rules[item].enabled = false;
+              } else {
+                core.warning(
+                  `Rule "${item}" is unknown; disabling it has no effect.`
+                );
+              }
             }
           } else {
             throw new Error(
