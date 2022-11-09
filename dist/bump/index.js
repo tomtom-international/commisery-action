@@ -11846,7 +11846,7 @@ function getPullRequestSuffix(commit) {
  * references in the git trailer
  */
 function getIssueReferenceSuffix(commit) {
-    const ISSUE_REGEX = new RegExp(`[A-Z]+-[0-9]+`, "g");
+    const ISSUE_REGEX = new RegExp(/([A-Z]+-[0-9]+|#[0-9]+)/g);
     const issue_references = [];
     for (const footer of commit.footers) {
         const matches = footer.value.matchAll(ISSUE_REGEX);
@@ -12272,7 +12272,12 @@ class Configuration {
                      */
                     if (typeof data[key] === "object") {
                         for (const item of data[key]) {
-                            this.rules[item].enabled = false;
+                            if (item in this.rules) {
+                                this.rules[item].enabled = false;
+                            }
+                            else {
+                                core.warning(`Rule "${item}" is unknown; disabling it has no effect.`);
+                            }
                         }
                     }
                     else {
@@ -13381,34 +13386,12 @@ class GitTrailerNeedAColon {
         }
     }
 }
-/**
- * Only a single ticket or issue must be referenced per trailer
+/* Rule ID C025 was historically known as:
+ *     SingleTicketReferencePerTrailer
+ * with description:
+ *     "Only a single ticket or issue may be referenced per trailer";
+ * This rule has been removed and its ID should therefore not be re-used.
  */
-class SingleTicketReferencePerTrailer {
-    constructor() {
-        this.id = "C025";
-        this.description = "Only a single ticket or issue may be referenced per trailer";
-    }
-    validate(message, config) {
-        const C025_RE = new RegExp(/([A-Z]+-[0-9]+|#[0-9]+)/g);
-        for (const item of message.footers) {
-            let matches;
-            C025_RE.lastIndex = 0;
-            if ((matches = C025_RE.exec(item.value))) {
-                // One match is fine, two or more matches is invalid
-                if ((matches = C025_RE.exec(item.value))) {
-                    const tokenAndSeparator = `${item.token}: `;
-                    const matchIndex = tokenAndSeparator.length + matches.index + 1;
-                    const msg = new logging_1.LlvmError();
-                    msg.message = `[${this.id}] ${this.description}`;
-                    msg.line = `${tokenAndSeparator}${item.value}`;
-                    msg.column_number = new logging_1.LlvmRange(matchIndex, tokenAndSeparator.length + item.value.length - matchIndex + 1);
-                    throw msg;
-                }
-            }
-        }
-    }
-}
 exports.ALL_RULES = [
     new NonLowerCaseType(),
     new OneWhitelineBetweenSubjectAndBody(),
@@ -13433,7 +13416,6 @@ exports.ALL_RULES = [
     new FooterContainsBlankLine(),
     new BreakingChangeMustBeFirstGitTrailer(),
     new GitTrailerNeedAColon(),
-    new SingleTicketReferencePerTrailer(),
 ];
 function getConventionalCommitRule(id) {
     for (const rule of exports.ALL_RULES) {

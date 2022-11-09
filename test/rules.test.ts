@@ -589,32 +589,4 @@ describe("Rules", () => {
       assertRuleNoValidationError(message, getConventionalCommitRule("C024"));
     }
   });
-
-  test(`[C025] Only a single ticket or issue must be referenced per trailer`, () => {
-    for (const message of [
-      dedent(`feat: single line body with addresses
-
-        Implements: TICKET-1234, but also TICKET-2345 and TICKET-8731`),
-      dedent(`feat: mixed tickets
-
-        Fixes: ISSUE-1234 and #45`),
-    ]) {
-      assertRuleValidationError(message, getConventionalCommitRule("C025"));
-    }
-
-    for (const message of [
-      dedent(`test: keyword in body
-
-        Addresses 321 and 322 were not available, so we use address 323.
-
-        Implements: TICKET-1234`),
-      dedent(`test: reference multiple tickets correctly
-
-        Addresses: TICKET-12
-        Addresses: TICKET-23
-        References: TICKET-42`),
-    ]) {
-      assertRuleNoValidationError(message, getConventionalCommitRule("C025"));
-    }
-  });
 });
