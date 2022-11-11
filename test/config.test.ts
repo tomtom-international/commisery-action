@@ -15,6 +15,8 @@
  */
 
 import dedent from "dedent";
+import * as core from "@actions/core";
+
 import { ConventionalCommitMessage } from "../src/commit";
 import { Configuration, _testData } from "../src/config";
 import { SemVerType } from "../src/semver";
@@ -63,6 +65,10 @@ describe("Configurable options", () => {
   });
 
   test("Disable nonexistent rule", () => {
+    const core_warning = jest
+      .spyOn(core, "warning")
+      .mockImplementation();
+
     withConfig(
       dedent(`
         disable:
@@ -74,8 +80,10 @@ describe("Configurable options", () => {
         expect(() => {
           new ConventionalCommitMessage("ci: make things");
         }).not.toThrow(ConventionalCommitError);
+        expect(core_warning).toHaveBeenCalledTimes(1);
       }
     );
+    core_warning.mockRestore();
   });
 
   test("Override maximum subject length", () => {
