@@ -45,7 +45,8 @@ jobs:
 | Item | Mandatory | Description |
 | --- | --- | --- |
 | `token` | YES | GitHub Token provided by GitHub, see [Authenticating with the GITHUB_TOKEN] |
-| `validate-pull-request` | NO | Includes the Pull Request title and description as part of the Conventional Commit validation (DEFAULT: `false`) |
+| `validate-pull-request` | NO | Includes the Pull Request title and description as part of the Conventional Commit validation (DEFAULT: `true`) |
+| `validate-pull-request-title-bump` | NO | Ensures that the Pull Request title's version bump level matches that of its commits (DEFAULT: `true`) |
 | `validate-commits` | NO | Includes commits associated with the current Pull Request as part of the Conventional Commit validation (DEFAULT: `true`) |
 | `config` | NO | Location of the Commisery configuration file (default: `.commisery.yml`)
 

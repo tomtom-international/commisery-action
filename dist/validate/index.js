@@ -11474,6 +11474,9 @@ function run() {
             // Validate each commit against Conventional Commit standard
             const messages = yield (0, validate_1.getMessagesToValidate)();
             yield (0, validate_1.validateMessages)(messages, config);
+            if (core.getBooleanInput("validate-pull-request-title-bump")) {
+                yield (0, validate_1.validatePrTitleBump)(config);
+            }
         }
         catch (ex) {
             core.setFailed(ex.message);
@@ -12060,7 +12063,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getAssociatedPullRequests = exports.getTags = exports.getCommitsSince = exports.getConfig = exports.createTag = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
+exports.getAssociatedPullRequests = exports.getTags = exports.getCommitsSince = exports.getConfig = exports.createTag = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.getPullRequestTitle = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const fs = __importStar(__nccwpck_require__(7147));
 const github = __importStar(__nccwpck_require__(5438));
@@ -12086,6 +12089,15 @@ function getPullRequestId() {
     return github.context.issue.number;
 }
 exports.getPullRequestId = getPullRequestId;
+/**
+ * The current pull request's title
+ */
+function getPullRequestTitle() {
+    return __awaiter(this, void 0, void 0, function* () {
+        return (yield getPullRequest(getPullRequestId())).title;
+    });
+}
+exports.getPullRequestTitle = getPullRequestTitle;
 /**
  * Retrieves a list of commits associated with the specified Pull Request
  * @param pullrequest_id GitHub Pullrequest ID
@@ -13192,10 +13204,11 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.validateMessages = exports.getMessagesToValidate = void 0;
+exports.validatePrTitleBump = exports.validateMessages = exports.getMessagesToValidate = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const commit_1 = __nccwpck_require__(1730);
 const github_1 = __nccwpck_require__(978);
+const semver_1 = __nccwpck_require__(8593);
 const errors_1 = __nccwpck_require__(6976);
 /**
  * Determines the list of messages to validate (Pull Request and/or Commits)
@@ -13206,10 +13219,9 @@ function getMessagesToValidate() {
         const to_validate = [];
         // Include Pull Request title
         if (core.getBooleanInput("validate-pull-request")) {
-            const pullrequest = yield (0, github_1.getPullRequest)(pullrequest_id);
             to_validate.push({
                 title: `Pull Request Title (#${pullrequest_id})`,
-                message: pullrequest.title,
+                message: yield (0, github_1.getPullRequestTitle)(),
             });
         }
         // Include commits associated to the Pull Request
@@ -13266,14 +13278,61 @@ function validateMessages(messages, config) {
             }
         }
         if (!success) {
-            core.setFailed(`Your Pull Request is not compliant to Conventional Commits`);
+            core.setFailed(`Your Pull Request is not compliant with the Conventional Commits specification`);
         }
         else {
-            core.info("✅ Your Pull Request complies to the conventional commit standard!");
+            core.info("✅ Your Pull Request complies with the Conventional Commits specification!");
         }
     });
 }
 exports.validateMessages = validateMessages;
+/**
+ * Validates bump level consistency between the PR title and its commits
+ */
+function validatePrTitleBump(config) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const prTitleText = yield (0, github_1.getPullRequestTitle)();
+        const commits = (yield (0, github_1.getCommits)((0, github_1.getPullRequestId)())).map(m => {
+            return m.commit.message;
+        });
+        let highestBump = semver_1.SemVerType.NONE;
+        const prTitle = (() => {
+            try {
+                return new commit_1.ConventionalCommitMessage(prTitleText);
+            }
+            catch (error) {
+                throw new Error(`The PR title does not conform to the Conventional Commits specification.`);
+            }
+        })();
+        for (const commit of commits) {
+            try {
+                const cc = new commit_1.ConventionalCommitMessage(commit);
+                highestBump = cc.bump > highestBump ? cc.bump : highestBump;
+            }
+            catch (error) {
+                if (
+                // We'll just ignore non-compliant commits
+                !(error instanceof errors_1.ConventionalCommitError ||
+                    error instanceof errors_1.MergeCommitError ||
+                    error instanceof errors_1.FixupCommitError)) {
+                    throw error;
+                }
+            }
+        }
+        if (highestBump !== prTitle.bump) {
+            const messageList = ` - ${commits.join("\n - ")}`;
+            core.setFailed(`The PR title's bump level is not consistent with its commits.`);
+            core.error(`The PR title represents bump level ${semver_1.SemVerType[prTitle.bump]}, while the highest bump in the commits is ${semver_1.SemVerType[highestBump]}.
+PR title: "${prTitleText}"
+Commit list:
+${messageList}`);
+        }
+        else {
+            core.info(`✅ Pull request title bump level is consistent with its commits`);
+        }
+    });
+}
+exports.validatePrTitleBump = validatePrTitleBump;
 
 
 /***/ }),
