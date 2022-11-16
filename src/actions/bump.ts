@@ -102,6 +102,12 @@ async function run(): Promise<void> {
       bumpInfo.requiredBump
     );
     if (nextVersion) {
+      // Assign Build Metadata
+      const build_metadata = core.getInput("build-metadata");
+      if (build_metadata) {
+        nextVersion.build = build_metadata;
+      }
+
       const nv = nextVersion.to_string();
       core.info(`ℹ️ Next version: ${nv}`);
       core.setOutput("next-version", nv);

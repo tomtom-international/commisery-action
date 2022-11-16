@@ -6112,6 +6112,19 @@ class SemVer {
         this.build = build;
         this.prefix = prefix;
     }
+    get build() {
+        return this._build;
+    }
+    set build(build_metadata) {
+        if (build_metadata !== "") {
+            for (const identifier of build_metadata.split(".")) {
+                if (/[^0-9A-Za-z-]/.test(identifier) || identifier.length === 0) {
+                    throw new Error(`Provided build metadata (${build_metadata}) does not comply to the SemVer specification`);
+                }
+            }
+        }
+        this._build = build_metadata;
+    }
     static from_string(version) {
         const match = SEMVER_RE.exec(version);
         if (match != null && match.groups != null) {

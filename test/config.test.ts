@@ -65,9 +65,7 @@ describe("Configurable options", () => {
   });
 
   test("Disable nonexistent rule", () => {
-    const core_warning = jest
-      .spyOn(core, "warning")
-      .mockImplementation();
+    const core_warning = jest.spyOn(core, "warning").mockImplementation();
 
     withConfig(
       dedent(`

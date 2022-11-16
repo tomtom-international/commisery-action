@@ -30,6 +30,9 @@ inputs:
   token:
     description: 'GitHub token used to access GitHub (eg. github.token)'
     required: true
+  build-metadata:
+    description: 'Optional SemVer build metadata'
+    required: false
   create-release:
     description: 'Create a GitHub Release if a version bump is performed (outside a pull request event)'
     default: false

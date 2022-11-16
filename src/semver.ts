@@ -44,8 +44,8 @@ export class SemVer {
   minor: number;
   patch: number;
   prerelease: string;
-  build: string;
   prefix: string;
+  private _build!: string;
 
   constructor(
     major: number,
@@ -61,6 +61,23 @@ export class SemVer {
     this.prerelease = prerelease;
     this.build = build;
     this.prefix = prefix;
+  }
+
+  get build(): string {
+    return this._build;
+  }
+
+  set build(build_metadata: string) {
+    if (build_metadata !== "") {
+      for (const identifier of build_metadata.split(".")) {
+        if (/[^0-9A-Za-z-]/.test(identifier) || identifier.length === 0) {
+          throw new Error(
+            `Provided build metadata (${build_metadata}) does not comply to the SemVer specification`
+          );
+        }
+      }
+    }
+    this._build = build_metadata;
   }
 
   static from_string(version: string): SemVer | null {

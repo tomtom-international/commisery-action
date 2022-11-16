@@ -138,3 +138,26 @@ describe("Semantic Version ordering", () => {
     ).toBe(true);
   });
 });
+
+describe("Build Metadata", () => {
+  test("Missing Build Metadata", () => {
+    expect(() => {
+      new SemVer(1, 2, 3, "4", "", "5");
+    }).not.toThrow(Error);
+  });
+  test("Valid Build Metadata", () => {
+    expect(() => {
+      new SemVer(1, 2, 3, "4", "identifier-1.identifier-2", "5");
+    }).not.toThrow(Error);
+  });
+  test("Invalid Build Metadata", () => {
+    expect(() => {
+      new SemVer(1, 2, 3, "4", "identifier-1.identifier-2&wrong", "5");
+    }).toThrow(Error);
+  });
+  test("Empty Indentifier in Build Metadata", () => {
+    expect(() => {
+      new SemVer(1, 2, 3, "4", "identifier-1..identifier-2", "5");
+    }).toThrow(Error);
+  });
+});
