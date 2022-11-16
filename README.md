@@ -92,10 +92,11 @@ jobs:
         uses: tomtom-international/commisery-action/bump@v1
         with:
           token: ${{ github.token }}
-          create-release: true  # OPTIONAL, default: `false`
-          create-tag: false  # OPTIONAL
-          version-prefix: v  # OPTIONAL
-          config: .commisery.yml # OPTIONAL
+          create-release: true              # OPTIONAL, default: `false`
+          create-tag: false                 # OPTIONAL
+          build-metadata: upstream-10.0.10  # OPTIONAL
+          version-prefix: v                 # OPTIONAL
+          config: .commisery.yml            # OPTIONAL
 
       - run: echo "Current version is ${{steps.release-version.outputs.current-version}}"
 
@@ -115,8 +116,9 @@ Commit messages, for example:
 | `token` | YES | GitHub Token provided by GitHub, see [Authenticating with the GITHUB_TOKEN]|
 | `create-release` | NO | Can optionally be set to `true` to create a GitHub release on version bump.|
 | `create-tag` | NO | Can optionally be set to `true` to create a lightweight Git tag on version bump.|
-| `version-prefix` | NO | An optional prefix specifying the tags to consider, eg. `v`, `componentX-`, `""`.
-| `config` | NO | Location of the Commisery configuration file (default: `.commisery.yml`)
+| `build-metadata` | NO | Build metadata to add to the SemVer version on version bump.|
+| `version-prefix` | NO | An optional prefix specifying the tags to consider, eg. `v`, `componentX-`, `""`.|
+| `config` | NO | Location of the Commisery configuration file (default: `.commisery.yml`)|
 
 > :bulb: Note that setting both `create-release` and `create-tag` to `true` is never needed, since a GitHub
 release implicitly creates a Git tag.
