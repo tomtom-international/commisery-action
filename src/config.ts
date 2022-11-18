@@ -67,6 +67,7 @@ const CONFIG_ITEMS = [
   "tags",
   "disable",
   "allowed-branches",
+  "initial-development",
 ];
 
 /**
@@ -90,8 +91,9 @@ function verifyTypeMatches(
  * Configuration (from file)
  */
 export class Configuration {
-  max_subject_length = 80;
   allowed_branches = ".*";
+  initial_development = true;
+  max_subject_length = 80;
   tags: IConfigurationRules = DEFAULT_ACCEPTED_TAGS;
   rules: Map<string, IRuleConfigItem> = new Map<string, IRuleConfigItem>();
 
@@ -222,6 +224,21 @@ export class Configuration {
               `Incorrect type '${typeof data[
                 key
               ]}' for '${key}', must be '${typeof this.allowed_branches}'!`
+            );
+          }
+          break;
+
+        case "initial-development":
+          /* Example YAML
+           *   initial-development: true
+           */
+          if (typeof data[key] === "boolean") {
+            this.initial_development = data[key];
+          } else {
+            throw new Error(
+              `Incorrect type '${typeof data[
+                key
+              ]}' for '${key}', must be '${typeof this.initial_development}'!`
             );
           }
           break;
