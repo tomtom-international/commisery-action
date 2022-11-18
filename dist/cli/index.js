@@ -5072,6 +5072,7 @@ const CONFIG_ITEMS = [
     "tags",
     "disable",
     "allowed-branches",
+    "initial-development",
 ];
 /**
  * This function takes two values and throws when their types don't match.
@@ -5093,8 +5094,9 @@ class Configuration {
      * Constructs a Configuration parameters from file
      */
     constructor(config_path = DEFAULT_CONFIGURATION_FILE) {
-        this.max_subject_length = 80;
         this.allowed_branches = ".*";
+        this.initial_development = true;
+        this.max_subject_length = 80;
         this.tags = DEFAULT_ACCEPTED_TAGS;
         this.rules = new Map();
         // Enable all rules by default
@@ -5220,6 +5222,17 @@ class Configuration {
                     }
                     else {
                         throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.allowed_branches}'!`);
+                    }
+                    break;
+                case "initial-development":
+                    /* Example YAML
+                     *   initial-development: true
+                     */
+                    if (typeof data[key] === "boolean") {
+                        this.initial_development = data[key];
+                    }
+                    else {
+                        throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.initial_development}'!`);
                     }
                     break;
             }
@@ -6104,7 +6117,7 @@ var SemVerType;
     SemVerType[SemVerType["MAJOR"] = 3] = "MAJOR";
 })(SemVerType = exports.SemVerType || (exports.SemVerType = {}));
 class SemVer {
-    constructor(major, minor, patch, prerelease, build, prefix) {
+    constructor({ major, minor, patch, prerelease = "", build = "", prefix = "", }) {
         this.major = major;
         this.minor = minor;
         this.patch = patch;
@@ -6128,7 +6141,14 @@ class SemVer {
     static from_string(version) {
         const match = SEMVER_RE.exec(version);
         if (match != null && match.groups != null) {
-            return new SemVer(+match.groups.major, +match.groups.minor, +match.groups.patch, match.groups.prerelease || "", match.groups.build || "", match.groups.prefix || "");
+            return new SemVer({
+                major: +match.groups.major,
+                minor: +match.groups.minor,
+                patch: +match.groups.patch,
+                prerelease: match.groups.prerelease || "",
+                build: match.groups.build || "",
+                prefix: match.groups.prefix || "",
+            });
         }
         return null;
     }
@@ -6138,24 +6158,61 @@ class SemVer {
         return `${this.prefix}${this.major}.${this.minor}.${this.patch}${prerelease}${build}`;
     }
     next_major() {
-        return new SemVer(this.major + 1, 0, 0, "", "", this.prefix);
+        return new SemVer({
+            major: this.major + 1,
+            minor: 0,
+            patch: 0,
+            prefix: this.prefix,
+        });
     }
     next_minor() {
-        return new SemVer(this.major, this.minor + 1, 0, "", "", this.prefix);
+        return new SemVer({
+            major: this.major,
+            minor: this.minor + 1,
+            patch: 0,
+            prefix: this.prefix,
+        });
     }
     next_patch() {
         if (this.prerelease !== "") {
-            return new SemVer(this.major, this.minor, this.patch, "", "", this.prefix);
+            return new SemVer({
+                major: this.major,
+                minor: this.minor,
+                patch: this.patch,
+                prefix: this.prefix,
+            });
         }
-        return new SemVer(this.major, this.minor, this.patch + 1, "", "", this.prefix);
+        return new SemVer({
+            major: this.major,
+            minor: this.minor,
+            patch: this.patch + 1,
+            prefix: this.prefix,
+        });
     }
     /**
      * Returns a new SemVer object bumped by the provided bump type, or `null` if the
      * provided type is NONE or unknown.
      */
-    bump(what) {
+    bump(what, initial_development = true) {
+        if (!initial_development && this.major <= 0) {
+            // Enforce version 1.0.0 in case we are no longer in initial
+            // development and the current major version is 0.
+            //
+            // NOTE: this will enforce a version bump (also for non-bumping commits)
+            return new SemVer({
+                major: 1,
+                minor: 0,
+                patch: 0,
+                prefix: this.prefix,
+            });
+        }
         switch (what) {
             case SemVerType.MAJOR:
+                if (initial_development && this.major <= 0) {
+                    // Bumping major version during initial development is prohibited,
+                    // bump the minor version instead.
+                    return this.next_minor();
+                }
                 return this.next_major();
             case SemVerType.MINOR:
                 return this.next_minor();

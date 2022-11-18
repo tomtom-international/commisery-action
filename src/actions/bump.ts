@@ -99,7 +99,8 @@ async function run(): Promise<void> {
 
     core.startGroup("🔍 Determining bump");
     const nextVersion: SemVer | null = bumpInfo.foundVersion.bump(
-      bumpInfo.requiredBump
+      bumpInfo.requiredBump,
+      config.initial_development
     );
     if (nextVersion) {
       // Assign Build Metadata

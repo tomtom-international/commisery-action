@@ -47,3 +47,12 @@ export interface IConfiguration {
   tags: IConfigurationRules;
   "allowed-branches": string;
 }
+
+export interface ISemVer {
+  major: number;
+  minor: number;
+  patch: number;
+  prerelease?: string;
+  prefix?: string;
+  build?: string;
+}

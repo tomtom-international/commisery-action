@@ -219,4 +219,16 @@ describe("Configurable options", () => {
       }
     );
   });
+
+  test("Default initial development value", () => {
+    withConfig("", () => {
+      expect(new Configuration().initial_development).toEqual(true);
+    });
+  });
+
+  test("Disable initial development", () => {
+    withConfig("initial-development: false", () => {
+      expect(new Configuration().initial_development).toEqual(false);
+    });
+  });
 });

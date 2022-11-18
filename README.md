@@ -56,7 +56,7 @@ jobs:
 
 ![example](https://github.com/tomtom-international/commisery-action/raw/master/resources/example.png)
 
-### Create GitHub Releases based on unreleased Conventional Commits
+## Create GitHub Releases based on unreleased Conventional Commits
 
 With the `/bump` GitHub Action, you can create a new Git tag or a GitHub release (also implicitly a Git tag),
 based on the types of [Conventional Commits] since the latest found [Semantic Versioning]-compatible tag.
@@ -73,6 +73,20 @@ Filtering the Git version tags is also possible, by providing a `version-prefix`
 _exactly_ with the value of `version-prefix` shall be taken into account while determining and bumping versions.
 As an example, for version tag `componentX-1.2.3`, the version prefix would be `componentX-`.
 
+### Initial Development
+
+During initial development, you should avoid bumping the `MAJOR` version.
+By default, we will bump the `MINOR` version for breaking changes in case:
+- The current `MAJOR`-version is `0`
+- **AND** the `initial-development` configuration parameter is `true` (default value)
+
+We will automatically bump the version to `1.0.0` when:
+- The current `MAJOR`-version is `0`
+- **AND** the `initial-development` configuration parameter is `false`
+
+> NOTE: This behavior also applies to non-bumping commits (ie. `chore:`, `ci:`)
+
+### Example workflow
 An example workflow that creates a release on every commit or merge to the `main` branch if necessary:
 
 ```yml
@@ -155,6 +169,7 @@ allowed-branches: "^ma(in|ster)$"
 | `tags` | `fix`, `feat`, `build`, `chore`, `ci`, `docs`, `perf`, `refactor`, `revert`, `style`, `test`, `improvement` | Specify a custom list of Conventional Commit types to allow. If provided, this will overwrite the default list, so be sure to include those if you want to retain them.<br>`tags` takes a dict per type tag, with two values that can be set:<ul><li>`description`: a human-readable description of what the type should be used for.</li><li>`bump`: if set to `true`, will cause commits with this type to also bump the `PATCH` version component, same as `fix`.</li></ul>If you only specify YAML string, it shall be treated as the `description`; the `bump` will be `false` implicitly. <br><br>**NOTE:** The type tags `feat` and `fix` will automatically be provided. |
 | `disabled` | `None` | List of rules to disable as part of the checker |
 | `allowed-branches` | `.*` | A regex specifying from which branch(es) releases and Git tags are allowed to be created |
+| `initial-development` | `true` | A boolean indicating that this project is still under _initial development_. During this state, any commit message containing a breaking change will result in a `MINOR` version bump. |
 
 > :bulb: By default `commisery-action` will search for the file `.commisery.yml`. 
 You can specify a different file with the `config` input parameter.

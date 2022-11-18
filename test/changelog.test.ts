@@ -45,7 +45,7 @@ describe("Generate Changelog", () => {
 
   test("All types of changes", async () => {
     const bump: IVersionBumpTypeAndMessages = {
-      foundVersion: new SemVer(1, 0, 0, "", "", ""),
+      foundVersion: new SemVer({ major: 1, minor: 0, patch: 0 }),
       requiredBump: SemVerType.MINOR,
       messages: [
         new ConventionalCommitMessage("feat!: breaks the API"),
@@ -75,7 +75,7 @@ describe("Generate Changelog", () => {
 
   test("Missing PR reference", async () => {
     const bump: IVersionBumpTypeAndMessages = {
-      foundVersion: new SemVer(1, 0, 0, "", "", ""),
+      foundVersion: new SemVer({ major: 1, minor: 0, patch: 0 }),
       requiredBump: SemVerType.MINOR,
       messages: [
         new ConventionalCommitMessage(
@@ -99,7 +99,7 @@ describe("Generate Changelog", () => {
 
   test("Contains PR reference", async () => {
     const bump: IVersionBumpTypeAndMessages = {
-      foundVersion: new SemVer(1, 0, 0, "", "", ""),
+      foundVersion: new SemVer({ major: 1, minor: 0, patch: 0 }),
       requiredBump: SemVerType.MINOR,
       messages: [
         new ConventionalCommitMessage(
@@ -123,7 +123,7 @@ describe("Generate Changelog", () => {
 
   test("Issue reference", async () => {
     const bump: IVersionBumpTypeAndMessages = {
-      foundVersion: new SemVer(1, 0, 0, "", "", ""),
+      foundVersion: new SemVer({ major: 1, minor: 0, patch: 0 }),
       requiredBump: SemVerType.MINOR,
       messages: [
         new ConventionalCommitMessage(
