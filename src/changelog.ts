@@ -152,9 +152,9 @@ export async function generateChangelog(
     }
   }
 
-  const diff_range = `${bump.foundVersion.to_string()}...${bump.foundVersion
+  const diff_range = `${bump.foundVersion.toString()}...${bump.foundVersion
     .bump(bump.requiredBump)
-    ?.to_string()}`;
+    ?.toString()}`;
   changelog_formatted += `\n\n*Diff since last release: [${diff_range}](https://github.com/${owner}/${repo}/compare/${diff_range})*`;
 
   return changelog_formatted;
