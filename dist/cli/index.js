@@ -6138,7 +6138,7 @@ class SemVer {
         }
         this._build = build_metadata;
     }
-    static from_string(version) {
+    static fromString(version) {
         const match = SEMVER_RE.exec(version);
         if (match != null && match.groups != null) {
             return new SemVer({
@@ -6152,12 +6152,12 @@ class SemVer {
         }
         return null;
     }
-    to_string() {
+    toString() {
         const prerelease = this.prerelease ? `-${this.prerelease}` : "";
         const build = this.build ? `+${this.build}` : "";
         return `${this.prefix}${this.major}.${this.minor}.${this.patch}${prerelease}${build}`;
     }
-    next_major() {
+    nextMajor() {
         return new SemVer({
             major: this.major + 1,
             minor: 0,
@@ -6165,7 +6165,7 @@ class SemVer {
             prefix: this.prefix,
         });
     }
-    next_minor() {
+    nextMinor() {
         return new SemVer({
             major: this.major,
             minor: this.minor + 1,
@@ -6173,7 +6173,7 @@ class SemVer {
             prefix: this.prefix,
         });
     }
-    next_patch() {
+    nextPatch() {
         if (this.prerelease !== "") {
             return new SemVer({
                 major: this.major,
@@ -6211,13 +6211,13 @@ class SemVer {
                 if (initial_development && this.major <= 0) {
                     // Bumping major version during initial development is prohibited,
                     // bump the minor version instead.
-                    return this.next_minor();
+                    return this.nextMinor();
                 }
-                return this.next_major();
+                return this.nextMajor();
             case SemVerType.MINOR:
-                return this.next_minor();
+                return this.nextMinor();
             case SemVerType.PATCH:
-                return this.next_patch();
+                return this.nextPatch();
             default:
                 return null;
         }

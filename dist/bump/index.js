@@ -11512,7 +11512,7 @@ function run() {
                 return;
             }
             else {
-                const currentVersion = bumpInfo.foundVersion.to_string();
+                const currentVersion = bumpInfo.foundVersion.toString();
                 core.info(`ℹ️ Found SemVer tag: ${currentVersion}`);
                 core.setOutput("current-version", currentVersion);
             }
@@ -11525,7 +11525,7 @@ function run() {
                 if (build_metadata) {
                     nextVersion.build = build_metadata;
                 }
-                const nv = nextVersion.to_string();
+                const nv = nextVersion.toString();
                 core.info(`ℹ️ Next version: ${nv}`);
                 core.setOutput("next-version", nv);
                 core.endGroup();
@@ -11660,7 +11660,7 @@ function getSemVerIfMatches(prefix, tagName, tagSha, commitSha) {
             core.debug(`Tag '${tag}' on commit '${commit.slice(0, 6)}' ${message}`);
         };
         // If provided, make sure that the prefix matches as well
-        const sv = semver_1.SemVer.from_string(tagName);
+        const sv = semver_1.SemVer.fromString(tagName);
         if (sv) {
             // Asterisk is a special case, meaning 'any prefix'
             if (sv.prefix === prefix || prefix === "*") {
@@ -11897,8 +11897,8 @@ function generateChangelog(bump) {
                 }
             }
         }
-        const diff_range = `${bump.foundVersion.to_string()}...${(_b = bump.foundVersion
-            .bump(bump.requiredBump)) === null || _b === void 0 ? void 0 : _b.to_string()}`;
+        const diff_range = `${bump.foundVersion.toString()}...${(_b = bump.foundVersion
+            .bump(bump.requiredBump)) === null || _b === void 0 ? void 0 : _b.toString()}`;
         changelog_formatted += `\n\n*Diff since last release: [${diff_range}](https://github.com/${owner}/${repo}/compare/${diff_range})*`;
         return changelog_formatted;
     });
@@ -13523,7 +13523,7 @@ class SemVer {
         }
         this._build = build_metadata;
     }
-    static from_string(version) {
+    static fromString(version) {
         const match = SEMVER_RE.exec(version);
         if (match != null && match.groups != null) {
             return new SemVer({
@@ -13537,12 +13537,12 @@ class SemVer {
         }
         return null;
     }
-    to_string() {
+    toString() {
         const prerelease = this.prerelease ? `-${this.prerelease}` : "";
         const build = this.build ? `+${this.build}` : "";
         return `${this.prefix}${this.major}.${this.minor}.${this.patch}${prerelease}${build}`;
     }
-    next_major() {
+    nextMajor() {
         return new SemVer({
             major: this.major + 1,
             minor: 0,
@@ -13550,7 +13550,7 @@ class SemVer {
             prefix: this.prefix,
         });
     }
-    next_minor() {
+    nextMinor() {
         return new SemVer({
             major: this.major,
             minor: this.minor + 1,
@@ -13558,7 +13558,7 @@ class SemVer {
             prefix: this.prefix,
         });
     }
-    next_patch() {
+    nextPatch() {
         if (this.prerelease !== "") {
             return new SemVer({
                 major: this.major,
@@ -13596,13 +13596,13 @@ class SemVer {
                 if (initial_development && this.major <= 0) {
                     // Bumping major version during initial development is prohibited,
                     // bump the minor version instead.
-                    return this.next_minor();
+                    return this.nextMinor();
                 }
-                return this.next_major();
+                return this.nextMajor();
             case SemVerType.MINOR:
-                return this.next_minor();
+                return this.nextMinor();
             case SemVerType.PATCH:
-                return this.next_patch();
+                return this.nextPatch();
             default:
                 return null;
         }

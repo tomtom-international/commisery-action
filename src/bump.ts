@@ -58,7 +58,7 @@ function getSemVerIfMatches(
       core.debug(`Tag '${tag}' on commit '${commit.slice(0, 6)}' ${message}`);
     };
     // If provided, make sure that the prefix matches as well
-    const sv: SemVer | null = SemVer.from_string(tagName);
+    const sv: SemVer | null = SemVer.fromString(tagName);
     if (sv) {
       // Asterisk is a special case, meaning 'any prefix'
       if (sv.prefix === prefix || prefix === "*") {

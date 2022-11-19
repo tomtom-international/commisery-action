@@ -91,7 +91,7 @@ async function run(): Promise<void> {
       core.endGroup();
       return;
     } else {
-      const currentVersion = bumpInfo.foundVersion.to_string();
+      const currentVersion = bumpInfo.foundVersion.toString();
       core.info(`ℹ️ Found SemVer tag: ${currentVersion}`);
       core.setOutput("current-version", currentVersion);
     }
@@ -109,7 +109,7 @@ async function run(): Promise<void> {
         nextVersion.build = build_metadata;
       }
 
-      const nv = nextVersion.to_string();
+      const nv = nextVersion.toString();
       core.info(`ℹ️ Next version: ${nv}`);
       core.setOutput("next-version", nv);
       core.endGroup();
