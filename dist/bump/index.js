@@ -11519,6 +11519,11 @@ function run() {
             core.endGroup();
             core.startGroup("🔍 Determining bump");
             const nextVersion = bumpInfo.foundVersion.bump(bumpInfo.requiredBump, config.initial_development);
+            if (bumpInfo.foundVersion.major <= 0) {
+                core.warning(config.initial_development
+                    ? "This repository is under 'initial development'; breaking changes will bump the `MINOR` version."
+                    : "Enforcing version `1.0.0` as we are no longer in `initial development`.");
+            }
             if (nextVersion) {
                 // Assign Build Metadata
                 const build_metadata = core.getInput("build-metadata");
