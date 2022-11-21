@@ -161,6 +161,7 @@ disable:
   - C001
   - C018
 allowed-branches: "^ma(in|ster)$"
+initial-development: false  # OPTIONAL, defaults to `true`
 ```
 
 | Item | Default value |Description | 
