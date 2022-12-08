@@ -11725,13 +11725,13 @@ function getVersionBumpTypeAndMessages(prefix, targetSha, config) {
         core.debug(`Fetching last ${PAGE_SIZE} tags and commits from ${targetSha}..`);
         const [commits, tags] = yield Promise.all([
             (0, github_1.getCommitsSince)(targetSha, PAGE_SIZE),
-            (0, github_1.getTags)(PAGE_SIZE),
+            (0, github_1.getLatestTags)(PAGE_SIZE),
         ]);
         core.debug("Fetch complete");
         commit_loop: for (const commit of commits) {
             // Try and match this commit's hash to a tag
             for (const tag of tags) {
-                semVer = getSemVerIfMatches(prefix, tag.name, tag.commit.sha, commit.sha);
+                semVer = getSemVerIfMatches(prefix, tag.name, tag.commitSha, commit.sha);
                 if (semVer) {
                     break commit_loop;
                 }
@@ -12501,7 +12501,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getAssociatedPullRequests = exports.getTags = exports.getCommitsSince = exports.getConfig = exports.createTag = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.getPullRequestTitle = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
+exports.getAssociatedPullRequests = exports.getLatestTags = exports.getCommitsSince = exports.getConfig = exports.createTag = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.getPullRequestTitle = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const fs = __importStar(__nccwpck_require__(7147));
 const github = __importStar(__nccwpck_require__(5438));
@@ -12648,17 +12648,43 @@ exports.getCommitsSince = getCommitsSince;
 /**
  * Retrieve `pageSize` tags in the current repo
  */
-function getTags(pageSize) {
+function getLatestTags(pageSize) {
     return __awaiter(this, void 0, void 0, function* () {
-        const { data: tags } = yield getOctokit().rest.repos.listTags({
-            owner: OWNER,
-            repo: REPO,
-            per_page: pageSize,
-        });
-        return tags;
+        const result = yield getOctokit().graphql(`
+      {
+        repository(owner: "${OWNER}", name: "${REPO}") {
+          refs(
+            refPrefix: "refs/tags/"
+            first: ${pageSize}
+            orderBy: {field: TAG_COMMIT_DATE, direction: DESC}
+          ) {
+            edges {
+              node {
+                name
+                reftarget: target {
+                  ... on Commit {
+                    commitsha:oid
+                  }
+                  ... on Tag {
+                    tagtarget: target { commitsha: oid }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `);
+        const tagList = result.repository.refs.edges.map(x => ({
+            name: x.node.name,
+            commitSha: x.node.reftarget.tagtarget
+                ? x.node.reftarget.tagtarget.commitsha
+                : x.node.reftarget.commitsha,
+        }));
+        return tagList;
     });
 }
-exports.getTags = getTags;
+exports.getLatestTags = getLatestTags;
 /**
  * Retrieve the Pull Requests associated with the specified commit SHA
  */
