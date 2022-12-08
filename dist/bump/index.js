@@ -12242,32 +12242,6 @@ typeItShouldBe) {
  * Configuration (from file)
  */
 class Configuration {
-    /**
-     * Constructs a Configuration parameters from file
-     */
-    constructor(config_path = DEFAULT_CONFIGURATION_FILE) {
-        this.allowed_branches = ".*";
-        this.initial_development = true;
-        this.max_subject_length = 80;
-        this.tags = DEFAULT_ACCEPTED_TAGS;
-        this.rules = new Map();
-        // Enable all rules by default
-        for (const rule of rules_1.ALL_RULES) {
-            this.rules[rule.id] = {
-                description: rule.description,
-                enabled: true,
-            };
-        }
-        if (fs.existsSync(config_path)) {
-            const data = yaml.parse(fs.readFileSync(config_path, "utf8"));
-            this.loadFromData(data);
-        }
-        else {
-            if (config_path !== DEFAULT_CONFIGURATION_FILE) {
-                throw new Error(`No configuration can be found at: ${config_path}`);
-            }
-        }
-    }
     loadFromData(data) {
         var _a, _b;
         var _c;
@@ -12387,6 +12361,32 @@ class Configuration {
                         throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.initial_development}'!`);
                     }
                     break;
+            }
+        }
+    }
+    /**
+     * Constructs a Configuration parameters from file
+     */
+    constructor(config_path = DEFAULT_CONFIGURATION_FILE) {
+        this.allowed_branches = ".*";
+        this.initial_development = true;
+        this.max_subject_length = 80;
+        this.tags = DEFAULT_ACCEPTED_TAGS;
+        this.rules = new Map();
+        // Enable all rules by default
+        for (const rule of rules_1.ALL_RULES) {
+            this.rules[rule.id] = {
+                description: rule.description,
+                enabled: true,
+            };
+        }
+        if (fs.existsSync(config_path)) {
+            const data = yaml.parse(fs.readFileSync(config_path, "utf8"));
+            this.loadFromData(data);
+        }
+        else {
+            if (config_path !== DEFAULT_CONFIGURATION_FILE) {
+                throw new Error(`No configuration can be found at: ${config_path}`);
             }
         }
     }
