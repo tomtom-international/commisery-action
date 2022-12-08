@@ -19,6 +19,8 @@ import * as fs from "fs";
 import * as github from "@actions/github";
 import * as octokit from "@octokit/plugin-rest-endpoint-methods";
 import { GitHub } from "@actions/github/lib/utils";
+import type { GraphQlQueryResponseData } from "@octokit/graphql";
+import { IGitTag } from "./interfaces";
 
 const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
 
@@ -175,18 +177,65 @@ export async function getCommitsSince(
 /**
  * Retrieve `pageSize` tags in the current repo
  */
-export async function getTags(
-  pageSize: number
-): Promise<
-  octokit.RestEndpointMethodTypes["repos"]["listTags"]["response"]["data"]
-> {
-  const { data: tags } = await getOctokit().rest.repos.listTags({
-    owner: OWNER,
-    repo: REPO,
-    per_page: pageSize,
-  });
+export async function getLatestTags(pageSize: number): Promise<IGitTag[]> {
+  interface graphqlTagItem {
+    node: {
+      name: string;
+      reftarget: {
+        // `reftarget` can be a Commit object (if lightweight tag) or Tag object (if annotated tag)
+        commitsha?: string;
+        tagtarget?: {
+          commitsha: string;
+        };
+      };
+    };
+  }
 
-  return tags;
+  interface graphqlQueryResult {
+    repository: {
+      refs: {
+        edges: graphqlTagItem[];
+      };
+    };
+  }
+
+  const result: graphqlQueryResult = await getOctokit().graphql(`
+      {
+        repository(owner: "${OWNER}", name: "${REPO}") {
+          refs(
+            refPrefix: "refs/tags/"
+            first: ${pageSize}
+            orderBy: {field: TAG_COMMIT_DATE, direction: DESC}
+          ) {
+            edges {
+              node {
+                name
+                reftarget: target {
+                  ... on Commit {
+                    commitsha:oid
+                  }
+                  ... on Tag {
+                    tagtarget: target { commitsha: oid }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `);
+
+  const tagList: IGitTag[] = result.repository.refs.edges.map(
+    x =>
+      ({
+        name: x.node.name,
+        commitSha: x.node.reftarget.tagtarget
+          ? x.node.reftarget.tagtarget.commitsha
+          : x.node.reftarget.commitsha,
+      } as IGitTag)
+  );
+
+  return tagList;
 }
 
 /**

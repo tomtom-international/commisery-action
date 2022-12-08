@@ -18,7 +18,7 @@ import * as core from "@actions/core";
 
 import { Configuration } from "./config";
 
-import { getCommitsSince, getTags } from "./github";
+import { getCommitsSince, getLatestTags } from "./github";
 import { ConventionalCommitMessage } from "./commit";
 import { SemVer, SemVerType } from "./semver";
 import {
@@ -131,14 +131,14 @@ export async function getVersionBumpTypeAndMessages(
   core.debug(`Fetching last ${PAGE_SIZE} tags and commits from ${targetSha}..`);
   const [commits, tags] = await Promise.all([
     getCommitsSince(targetSha, PAGE_SIZE),
-    getTags(PAGE_SIZE),
+    getLatestTags(PAGE_SIZE),
   ]);
   core.debug("Fetch complete");
 
   commit_loop: for (const commit of commits) {
     // Try and match this commit's hash to a tag
     for (const tag of tags) {
-      semVer = getSemVerIfMatches(prefix, tag.name, tag.commit.sha, commit.sha);
+      semVer = getSemVerIfMatches(prefix, tag.name, tag.commitSha, commit.sha);
       if (semVer) {
         break commit_loop;
       }

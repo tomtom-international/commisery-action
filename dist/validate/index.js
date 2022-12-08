@@ -12076,7 +12076,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getAssociatedPullRequests = exports.getTags = exports.getCommitsSince = exports.getConfig = exports.createTag = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.getPullRequestTitle = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
+exports.getAssociatedPullRequests = exports.getLatestTags = exports.getCommitsSince = exports.getConfig = exports.createTag = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.getPullRequestTitle = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const fs = __importStar(__nccwpck_require__(7147));
 const github = __importStar(__nccwpck_require__(5438));
@@ -12223,17 +12223,43 @@ exports.getCommitsSince = getCommitsSince;
 /**
  * Retrieve `pageSize` tags in the current repo
  */
-function getTags(pageSize) {
+function getLatestTags(pageSize) {
     return __awaiter(this, void 0, void 0, function* () {
-        const { data: tags } = yield getOctokit().rest.repos.listTags({
-            owner: OWNER,
-            repo: REPO,
-            per_page: pageSize,
-        });
-        return tags;
+        const result = yield getOctokit().graphql(`
+      {
+        repository(owner: "${OWNER}", name: "${REPO}") {
+          refs(
+            refPrefix: "refs/tags/"
+            first: ${pageSize}
+            orderBy: {field: TAG_COMMIT_DATE, direction: DESC}
+          ) {
+            edges {
+              node {
+                name
+                reftarget: target {
+                  ... on Commit {
+                    commitsha:oid
+                  }
+                  ... on Tag {
+                    tagtarget: target { commitsha: oid }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `);
+        const tagList = result.repository.refs.edges.map(x => ({
+            name: x.node.name,
+            commitSha: x.node.reftarget.tagtarget
+                ? x.node.reftarget.tagtarget.commitsha
+                : x.node.reftarget.commitsha,
+        }));
+        return tagList;
     });
 }
-exports.getTags = getTags;
+exports.getLatestTags = getLatestTags;
 /**
  * Retrieve the Pull Requests associated with the specified commit SHA
  */

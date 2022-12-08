@@ -56,3 +56,8 @@ export interface ISemVer {
   prefix?: string;
   build?: string;
 }
+
+export interface IGitTag {
+  name: string;
+  commitSha: string;
+}
