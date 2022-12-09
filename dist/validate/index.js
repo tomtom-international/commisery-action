@@ -13392,6 +13392,7 @@ function validatePrTitleBump(config) {
             return m.commit.message;
         });
         let highestBump = semver_1.SemVerType.NONE;
+        let atLeastOneConventionalCommitFound = false;
         const prTitle = (() => {
             try {
                 return new commit_1.ConventionalCommitMessage(prTitleText);
@@ -13400,10 +13401,15 @@ function validatePrTitleBump(config) {
                 throw new Error(`The PR title does not conform to the Conventional Commits specification.`);
             }
         })();
+        if (commits.length === 0) {
+            core.warning("No commits found in this pull request.");
+            return;
+        }
         for (const commit of commits) {
             try {
                 const cc = new commit_1.ConventionalCommitMessage(commit);
                 highestBump = cc.bump > highestBump ? cc.bump : highestBump;
+                atLeastOneConventionalCommitFound = true;
             }
             catch (error) {
                 if (
@@ -13414,6 +13420,10 @@ function validatePrTitleBump(config) {
                     throw error;
                 }
             }
+        }
+        if (!atLeastOneConventionalCommitFound) {
+            core.warning("PR title conforms to Conventional Commits, but none of its commits do.");
+            return;
         }
         if (highestBump !== prTitle.bump) {
             const messageList = ` - ${commits.join("\n - ")}`;
