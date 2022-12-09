@@ -132,6 +132,7 @@ export async function validatePrTitleBump(
     return m.commit.message;
   });
   let highestBump: SemVerType = SemVerType.NONE;
+  let atLeastOneConventionalCommitFound = false;
   const prTitle = (() => {
     try {
       return new ConventionalCommitMessage(prTitleText);
@@ -142,10 +143,16 @@ export async function validatePrTitleBump(
     }
   })();
 
+  if (commits.length === 0) {
+    core.warning("No commits found in this pull request.");
+    return;
+  }
+
   for (const commit of commits) {
     try {
       const cc = new ConventionalCommitMessage(commit);
       highestBump = cc.bump > highestBump ? cc.bump : highestBump;
+      atLeastOneConventionalCommitFound = true;
     } catch (error) {
       if (
         // We'll just ignore non-compliant commits
@@ -158,6 +165,13 @@ export async function validatePrTitleBump(
         throw error;
       }
     }
+  }
+
+  if (!atLeastOneConventionalCommitFound) {
+    core.warning(
+      "PR title conforms to Conventional Commits, but none of its commits do."
+    );
+    return;
   }
 
   if (highestBump !== prTitle.bump) {
