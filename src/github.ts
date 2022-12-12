@@ -270,41 +270,41 @@ export async function getAssociatedPullRequests(
  * the format: `bump:<version>`
  */
 export async function updateSemVerLabel(semverType: SemVerType): Promise<void> {
-  const issue_id = getPullRequestId();
-  const expected_label = `bump:${SemVerType[semverType].toLowerCase()}`;
-  let label_exists = false;
+  const issueId = getPullRequestId();
+  const expectedLabel = `bump:${SemVerType[semverType].toLowerCase()}`;
+  let labelExists = false;
 
   // Retrieve current labels
   const { data: labels } = await getOctokit().rest.issues.listLabelsOnIssue({
     owner: OWNER,
     repo: REPO,
-    issue_number: issue_id,
+    issue_number: issueId,
   });
 
   try {
     // Remove all labels prefixed with "Semver-"
-    for (const lbl of labels) {
-      if (lbl.name.startsWith("bump:")) {
-        if (lbl.name === expected_label) {
-          label_exists = true;
+    for (const label of labels) {
+      if (label.name.startsWith("bump:")) {
+        if (label.name === expectedLabel) {
+          labelExists = true;
         } else {
           await getOctokit().rest.issues.removeLabel({
             owner: OWNER,
             repo: REPO,
-            issue_number: issue_id,
-            name: lbl.name,
+            issue_number: issueId,
+            name: label.name,
           });
         }
       }
     }
 
     // Add new label if it does not yet exist
-    if (label_exists === false && semverType !== SemVerType.NONE) {
+    if (labelExists === false && semverType !== SemVerType.NONE) {
       await getOctokit().rest.issues.addLabels({
         owner: OWNER,
         repo: REPO,
-        issue_number: issue_id,
-        labels: [expected_label],
+        issue_number: issueId,
+        labels: [expectedLabel],
       });
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

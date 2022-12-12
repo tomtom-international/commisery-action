@@ -11473,9 +11473,9 @@ function run() {
             yield (0, github_1.getConfig)(core.getInput("config"));
             const config = new config_1.Configuration(".commisery.yml");
             // Validate each commit against Conventional Commit standard
-            const messages = yield (0, validate_1.getMessagesToValidate)();
-            const convMessges = yield (0, validate_1.validateMessages)(messages, config);
-            (0, github_1.updateSemVerLabel)(yield (0, bump_1.getVersionBumpType)(convMessges));
+            const commitMessages = yield (0, validate_1.getMessagesToValidate)();
+            const compliantMessages = yield (0, validate_1.validateMessages)(commitMessages, config);
+            (0, github_1.updateSemVerLabel)(yield (0, bump_1.getVersionBumpType)(compliantMessages));
             if (core.getBooleanInput("validate-pull-request-title-bump")) {
                 yield (0, validate_1.validatePrTitleBump)(config);
             }
@@ -12492,39 +12492,39 @@ exports.getAssociatedPullRequests = getAssociatedPullRequests;
  */
 function updateSemVerLabel(semverType) {
     return __awaiter(this, void 0, void 0, function* () {
-        const issue_id = getPullRequestId();
-        const expected_label = `bump:${semver_1.SemVerType[semverType].toLowerCase()}`;
-        let label_exists = false;
+        const issueId = getPullRequestId();
+        const expectedLabel = `bump:${semver_1.SemVerType[semverType].toLowerCase()}`;
+        let labelExists = false;
         // Retrieve current labels
         const { data: labels } = yield getOctokit().rest.issues.listLabelsOnIssue({
             owner: OWNER,
             repo: REPO,
-            issue_number: issue_id,
+            issue_number: issueId,
         });
         try {
             // Remove all labels prefixed with "Semver-"
-            for (const lbl of labels) {
-                if (lbl.name.startsWith("bump:")) {
-                    if (lbl.name === expected_label) {
-                        label_exists = true;
+            for (const label of labels) {
+                if (label.name.startsWith("bump:")) {
+                    if (label.name === expectedLabel) {
+                        labelExists = true;
                     }
                     else {
                         yield getOctokit().rest.issues.removeLabel({
                             owner: OWNER,
                             repo: REPO,
-                            issue_number: issue_id,
-                            name: lbl.name,
+                            issue_number: issueId,
+                            name: label.name,
                         });
                     }
                 }
             }
             // Add new label if it does not yet exist
-            if (label_exists === false && semverType !== semver_1.SemVerType.NONE) {
+            if (labelExists === false && semverType !== semver_1.SemVerType.NONE) {
                 yield getOctokit().rest.issues.addLabels({
                     owner: OWNER,
                     repo: REPO,
-                    issue_number: issue_id,
-                    labels: [expected_label],
+                    issue_number: issueId,
+                    labels: [expectedLabel],
                 });
             }
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -13595,11 +13595,11 @@ exports.getMessagesToValidate = getMessagesToValidate;
 function validateMessages(messages, config) {
     return __awaiter(this, void 0, void 0, function* () {
         let success = true;
-        const convMessages = [];
+        const conventionalCommitMessages = [];
         for (const item of messages) {
             let errors = [];
             try {
-                convMessages.push(new commit_1.ConventionalCommitMessage(item.message, undefined, config));
+                conventionalCommitMessages.push(new commit_1.ConventionalCommitMessage(item.message, undefined, config));
             }
             catch (error) {
                 if (error instanceof errors_1.ConventionalCommitError) {
@@ -13635,7 +13635,7 @@ function validateMessages(messages, config) {
         else {
             core.info("✅ Your Pull Request complies with the Conventional Commits specification!");
         }
-        return convMessages;
+        return conventionalCommitMessages;
     });
 }
 exports.validateMessages = validateMessages;

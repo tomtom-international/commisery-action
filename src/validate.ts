@@ -70,12 +70,12 @@ export async function validateMessages(
   config: Configuration
 ): Promise<ConventionalCommitMessage[]> {
   let success = true;
-  const convMessages: ConventionalCommitMessage[] = [];
+  const conventionalCommitMessages: ConventionalCommitMessage[] = [];
 
   for (const item of messages) {
     let errors: LlvmError[] = [];
     try {
-      convMessages.push(
+      conventionalCommitMessages.push(
         new ConventionalCommitMessage(item.message, undefined, config)
       );
     } catch (error) {
@@ -119,7 +119,7 @@ export async function validateMessages(
     );
   }
 
-  return convMessages;
+  return conventionalCommitMessages;
 }
 
 /**

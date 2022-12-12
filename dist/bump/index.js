@@ -12727,39 +12727,39 @@ exports.getAssociatedPullRequests = getAssociatedPullRequests;
  */
 function updateSemVerLabel(semverType) {
     return __awaiter(this, void 0, void 0, function* () {
-        const issue_id = getPullRequestId();
-        const expected_label = `bump:${semver_1.SemVerType[semverType].toLowerCase()}`;
-        let label_exists = false;
+        const issueId = getPullRequestId();
+        const expectedLabel = `bump:${semver_1.SemVerType[semverType].toLowerCase()}`;
+        let labelExists = false;
         // Retrieve current labels
         const { data: labels } = yield getOctokit().rest.issues.listLabelsOnIssue({
             owner: OWNER,
             repo: REPO,
-            issue_number: issue_id,
+            issue_number: issueId,
         });
         try {
             // Remove all labels prefixed with "Semver-"
-            for (const lbl of labels) {
-                if (lbl.name.startsWith("bump:")) {
-                    if (lbl.name === expected_label) {
-                        label_exists = true;
+            for (const label of labels) {
+                if (label.name.startsWith("bump:")) {
+                    if (label.name === expectedLabel) {
+                        labelExists = true;
                     }
                     else {
                         yield getOctokit().rest.issues.removeLabel({
                             owner: OWNER,
                             repo: REPO,
-                            issue_number: issue_id,
-                            name: lbl.name,
+                            issue_number: issueId,
+                            name: label.name,
                         });
                     }
                 }
             }
             // Add new label if it does not yet exist
-            if (label_exists === false && semverType !== semver_1.SemVerType.NONE) {
+            if (labelExists === false && semverType !== semver_1.SemVerType.NONE) {
                 yield getOctokit().rest.issues.addLabels({
                     owner: OWNER,
                     repo: REPO,
-                    issue_number: issue_id,
-                    labels: [expected_label],
+                    issue_number: issueId,
+                    labels: [expectedLabel],
                 });
             }
             // eslint-disable-next-line @typescript-eslint/no-explicit-any

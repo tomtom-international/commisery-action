@@ -39,10 +39,10 @@ async function run(): Promise<void> {
     const config = new Configuration(".commisery.yml");
 
     // Validate each commit against Conventional Commit standard
-    const messages = await getMessagesToValidate();
-    const convMessges = await validateMessages(messages, config);
+    const commitMessages = await getMessagesToValidate();
+    const compliantMessages = await validateMessages(commitMessages, config);
 
-    updateSemVerLabel(await getVersionBumpType(convMessges));
+    updateSemVerLabel(await getVersionBumpType(compliantMessages));
 
     if (core.getBooleanInput("validate-pull-request-title-bump")) {
       await validatePrTitleBump(config);
