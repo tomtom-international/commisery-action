@@ -1,31 +1,36 @@
 {
   "name": "commisery",
+  "description": "Validate your Pull Request against Conventional Commit compliance",
   "main": "./dist/cli/index.js",
   "bin": "./dist/cli/index.js",
-  "files": [
-    "./dist/cli/index.js"
-  ],
+  "files": ["./dist/cli/index.js"],
   "pkg": {
-    "scripts": "dist/cli/index.js"
+    "scripts": "dist/cli/index.js",
+    "targets": [
+      "node16-macos-x64",
+      "node16-macos-arm64",
+      "node16-linux-x64"
+    ],
+    "outputPath": "bin",
+    "compress": "GZip"
   },
   "version": "1.0.0",
-  "description": "Commisery Action",
   "scripts": {
     "build": "run-p build:*",
-    "build:cli": "ncc build -o dist/cli src/cli/cli.ts",
-    "build:validate": "ncc build -o dist/validate src/actions/validate.ts",
-    "build:bump": "ncc build -o dist/bump src/actions/bump.ts",
+    "build:cli": "ncc build -o dist/cli src/cli/cli.ts --minify",
+    "build:validate": "ncc build -o dist/validate src/actions/validate.ts --minify",
+    "build:bump": "ncc build -o dist/bump src/actions/bump.ts --minify",
     "test": "jest",
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write **/*.ts && prettier --write **/**/*.ts",
-    "package": "pkg . --targets node14-macos-x64 --output commisery"
+    "package": "pkg ."
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/tomtom-international/commisery-action.git"
   },
   "keywords": [],
-  "author": "",
+  "author": "Kevin de Jong",
   "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/tomtom-international/commisery-action/issues"
@@ -34,7 +39,6 @@
   "dependencies": {
     "@actions/core": "^1.10.0",
     "@actions/github": "^5.1.1",
-    "@typescript-eslint/parser": "^5.46.1",
     "commander": "^9.4.1",
     "dedent": "^0.7.0",
     "difflib": "^0.2.4",
@@ -47,6 +51,7 @@
     "@types/jest": "^29.2.4",
     "@types/node": "^18.11.12",
     "@typescript-eslint/eslint-plugin": "^5.46.0",
+    "@typescript-eslint/parser": "^5.46.1",
     "@vercel/ncc": "^0.36.0",
     "eslint": "^8.29.0",
     "eslint-plugin-github": "^4.4.1",
