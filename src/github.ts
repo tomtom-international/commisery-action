@@ -282,7 +282,7 @@ export async function updateSemVerLabel(semverType: SemVerType): Promise<void> {
   });
 
   try {
-    // Remove all labels prefixed with "Semver-"
+    // Remove all labels prefixed with "bump:"
     for (const label of labels) {
       if (label.name.startsWith("bump:")) {
         if (label.name === expectedLabel) {
