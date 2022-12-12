@@ -15,9 +15,10 @@
  */
 
 import * as core from "@actions/core";
+import { getVersionBumpType } from "../bump";
 
 import { Configuration } from "../config";
-import { getConfig, isPullRequestEvent } from "../github";
+import { getConfig, isPullRequestEvent, updateSemVerLabel } from "../github";
 import {
   getMessagesToValidate,
   validateMessages,
@@ -39,7 +40,10 @@ async function run(): Promise<void> {
 
     // Validate each commit against Conventional Commit standard
     const messages = await getMessagesToValidate();
-    await validateMessages(messages, config);
+    const convMessges = await validateMessages(messages, config);
+
+    updateSemVerLabel(await getVersionBumpType(convMessges));
+
     if (core.getBooleanInput("validate-pull-request-title-bump")) {
       await validatePrTitleBump(config);
     }

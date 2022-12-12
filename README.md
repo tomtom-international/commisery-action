@@ -7,14 +7,18 @@ This GitHub Action consists of two major components:
 
 ## Permissions
 
-The following permissions need to be set in order to have full support of the Commisery Action:
+The following permissions are needed for full support of `commisery-action`:
 
 | Permission | Level | Notes |
 | --- | --- | --- |
-| `pull-requests` | `read` | Needed for Pull Request validation and (optionally) when creating a GitHub Release |
+| `pull-requests` | `write` | Needed for Pull Request validation and (optionally) when creating a GitHub Release |
 | `contents` | `write`| Required in order to create tags and/or GitHub Releases |
+| `issues` | `write` | Required to add labels to the associated Pull Request and/or issue |
 
-> :bulb: Please refer to the GitHub documentation for the
+> :bulb: You can lower the permissions (`pull-requests: read` and `issues: none`) in case you do not
+require support for Issue/Pull Request labels.
+
+Please refer to the GitHub documentation for the
 [default permissions for your GitHub Token](https://docs.github.com/en/actions/security-guides/automatic-token-authentication#permissions-for-the-github_token)
 
 ## Check your Pull Request for Conventional Commit Compliance
@@ -39,6 +43,22 @@ jobs:
           validate-pull-request: true # OPTIONAL, default: `true`
           validate-commits: true # OPTIONAL, default: `true`
 ```
+
+### Issue Labels
+
+The `commisery-action` will manage an issue label indicating the highest SemVer
+version which will be bumped by its [release workflow](#create-github-releases-based-on-unreleased-conventional-commits):
+
+| SemVer version | Issue Label |
+| --- | --- |
+| Major | `bump:major` |
+| Minor | `bump:minor` |
+| Patch | `bump:patch` |
+
+> :warning: the action will replace *all* labels prefixed with `bump:` upon
+running the validation step.
+
+See [permissions](#permissions) for more details on the required GitHub token permissions.
 
 ### Inputs
 

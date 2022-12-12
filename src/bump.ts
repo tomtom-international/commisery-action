@@ -97,6 +97,29 @@ function getMessageAsConventionalCommit(
 }
 
 /**
+ * Determines the highest SemVer bump level based on the provided
+ * list of Conventional Commits
+ */
+export async function getVersionBumpType(
+  messages: ConventionalCommitMessage[]
+): Promise<SemVerType> {
+  let highestBump: SemVerType = SemVerType.NONE;
+
+  for (const message of messages) {
+    if (highestBump !== SemVerType.MAJOR) {
+      core.debug(
+        `Commit type '${message.type}'${
+          message.breaking_change ? " (BREAKING)" : ""
+        }, has bump type: ${SemVerType[message.bump]}`
+      );
+      highestBump = message.bump > highestBump ? message.bump : highestBump;
+    }
+  }
+
+  return highestBump;
+}
+
+/**
  * Within the current context, examine the last PAGE_SIZE commits reachable
  * from `context.sha`, as well as the last PAGE_SIZE tags in the repo.
  * Each commit shall be tried to be matched to any of the tags found.
@@ -124,7 +147,6 @@ export async function getVersionBumpTypeAndMessages(
   config: Configuration
 ): Promise<IVersionBumpTypeAndMessages> {
   let semVer: SemVer | null = null;
-  let highestBump: SemVerType = SemVerType.NONE;
   const conventionalCommits: ConventionalCommitMessage[] = [];
   const nonConventionalCommits: string[] = [];
 
@@ -154,14 +176,6 @@ export async function getVersionBumpTypeAndMessages(
 
     // Determine the required bump if this is a conventional commit
     if (msg) {
-      if (highestBump !== SemVerType.MAJOR) {
-        core.debug(
-          `Commit type '${msg.type}'${
-            msg.breaking_change ? " (BREAKING)" : ""
-          }, has bump type: ${SemVerType[msg.bump]}`
-        );
-        highestBump = msg.bump > highestBump ? msg.bump : highestBump;
-      }
       conventionalCommits.push(msg);
     } else {
       nonConventionalCommits.push(commit.commit.message);
@@ -181,7 +195,7 @@ export async function getVersionBumpTypeAndMessages(
 
   return {
     foundVersion: semVer,
-    requiredBump: highestBump,
+    requiredBump: await getVersionBumpType(conventionalCommits),
     messages: conventionalCommits,
   };
 }
