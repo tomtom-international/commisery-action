@@ -44,6 +44,8 @@ jobs:
     if: needs.github-release.outputs.next-version != ''
 
     steps:
+      - uses: actions/checkout@v3
+
       - name: Set up Node.js 16.x
         uses: actions/setup-node@v3
         with:
