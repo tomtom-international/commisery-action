@@ -25,6 +25,7 @@ import { ConventionalCommitMessage } from "../commit";
 import { Configuration } from "../config";
 import { ConventionalCommitError } from "../errors";
 import { Command } from "commander";
+import { getCommitMessages } from "./utils";
 
 const program = new Command();
 const gray = "\x1b[90m";
@@ -40,18 +41,39 @@ program
 
 program
   .command("check")
-  .description("Check Conventional Commit Compliance")
-  .argument("<filehandle>", "Conventional Commit Message")
-  .action((filehandle: string) => {
+  .description(
+    "Checks whether commit messages adhere to the Conventional Commits standard."
+  )
+  .argument(
+    "[TARGET...]",
+    `The \`TARGET\` can be:
+  - a single commit hash
+  - a file containing the commit message to check
+  - a revision range that \`git rev-list\` can interpret
+ When TARGET is omitted, 'HEAD' is implied.`
+  )
+  .action(async (target: string[]) => {
     const config = new Configuration(program.opts().config);
-    const message = fs.readFileSync(filehandle, "utf8");
 
-    try {
-      new ConventionalCommitMessage(message, undefined, config);
-    } catch (error) {
-      if (error instanceof ConventionalCommitError) {
-        for (const err of error.errors) {
-          core.info(err.report());
+    if (target.length === 0) {
+      target = ["HEAD"];
+    }
+
+    let messages: string[] = [];
+    if (fs.existsSync(target.join(" "))) {
+      messages = [fs.readFileSync(target.join(" "), "utf8")];
+    } else {
+      messages = await getCommitMessages(target);
+    }
+
+    for (const message of messages) {
+      try {
+        new ConventionalCommitMessage(message, undefined, config);
+      } catch (error) {
+        if (error instanceof ConventionalCommitError) {
+          for (const err of error.errors) {
+            core.info(err.report());
+          }
         }
       }
     }
