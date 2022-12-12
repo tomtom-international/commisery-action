@@ -58,7 +58,7 @@ jobs:
         run: npm run build
       
       - name: Package the CLI
-        run: run run package
+        run: npm run package
 
       - uses: AButler/upload-release-assets@v2.0
         with:
