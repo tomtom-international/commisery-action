@@ -12502,7 +12502,7 @@ function updateSemVerLabel(semverType) {
             issue_number: issueId,
         });
         try {
-            // Remove all labels prefixed with "Semver-"
+            // Remove all labels prefixed with "bump:"
             for (const label of labels) {
                 if (label.name.startsWith("bump:")) {
                     if (label.name === expectedLabel) {
