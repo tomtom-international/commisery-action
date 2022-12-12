@@ -11635,7 +11635,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getVersionBumpTypeAndMessages = void 0;
+exports.getVersionBumpTypeAndMessages = exports.getVersionBumpType = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const github_1 = __nccwpck_require__(978);
 const commit_1 = __nccwpck_require__(1730);
@@ -11695,6 +11695,23 @@ function getMessageAsConventionalCommit(commitMessage, hexsha, config) {
     return null;
 }
 /**
+ * Determines the highest SemVer bump level based on the provided
+ * list of Conventional Commits
+ */
+function getVersionBumpType(messages) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let highestBump = semver_1.SemVerType.NONE;
+        for (const message of messages) {
+            if (highestBump !== semver_1.SemVerType.MAJOR) {
+                core.debug(`Commit type '${message.type}'${message.breaking_change ? " (BREAKING)" : ""}, has bump type: ${semver_1.SemVerType[message.bump]}`);
+                highestBump = message.bump > highestBump ? message.bump : highestBump;
+            }
+        }
+        return highestBump;
+    });
+}
+exports.getVersionBumpType = getVersionBumpType;
+/**
  * Within the current context, examine the last PAGE_SIZE commits reachable
  * from `context.sha`, as well as the last PAGE_SIZE tags in the repo.
  * Each commit shall be tried to be matched to any of the tags found.
@@ -11719,7 +11736,6 @@ function getMessageAsConventionalCommit(commitMessage, hexsha, config) {
 function getVersionBumpTypeAndMessages(prefix, targetSha, config) {
     return __awaiter(this, void 0, void 0, function* () {
         let semVer = null;
-        let highestBump = semver_1.SemVerType.NONE;
         const conventionalCommits = [];
         const nonConventionalCommits = [];
         core.debug(`Fetching last ${PAGE_SIZE} tags and commits from ${targetSha}..`);
@@ -11741,10 +11757,6 @@ function getVersionBumpTypeAndMessages(prefix, targetSha, config) {
             const msg = getMessageAsConventionalCommit(commit.commit.message, commit.sha, config);
             // Determine the required bump if this is a conventional commit
             if (msg) {
-                if (highestBump !== semver_1.SemVerType.MAJOR) {
-                    core.debug(`Commit type '${msg.type}'${msg.breaking_change ? " (BREAKING)" : ""}, has bump type: ${semver_1.SemVerType[msg.bump]}`);
-                    highestBump = msg.bump > highestBump ? msg.bump : highestBump;
-                }
                 conventionalCommits.push(msg);
             }
             else {
@@ -11760,7 +11772,7 @@ function getVersionBumpTypeAndMessages(prefix, targetSha, config) {
         }
         return {
             foundVersion: semVer,
-            requiredBump: highestBump,
+            requiredBump: yield getVersionBumpType(conventionalCommits),
             messages: conventionalCommits,
         };
     });
@@ -12501,10 +12513,11 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getAssociatedPullRequests = exports.getLatestTags = exports.getCommitsSince = exports.getConfig = exports.createTag = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.getPullRequestTitle = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
+exports.updateSemVerLabel = exports.getAssociatedPullRequests = exports.getLatestTags = exports.getCommitsSince = exports.getConfig = exports.createTag = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.getPullRequestTitle = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const fs = __importStar(__nccwpck_require__(7147));
 const github = __importStar(__nccwpck_require__(5438));
+const semver_1 = __nccwpck_require__(8593);
 const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
 /**
  * Get Octokit instance
@@ -12708,6 +12721,58 @@ function getAssociatedPullRequests(sha) {
     });
 }
 exports.getAssociatedPullRequests = getAssociatedPullRequests;
+/**
+ * Updates the Pull Request (issue) labels to contain the SemVer bump level, in
+ * the format: `bump:<version>`
+ */
+function updateSemVerLabel(semverType) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const issueId = getPullRequestId();
+        const expectedLabel = `bump:${semver_1.SemVerType[semverType].toLowerCase()}`;
+        let labelExists = false;
+        // Retrieve current labels
+        const { data: labels } = yield getOctokit().rest.issues.listLabelsOnIssue({
+            owner: OWNER,
+            repo: REPO,
+            issue_number: issueId,
+        });
+        try {
+            // Remove all labels prefixed with "bump:"
+            for (const label of labels) {
+                if (label.name.startsWith("bump:")) {
+                    if (label.name === expectedLabel) {
+                        labelExists = true;
+                    }
+                    else {
+                        yield getOctokit().rest.issues.removeLabel({
+                            owner: OWNER,
+                            repo: REPO,
+                            issue_number: issueId,
+                            name: label.name,
+                        });
+                    }
+                }
+            }
+            // Add new label if it does not yet exist
+            if (labelExists === false && semverType !== semver_1.SemVerType.NONE) {
+                yield getOctokit().rest.issues.addLabels({
+                    owner: OWNER,
+                    repo: REPO,
+                    issue_number: issueId,
+                    labels: [expectedLabel],
+                });
+            }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        }
+        catch (error) {
+            if (error.message !== "Resource not accessible by integration") {
+                throw error;
+            }
+            core.warning("Unable to update Pull Request labels, did you provide the `write` permission for `issues` and `pull-requests`?");
+        }
+    });
+}
+exports.updateSemVerLabel = updateSemVerLabel;
 
 
 /***/ }),

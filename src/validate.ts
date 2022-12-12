@@ -68,16 +68,15 @@ export async function getMessagesToValidate(): Promise<Message[]> {
 export async function validateMessages(
   messages: Message[],
   config: Configuration
-): Promise<void> {
+): Promise<ConventionalCommitMessage[]> {
   let success = true;
+  const conventionalCommitMessages: ConventionalCommitMessage[] = [];
 
   for (const item of messages) {
     let errors: LlvmError[] = [];
     try {
-      const commit = new ConventionalCommitMessage(
-        item.message,
-        undefined,
-        config
+      conventionalCommitMessages.push(
+        new ConventionalCommitMessage(item.message, undefined, config)
       );
     } catch (error) {
       if (error instanceof ConventionalCommitError) {
@@ -119,6 +118,8 @@ export async function validateMessages(
       "✅ Your Pull Request complies with the Conventional Commits specification!"
     );
   }
+
+  return conventionalCommitMessages;
 }
 
 /**

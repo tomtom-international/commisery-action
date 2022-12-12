@@ -994,7 +994,7 @@ exports.toCommandProperties = toCommandProperties;
 
 /***/ }),
 
-/***/ 2053:
+/***/ 4087:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -1081,7 +1081,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getOctokit = exports.context = void 0;
-const Context = __importStar(__nccwpck_require__(2053));
+const Context = __importStar(__nccwpck_require__(4087));
 const utils_1 = __nccwpck_require__(3030);
 exports.context = new Context.Context();
 /**
@@ -1175,7 +1175,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getOctokitOptions = exports.GitHub = exports.defaults = exports.context = void 0;
-const Context = __importStar(__nccwpck_require__(2053));
+const Context = __importStar(__nccwpck_require__(4087));
 const Utils = __importStar(__nccwpck_require__(7914));
 // octokit + plugins
 const core_1 = __nccwpck_require__(6762);
@@ -4561,7 +4561,7 @@ exports.Deprecation = Deprecation;
 
 /***/ }),
 
-/***/ 4087:
+/***/ 5467:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 module.exports = __nccwpck_require__(9819);
@@ -11458,6 +11458,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(2186));
+const bump_1 = __nccwpck_require__(1692);
 const config_1 = __nccwpck_require__(6373);
 const github_1 = __nccwpck_require__(978);
 const validate_1 = __nccwpck_require__(4953);
@@ -11472,8 +11473,9 @@ function run() {
             yield (0, github_1.getConfig)(core.getInput("config"));
             const config = new config_1.Configuration(".commisery.yml");
             // Validate each commit against Conventional Commit standard
-            const messages = yield (0, validate_1.getMessagesToValidate)();
-            yield (0, validate_1.validateMessages)(messages, config);
+            const commitMessages = yield (0, validate_1.getMessagesToValidate)();
+            const compliantMessages = yield (0, validate_1.validateMessages)(commitMessages, config);
+            (0, github_1.updateSemVerLabel)(yield (0, bump_1.getVersionBumpType)(compliantMessages));
             if (core.getBooleanInput("validate-pull-request-title-bump")) {
                 yield (0, validate_1.validatePrTitleBump)(config);
             }
@@ -11484,6 +11486,206 @@ function run() {
     });
 }
 run();
+
+
+/***/ }),
+
+/***/ 1692:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+/**
+ * Copyright (C) 2022, TomTom (http://tomtom.com).
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getVersionBumpTypeAndMessages = exports.getVersionBumpType = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const github_1 = __nccwpck_require__(978);
+const commit_1 = __nccwpck_require__(1730);
+const semver_1 = __nccwpck_require__(8593);
+const errors_1 = __nccwpck_require__(6976);
+const PAGE_SIZE = 100;
+/**
+ * Returns a SemVer object if:
+ *  - the `tagSha` and `commitSha` match
+ *  - the `tagName` tag reference is SemVer-compatible
+ *  - the `prefix` exactly matches the `tagName`'s prefix (if any),
+      or the provided `prefix` is "*"
+ *
+ * @param prefix Specifies the exact prefix of the tags to be considered,
+ *               '*' means "any"
+ * @param tagName The tag reference name
+ * @param tagSha The tag's SHA1 hash
+ * @param commitSha The SHA1 hash to compare to
+ *
+ * @return {Semver | null} A SemVer object representing the value of `tagName`,
+ *                         or `null` if the provided parameters don't match
+ */
+function getSemVerIfMatches(prefix, tagName, tagSha, commitSha) {
+    if (commitSha === tagSha) {
+        // eslint-disable-next-line func-style
+        const dbg = function (tag, commit, message) {
+            core.debug(`Tag '${tag}' on commit '${commit.slice(0, 6)}' ${message}`);
+        };
+        // If provided, make sure that the prefix matches as well
+        const sv = semver_1.SemVer.fromString(tagName);
+        if (sv) {
+            // Asterisk is a special case, meaning 'any prefix'
+            if (sv.prefix === prefix || prefix === "*") {
+                dbg(tagName, commitSha, "matches prefix");
+                return sv;
+            }
+            dbg(tagName, commitSha, "does not match prefix");
+        }
+        else {
+            dbg(tagName, commitSha, "is not a SemVer");
+        }
+    }
+    return null;
+}
+function getMessageAsConventionalCommit(commitMessage, hexsha, config) {
+    try {
+        return new commit_1.ConventionalCommitMessage(commitMessage, hexsha, config);
+    }
+    catch (error) {
+        // Ignore compliancy errors, but rethrow other errors
+        if (!(error instanceof errors_1.ConventionalCommitError ||
+            error instanceof errors_1.MergeCommitError ||
+            error instanceof errors_1.FixupCommitError)) {
+            throw error;
+        }
+    }
+    return null;
+}
+/**
+ * Determines the highest SemVer bump level based on the provided
+ * list of Conventional Commits
+ */
+function getVersionBumpType(messages) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let highestBump = semver_1.SemVerType.NONE;
+        for (const message of messages) {
+            if (highestBump !== semver_1.SemVerType.MAJOR) {
+                core.debug(`Commit type '${message.type}'${message.breaking_change ? " (BREAKING)" : ""}, has bump type: ${semver_1.SemVerType[message.bump]}`);
+                highestBump = message.bump > highestBump ? message.bump : highestBump;
+            }
+        }
+        return highestBump;
+    });
+}
+exports.getVersionBumpType = getVersionBumpType;
+/**
+ * Within the current context, examine the last PAGE_SIZE commits reachable
+ * from `context.sha`, as well as the last PAGE_SIZE tags in the repo.
+ * Each commit shall be tried to be matched to any of the tags found.
+ * The closest tag that is SemVer-compatible and matches the provided `prefix`
+ * shall be returned as a SemVer object, and the highest bump type encountered
+ * (breaking: major, feat: minor, fix plus `extra_patch_tags`: patch) in the commits
+ * _since_ that tag shall be returned.
+ *
+ * @param prefix Specifies the exact prefix of the tags to be considered,
+ *               '*' means "any"
+ * @param targetSha The sha on which to start listing commits
+ * @param config A Configuration object, which optionally contains a list of
+ *               Conventional Commit type tags that, like "fix", should bump the
+ *               patch version field.
+ *
+ * @return {IVersionBumpTypeAndMessages}
+                 returns an object containing:
+                 - the SemVer object or null if no (acceptable) SemVer was found.
+                 - the highest bump encountered, or SemVerType.NONE if [0] is null
+                 - list of ConventionalCommitMessage objects up to the found SemVer tag
+ */
+function getVersionBumpTypeAndMessages(prefix, targetSha, config) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let semVer = null;
+        const conventionalCommits = [];
+        const nonConventionalCommits = [];
+        core.debug(`Fetching last ${PAGE_SIZE} tags and commits from ${targetSha}..`);
+        const [commits, tags] = yield Promise.all([
+            (0, github_1.getCommitsSince)(targetSha, PAGE_SIZE),
+            (0, github_1.getLatestTags)(PAGE_SIZE),
+        ]);
+        core.debug("Fetch complete");
+        commit_loop: for (const commit of commits) {
+            // Try and match this commit's hash to a tag
+            for (const tag of tags) {
+                semVer = getSemVerIfMatches(prefix, tag.name, tag.commitSha, commit.sha);
+                if (semVer) {
+                    break commit_loop;
+                }
+            }
+            core.debug(`Commit ${commit.sha.slice(0, 6)} is not associated with a tag`);
+            core.debug(`Examining message: ${commit.commit.message}`);
+            const msg = getMessageAsConventionalCommit(commit.commit.message, commit.sha, config);
+            // Determine the required bump if this is a conventional commit
+            if (msg) {
+                conventionalCommits.push(msg);
+            }
+            else {
+                nonConventionalCommits.push(commit.commit.message);
+            }
+        }
+        if (nonConventionalCommits.length > 0) {
+            const plural = nonConventionalCommits.length !== 1;
+            core.info(`The following commit${plural ? "s were" : " was"} not accepted as ${plural ? "Conventional Commits" : " a Conventional Commit"}`);
+            for (const c of nonConventionalCommits) {
+                core.info(` - "${c}"`);
+            }
+        }
+        return {
+            foundVersion: semVer,
+            requiredBump: yield getVersionBumpType(conventionalCommits),
+            messages: conventionalCommits,
+        };
+    });
+}
+exports.getVersionBumpTypeAndMessages = getVersionBumpTypeAndMessages;
 
 
 /***/ }),
@@ -12076,10 +12278,11 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getAssociatedPullRequests = exports.getLatestTags = exports.getCommitsSince = exports.getConfig = exports.createTag = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.getPullRequestTitle = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
+exports.updateSemVerLabel = exports.getAssociatedPullRequests = exports.getLatestTags = exports.getCommitsSince = exports.getConfig = exports.createTag = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.getPullRequestTitle = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const fs = __importStar(__nccwpck_require__(7147));
 const github = __importStar(__nccwpck_require__(5438));
+const semver_1 = __nccwpck_require__(8593);
 const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
 /**
  * Get Octokit instance
@@ -12283,6 +12486,58 @@ function getAssociatedPullRequests(sha) {
     });
 }
 exports.getAssociatedPullRequests = getAssociatedPullRequests;
+/**
+ * Updates the Pull Request (issue) labels to contain the SemVer bump level, in
+ * the format: `bump:<version>`
+ */
+function updateSemVerLabel(semverType) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const issueId = getPullRequestId();
+        const expectedLabel = `bump:${semver_1.SemVerType[semverType].toLowerCase()}`;
+        let labelExists = false;
+        // Retrieve current labels
+        const { data: labels } = yield getOctokit().rest.issues.listLabelsOnIssue({
+            owner: OWNER,
+            repo: REPO,
+            issue_number: issueId,
+        });
+        try {
+            // Remove all labels prefixed with "bump:"
+            for (const label of labels) {
+                if (label.name.startsWith("bump:")) {
+                    if (label.name === expectedLabel) {
+                        labelExists = true;
+                    }
+                    else {
+                        yield getOctokit().rest.issues.removeLabel({
+                            owner: OWNER,
+                            repo: REPO,
+                            issue_number: issueId,
+                            name: label.name,
+                        });
+                    }
+                }
+            }
+            // Add new label if it does not yet exist
+            if (labelExists === false && semverType !== semver_1.SemVerType.NONE) {
+                yield getOctokit().rest.issues.addLabels({
+                    owner: OWNER,
+                    repo: REPO,
+                    issue_number: issueId,
+                    labels: [expectedLabel],
+                });
+            }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        }
+        catch (error) {
+            if (error.message !== "Resource not accessible by integration") {
+                throw error;
+            }
+            core.warning("Unable to update Pull Request labels, did you provide the `write` permission for `issues` and `pull-requests`?");
+        }
+    });
+}
+exports.updateSemVerLabel = updateSemVerLabel;
 
 
 /***/ }),
@@ -12464,7 +12719,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getConventionalCommitRule = exports.ALL_RULES = exports.validateRules = void 0;
-const difflib = __importStar(__nccwpck_require__(4087));
+const difflib = __importStar(__nccwpck_require__(5467));
 const logging_1 = __nccwpck_require__(1517);
 /**
  * Validates the commit message against the specified ruleset
@@ -13340,10 +13595,11 @@ exports.getMessagesToValidate = getMessagesToValidate;
 function validateMessages(messages, config) {
     return __awaiter(this, void 0, void 0, function* () {
         let success = true;
+        const conventionalCommitMessages = [];
         for (const item of messages) {
             let errors = [];
             try {
-                const commit = new commit_1.ConventionalCommitMessage(item.message, undefined, config);
+                conventionalCommitMessages.push(new commit_1.ConventionalCommitMessage(item.message, undefined, config));
             }
             catch (error) {
                 if (error instanceof errors_1.ConventionalCommitError) {
@@ -13379,6 +13635,7 @@ function validateMessages(messages, config) {
         else {
             core.info("✅ Your Pull Request complies with the Conventional Commits specification!");
         }
+        return conventionalCommitMessages;
     });
 }
 exports.validateMessages = validateMessages;

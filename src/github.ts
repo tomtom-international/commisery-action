@@ -19,8 +19,8 @@ import * as fs from "fs";
 import * as github from "@actions/github";
 import * as octokit from "@octokit/plugin-rest-endpoint-methods";
 import { GitHub } from "@actions/github/lib/utils";
-import type { GraphQlQueryResponseData } from "@octokit/graphql";
 import { IGitTag } from "./interfaces";
+import { SemVerType } from "./semver";
 
 const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
 
@@ -262,5 +262,58 @@ export async function getAssociatedPullRequests(
     }
 
     return [];
+  }
+}
+
+/**
+ * Updates the Pull Request (issue) labels to contain the SemVer bump level, in
+ * the format: `bump:<version>`
+ */
+export async function updateSemVerLabel(semverType: SemVerType): Promise<void> {
+  const issueId = getPullRequestId();
+  const expectedLabel = `bump:${SemVerType[semverType].toLowerCase()}`;
+  let labelExists = false;
+
+  // Retrieve current labels
+  const { data: labels } = await getOctokit().rest.issues.listLabelsOnIssue({
+    owner: OWNER,
+    repo: REPO,
+    issue_number: issueId,
+  });
+
+  try {
+    // Remove all labels prefixed with "bump:"
+    for (const label of labels) {
+      if (label.name.startsWith("bump:")) {
+        if (label.name === expectedLabel) {
+          labelExists = true;
+        } else {
+          await getOctokit().rest.issues.removeLabel({
+            owner: OWNER,
+            repo: REPO,
+            issue_number: issueId,
+            name: label.name,
+          });
+        }
+      }
+    }
+
+    // Add new label if it does not yet exist
+    if (labelExists === false && semverType !== SemVerType.NONE) {
+      await getOctokit().rest.issues.addLabels({
+        owner: OWNER,
+        repo: REPO,
+        issue_number: issueId,
+        labels: [expectedLabel],
+      });
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    if (error.message !== "Resource not accessible by integration") {
+      throw error;
+    }
+    core.warning(
+      "Unable to update Pull Request labels, did you provide the `write` permission for `issues` and `pull-requests`?"
+    );
   }
 }

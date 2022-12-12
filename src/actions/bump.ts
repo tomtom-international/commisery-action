@@ -25,7 +25,6 @@ import {
   createRelease,
   createTag,
   getConfig,
-  getLatestTags,
   isPullRequestEvent,
 } from "../github";
 import { IVersionBumpTypeAndMessages } from "../interfaces";

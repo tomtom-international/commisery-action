@@ -24,7 +24,6 @@ import {
 import { SemVerType } from "./semver";
 
 import * as os from "os";
-import { IConfigurationRules, ITypeTagConfigItem } from "./interfaces";
 
 const BREAKING_CHANGE_TOKEN = "BREAKING-CHANGE";
 const CONVENTIONAL_COMMIT_REGEX =
