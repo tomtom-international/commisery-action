@@ -542,23 +542,18 @@ class SubjectContainsIssueReference implements IConventionalCommitRule {
     "The commit message's subject should not contain a ticket reference";
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
-    const ISSUE_REGEX = new RegExp(`[A-Z]+-[0-9]+`, "g");
-    const matches = message.subject.matchAll(ISSUE_REGEX);
+    const ALLOWED = ["AES", "CVE", "PEP", "SHA", "UTF", "VT"];
+    const ISSUE_REGEX = new RegExp(
+      `(?!\\b(?:${ALLOWED.join("|")})\\b)\\b[A-Z]+-[0-9]+\\b(?!-)`
+    );
+    const match = ISSUE_REGEX.exec(message.subject);
+    if (match) {
+      const msg = new LlvmError();
+      msg.message = `[${this.id}] ${this.description}`;
+      msg.line = message.subject;
+      msg.column_number = new LlvmRange(match.index + 1, match[0].length);
 
-    for (const match of matches) {
-      let err = true;
-      for (const ignore of ["AES-", "PEP-", "SHA-", "UTF-", "VT-"]) {
-        if (match[0].startsWith(ignore)) {
-          err = false;
-        }
-      }
-      if (err) {
-        const msg = new LlvmError();
-        msg.message = `[${this.id}] ${this.description}`;
-        msg.line = message.subject;
-
-        throw msg;
-      }
+      throw msg;
     }
   }
 }
