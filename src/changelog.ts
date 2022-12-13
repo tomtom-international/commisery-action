@@ -164,6 +164,12 @@ async function generateDefaultChangelog(
   return formattedChangelog;
 }
 
+/**
+ * Generates a Changelog based on the current release.
+ * It will either use:
+ *   - The GitHub Release Notes generator in case a `.github/release.y[a]ml` file exists
+ *   - Otherwise, our custom Conventional Commit Release Notes generator
+ */
 export async function generateChangelog(
   bump: IVersionBumpTypeAndMessages
 ): Promise<string> {

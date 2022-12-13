@@ -315,6 +315,9 @@ export async function updateSemVerLabel(semverType: SemVerType): Promise<void> {
   }
 }
 
+/**
+ * Downloads and returns the contents of the specified file path.
+ */
 export async function getContent(path: string): Promise<string | undefined> {
   try {
     const response = await getOctokit().rest.repos.getContent({
@@ -333,6 +336,9 @@ export async function getContent(path: string): Promise<string | undefined> {
   }
 }
 
+/**
+ * Generates a changelog using GitHubs native release notes generator.
+ */
 export async function getGeneratedChangelog(
   tag: string,
   previousTag: string
