@@ -464,6 +464,7 @@ describe("Rules", () => {
       
       Implements: ISS-1`),
       "chore: remove UTF-8 implementation",
+      "fix(server): add mitigation for CVE-1234-34567",
     ]) {
       assertRuleNoValidationError(message, getConventionalCommitRule("C019"));
     }
