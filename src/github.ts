@@ -28,8 +28,8 @@ const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
  * Get Octokit instance
  */
 function getOctokit(): InstanceType<typeof GitHub> {
-  const github_token = core.getInput("token");
-  return github.getOctokit(github_token);
+  const githubToken = core.getInput("token");
+  return github.getOctokit(githubToken);
 }
 
 /**
@@ -55,11 +55,11 @@ export async function getPullRequestTitle(): Promise<string> {
 
 /**
  * Retrieves a list of commits associated with the specified Pull Request
- * @param pullrequest_id GitHub Pullrequest ID
+ * @param pullRequestId GitHub Pullrequest ID
  * @returns List of commit objects
  */
 export async function getCommits(
-  pullrequest_id: number
+  pullRequestId: number
 ): Promise<
   octokit.RestEndpointMethodTypes["pulls"]["listCommits"]["response"]["data"]
 > {
@@ -67,7 +67,7 @@ export async function getCommits(
   const { data: commits } = await getOctokit().rest.pulls.listCommits({
     owner: OWNER,
     repo: REPO,
-    pull_number: pullrequest_id,
+    pull_number: pullRequestId,
   });
 
   return commits;
@@ -75,18 +75,18 @@ export async function getCommits(
 
 /**
  * Retrieves the Pull Request associated with the specified Pull Request ID
- * @param pullrequest_id GitHub Pullrequest ID
+ * @param pullRequestId GitHub Pullrequest ID
  * @returns Pull Request
  */
 export async function getPullRequest(
-  pullrequest_id: number
+  pullRequestId: number
 ): Promise<
   octokit.RestEndpointMethodTypes["pulls"]["get"]["response"]["data"]
 > {
   const { data: pr } = await getOctokit().rest.pulls.get({
     owner: OWNER,
     repo: REPO,
-    pull_number: pullrequest_id,
+    pull_number: pullRequestId,
   });
 
   return pr;
@@ -94,20 +94,20 @@ export async function getPullRequest(
 
 /**
  * Creates a GitHub release named `tag_name` on the main branch of the provided repo
- * @param tag_name Name of the tag (and release)
+ * @param tagName Name of the tag (and release)
  * @param commitish The commitish (ref, sha, ..) the release shall be made from
  */
 export async function createRelease(
-  tag_name: string,
+  tagName: string,
   commitish: string,
   body: string
 ): Promise<void> {
   await getOctokit().rest.repos.createRelease({
     owner: OWNER,
     repo: REPO,
-    tag_name,
+    tag_name: tagName,
     target_commitish: commitish,
-    name: tag_name,
+    name: tagName,
     body,
     draft: false,
     prerelease: false,
@@ -116,14 +116,14 @@ export async function createRelease(
 
 /**
  * Creates a lightweight tag named `tag_name` on the provided sha
- * @param tag_name Name of the tag
+ * @param tagName Name of the tag
  * @param sha The SHA1 value of the tag
  */
-export async function createTag(tag_name: string, sha: string): Promise<void> {
+export async function createTag(tagName: string, sha: string): Promise<void> {
   await getOctokit().rest.git.createRef({
     owner: OWNER,
     repo: REPO,
-    ref: tag_name.startsWith("refs/tags/") ? tag_name : `refs/tags/${tag_name}`,
+    ref: tagName.startsWith("refs/tags/") ? tagName : `refs/tags/${tagName}`,
     sha,
   });
 }
@@ -133,26 +133,23 @@ export async function createTag(tag_name: string, sha: string): Promise<void> {
  * @param path Path towards the Commisery configuration file
  */
 export async function getConfig(path: string): Promise<void> {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response: any = await getOctokit().rest.repos.getContent({
-      owner: OWNER,
-      repo: REPO,
-      path,
-      ref: github.context.ref,
-    });
-
-    const config_file = response.data;
-
-    fs.writeFileSync(
-      ".commisery.yml",
-      Buffer.from(config_file.content, "base64")
-    );
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
-    core.debug(error);
-    return;
+  const config = await getContent(path);
+  if (config !== undefined) {
+    fs.writeFileSync(".commisery.yml", config);
   }
+}
+
+/**
+ * Checks for existing release configuration (.github/release.y[a]ml) in the repository.
+ */
+export async function hasGitHubReleaseConfiguration(): Promise<boolean> {
+  for (const path of [".github/release.yml", ".github/release.yaml"]) {
+    if ((await getContent(path)) !== undefined) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -316,4 +313,36 @@ export async function updateSemVerLabel(semverType: SemVerType): Promise<void> {
       "Unable to update Pull Request labels, did you provide the `write` permission for `issues` and `pull-requests`?"
     );
   }
+}
+
+export async function getContent(path: string): Promise<string | undefined> {
+  try {
+    const response = await getOctokit().rest.repos.getContent({
+      owner: OWNER,
+      repo: REPO,
+      path,
+      ref: github.context.ref,
+    });
+
+    if ("content" in response.data) {
+      return Buffer.from(response.data.content, "base64").toString("utf8");
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    core.debug(error);
+  }
+}
+
+export async function getGeneratedChangelog(
+  tag: string,
+  previousTag: string
+): Promise<string> {
+  const response = await getOctokit().rest.repos.generateReleaseNotes({
+    owner: OWNER,
+    repo: REPO,
+    tag_name: tag,
+    previous_tag_name: previousTag,
+  });
+
+  return response.data.body;
 }

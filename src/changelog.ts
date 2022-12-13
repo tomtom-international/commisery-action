@@ -16,7 +16,11 @@
 
 import { context } from "@actions/github";
 import { ConventionalCommitMessage } from "./commit";
-import { getAssociatedPullRequests } from "./github";
+import {
+  getAssociatedPullRequests,
+  getGeneratedChangelog,
+  hasGitHubReleaseConfiguration,
+} from "./github";
 import { IVersionBumpTypeAndMessages } from "./interfaces";
 import { SemVerType } from "./semver";
 
@@ -69,17 +73,17 @@ function getChangelogConfiguration(): Map<SemVerType, IChangelogCategory> {
 async function getPullRequestSuffix(
   commit: ConventionalCommitMessage
 ): Promise<string> {
-  if (commit.hexsha && !commit.description.match(/\s\(#[0-9]+\)$/)) {
-    const pull_requests = await getAssociatedPullRequests(commit.hexsha);
+  if (commit.hexsha && !commit.description.match(/\s\(#\d+\)$/)) {
+    const pullRequests = await getAssociatedPullRequests(commit.hexsha);
 
-    const pr_references: string[] = [];
+    const prReferences: string[] = [];
 
-    for (const pull_request of pull_requests) {
-      pr_references.push(`#${pull_request.number}`);
+    for (const pullRequest of pullRequests) {
+      prReferences.push(`#${pullRequest.number}`);
     }
 
-    if (pr_references.length > 0) {
-      return ` (${pr_references.join(", ")})`;
+    if (prReferences.length > 0) {
+      return ` (${prReferences.join(", ")})`;
     }
   }
 
@@ -91,18 +95,18 @@ async function getPullRequestSuffix(
  * references in the git trailer
  */
 function getIssueReferenceSuffix(commit: ConventionalCommitMessage): string {
-  const ISSUE_REGEX = new RegExp(/([A-Z]+-[0-9]+|#[0-9]+)/g);
+  const ISSUE_REGEX = new RegExp(/([A-Z]+-\d+|#\d+)/g);
 
-  const issue_references: string[] = [];
+  const issueReferences: string[] = [];
   for (const footer of commit.footers) {
     const matches = footer.value.matchAll(ISSUE_REGEX);
     for (const match of matches) {
-      issue_references.push(match[0]);
+      issueReferences.push(match[0]);
     }
   }
 
-  if (issue_references.length > 0) {
-    return ` (${issue_references.join(", ")})`;
+  if (issueReferences.length > 0) {
+    return ` (${issueReferences.join(", ")})`;
   }
 
   return "";
@@ -112,7 +116,7 @@ function getIssueReferenceSuffix(commit: ConventionalCommitMessage): string {
  * Returns a pretty-formatted Changelog (markdown) based on the
  * provided Conventional Commit messages.
  */
-export async function generateChangelog(
+async function generateDefaultChangelog(
   bump: IVersionBumpTypeAndMessages
 ): Promise<string> {
   if (bump.foundVersion === null) {
@@ -132,30 +136,52 @@ export async function generateChangelog(
     msg += getIssueReferenceSuffix(commit);
 
     if (commit.hexsha) {
-      const sha_link = `[${commit.hexsha.slice(
+      const shaLink = `[${commit.hexsha.slice(
         0,
         6
       )}](https://github.com/${owner}/${repo}/commit/${commit.hexsha})`;
-      msg += ` [${sha_link}]`;
+      msg += ` [${shaLink}]`;
     }
 
     config.get(commit.bump)?.changes.push(msg);
   }
 
-  let changelog_formatted = "## What's changed\n";
+  let formattedChangelog = "## What's changed\n";
   for (const value of config) {
     if (value[1].changes.length > 0) {
-      changelog_formatted += `### :${value[1].emoji}: ${value[1].title}\n`;
+      formattedChangelog += `### :${value[1].emoji}: ${value[1].title}\n`;
       for (const msg of value[1].changes) {
-        changelog_formatted += `* ${msg}\n`;
+        formattedChangelog += `* ${msg}\n`;
       }
     }
   }
 
-  const diff_range = `${bump.foundVersion.toString()}...${bump.foundVersion
+  const diffRange = `${bump.foundVersion.toString()}...${bump.foundVersion
     .bump(bump.requiredBump)
     ?.toString()}`;
-  changelog_formatted += `\n\n*Diff since last release: [${diff_range}](https://github.com/${owner}/${repo}/compare/${diff_range})*`;
+  formattedChangelog += `\n\n*Diff since last release: [${diffRange}](https://github.com/${owner}/${repo}/compare/${diffRange})*`;
 
-  return changelog_formatted;
+  return formattedChangelog;
+}
+
+export async function generateChangelog(
+  bump: IVersionBumpTypeAndMessages
+): Promise<string> {
+  if (bump.foundVersion === null) {
+    return "";
+  }
+
+  const nextVersion = bump.foundVersion.bump(bump.requiredBump);
+  if (nextVersion === null) {
+    return "";
+  }
+
+  if (await hasGitHubReleaseConfiguration()) {
+    return getGeneratedChangelog(
+      nextVersion.toString(),
+      bump.foundVersion.toString()
+    );
+  } else {
+    return generateDefaultChangelog(bump);
+  }
 }

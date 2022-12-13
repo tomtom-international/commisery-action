@@ -3,7 +3,9 @@
   "description": "Validate your Pull Request against Conventional Commit compliance",
   "main": "./dist/cli/index.js",
   "bin": "./dist/cli/index.js",
-  "files": ["./dist/cli/index.js"],
+  "files": [
+    "./dist/cli/index.js"
+  ],
   "pkg": {
     "scripts": "dist/cli/index.js",
     "targets": [
