@@ -166,7 +166,7 @@ See [permissions](#permissions) for more details on the required GitHub token pe
 
 ### Create GitHub Releases based on unreleased Conventional Commits
 
-With the `/bump` GitHub Action, you can create a new Git tag or a GitHub release (also implicitly a Git tag),
+With the `/bump` GitHub Action, you can create a new Git tag or a GitHub Release (also implicitly a Git tag),
 based on the types of [Conventional Commits] since the latest found [Semantic Versioning]-compatible tag.
 Breaking changes bump `MAJOR`, `feat`s bump `MINOR`, and `fix`es bump `PATCH`.
 You may also specify additional types that bump `PATCH` using the [`tags.<tag>.bump`](#configuration-parameters)
@@ -230,6 +230,9 @@ The GitHub release will be automatically populated with a changelog based on the
 Commit messages, for example:
 
 ![changelog](resources/changelog.png)
+
+> :bulb: you could also opt to use the GitHub native support for [generating Release Notes](https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes#configuring-automatically-generated-release-notes).
+We will automatically switch to this approach in case your repository contains a `.github/release.y[a]ml` file.
 
 #### Inputs
 
