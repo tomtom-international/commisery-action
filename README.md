@@ -194,6 +194,41 @@ We will automatically bump the version to `1.0.0` when:
 
 > NOTE: This behavior also applies to non-bumping commits (ie. `chore:`, `ci:`)
 
+#### GitHub Release Changelog
+The GitHub releases will be automatically populated with a changelog based on the released Conventional
+Commit messages, for example:
+
+![changelog](resources/changelog.png)
+
+You can configure the content of your Changelog using the `release.y[a]ml` configuration file stored in `.github`, for ex.
+```yaml
+changelog:
+  exclude:
+    labels:
+      - dependencies
+  categories:
+    - title: ⚠️ Breaking Changes
+      labels:
+        - bump:major
+    - title: 🚀 New Features
+      labels:
+        - bump:minor
+    - title: 🐛 Bug Fixes
+      labels:
+        - bump:patch
+    - title: 🚧 Other changes
+      labels:
+        - "*"
+```
+
+During generation, each individual conventional commit will be checked against the
+labels denoting the SemVer bump (`bump:<version>`) to determine its associated category.
+
+> **NOTE**: The `bump:<version>` label set on your Pull Request will be ignored in favor of
+individual commits
+
+Please refer to the ["Automatically generated release notes"](https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes#configuring-automatically-generated-release-notes) documentation for more details
+
 #### Example workflow
 An example workflow that creates a release on every commit or merge to the `main` branch if necessary:
 
@@ -225,11 +260,6 @@ jobs:
       - if: steps.release-version.outputs.next-version != ""
         run: echo "Version bumped to ${{steps.release-version.outputs.next-version}}
 ```
-
-The GitHub release will be automatically populated with a changelog based on the released Conventional
-Commit messages, for example:
-
-![changelog](resources/changelog.png)
 
 #### Inputs
 

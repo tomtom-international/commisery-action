@@ -16,51 +16,62 @@
 
 import { context } from "@actions/github";
 import { ConventionalCommitMessage } from "./commit";
-import { getAssociatedPullRequests } from "./github";
+import { getAssociatedPullRequests, getReleaseConfiguration } from "./github";
 import { IVersionBumpTypeAndMessages } from "./interfaces";
+import * as yaml from "yaml";
 import { SemVerType } from "./semver";
 
 /**
- * Changelog Configuration entry
+ * Exclude pattern, part of the Release Configuration
  */
-interface IChangelogCategory {
-  /* Title message to use in the Changelog */
-  title: string;
-  /* Emoji to display in the Changelog */
-  emoji: string;
-  /* List of changes associated with this Changelog category */
-  changes: string[];
+interface IExcludeConfiguration {
+  /* A list of labels that exclude a pull request from appearing in release notes. */
+  labels?: string[];
+  /* A list of user or bot login handles whose pull requests are to be excluded from release notes. */
+  authors?: string[];
 }
 
 /**
- * Returns a default Changelog Configuration mapping
- * SemVer types to a readable element.
+ * Release Configuration
  */
-function getChangelogConfiguration(): Map<SemVerType, IChangelogCategory> {
-  const config = new Map<SemVerType, IChangelogCategory>();
-  config.set(SemVerType.MAJOR, {
-    title: "Breaking Changes",
-    emoji: "warning",
-    changes: [],
-  });
-  config.set(SemVerType.MINOR, {
-    title: "New Features",
-    emoji: "rocket",
-    changes: [],
-  });
-  config.set(SemVerType.PATCH, {
-    title: "Bug Fixes",
-    emoji: "bug",
-    changes: [],
-  });
-  config.set(SemVerType.NONE, {
-    title: "Other changes",
-    emoji: "construction_worker",
-    changes: [],
-  });
-
-  return config;
+export interface IReleaseConfiguration {
+  changelog: {
+    exclude?: IExcludeConfiguration;
+    categories: {
+      /* Required. The title of a category of changes in release notes. */
+      title: string;
+      /* Required. Labels that qualify a pull request for this category. Use * as a catch-all for pull requests that didn't match any of the previous categories. */
+      labels: string[];
+      exclude?: IExcludeConfiguration;
+    }[];
+  };
 }
+
+/**
+ * Default Release Configuration
+ */
+const DEFAULT_CONFIG: IReleaseConfiguration = {
+  changelog: {
+    categories: [
+      {
+        title: ":warning: Breaking Changes",
+        labels: ["bump:major"],
+      },
+      {
+        title: ":rocket: New Features",
+        labels: ["bump:minor"],
+      },
+      {
+        title: ":bug: Bug Fixes",
+        labels: ["bump:patch"],
+      },
+      {
+        title: ":construction_worker: Other changes",
+        labels: ["*"],
+      },
+    ],
+  },
+};
 
 /**
  * Generates a Pull Request suffix `(#123)` in case this is not yet present
@@ -109,6 +120,77 @@ function getIssueReferenceSuffix(commit: ConventionalCommitMessage): string {
 }
 
 /**
+ * Creates an entry in the Changelog based on the provided
+ * Conventional Commit message.
+ */
+async function generateChangelogEntry(
+  commit: ConventionalCommitMessage
+): Promise<string> {
+  const { owner, repo } = context.repo;
+
+  let changelogEntry = `${commit.description
+    .charAt(0)
+    .toUpperCase()}${commit.description.slice(1)}`;
+
+  changelogEntry += await getPullRequestSuffix(commit);
+  changelogEntry += getIssueReferenceSuffix(commit);
+
+  if (commit.hexsha) {
+    const sha_link = `[${commit.hexsha.slice(
+      0,
+      6
+    )}](https://github.com/${owner}/${repo}/commit/${commit.hexsha})`;
+    changelogEntry += ` [${sha_link}]`;
+  }
+
+  return changelogEntry;
+}
+
+/**
+ * Returns the Changelog configuration;
+ *   - The contents of the .github/release.y[a]ml file
+ *   - Otherwise, the internal default configuration
+ */
+export async function getChangelogConfiguration(): Promise<IReleaseConfiguration> {
+  const githubReleaseConfig = await getReleaseConfiguration();
+
+  if (githubReleaseConfig.length > 0) {
+    const data = yaml.parse(githubReleaseConfig);
+    if (data["changelog"] !== undefined) {
+      return data;
+    }
+  }
+
+  return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+}
+
+/**
+ * Checks whether the provided labels/authors are part of the reference set
+ */
+function hasConfigurationElement(
+  compare: IExcludeConfiguration,
+  reference?: IExcludeConfiguration
+): boolean {
+  if (compare.authors) {
+    for (const item of compare.authors) {
+      if (reference && reference.authors && reference.authors.includes(item)) {
+        return true;
+      }
+    }
+  }
+
+  if (compare.labels) {
+    for (const item of compare.labels) {
+      if (reference && reference.labels && reference.labels.includes(item)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
  * Returns a pretty-formatted Changelog (markdown) based on the
  * provided Conventional Commit messages.
  */
@@ -118,44 +200,87 @@ export async function generateChangelog(
   if (bump.foundVersion === null) {
     return "";
   }
-  const config: Map<SemVerType, IChangelogCategory> =
-    getChangelogConfiguration();
-
+  const config = await getChangelogConfiguration();
   const { owner, repo } = context.repo;
 
   for (const commit of bump.messages) {
-    let msg = `${commit.description
-      .charAt(0)
-      .toUpperCase()}${commit.description.slice(1)}`;
+    const bumpLabel = `bump:${SemVerType[commit.bump].toLowerCase()}`;
+    const exclusionPatterns: IExcludeConfiguration = {
+      labels: [],
+      authors: [],
+    };
 
-    msg += await getPullRequestSuffix(commit);
-    msg += getIssueReferenceSuffix(commit);
+    // We will reuse the labels and author associated with a Pull Request
+    // (with the exception of `bump:<version`) for all commits associated
+    // with the PR.
 
     if (commit.hexsha) {
-      const sha_link = `[${commit.hexsha.slice(
-        0,
-        6
-      )}](https://github.com/${owner}/${repo}/commit/${commit.hexsha})`;
-      msg += ` [${sha_link}]`;
+      const pullRequests = await getAssociatedPullRequests(commit.hexsha);
+
+      if (pullRequests.length > 0) {
+        const pullRequest = pullRequests[0];
+
+        // Check the labels in the Pull Request associated with this commit
+        for (const label of pullRequest.labels) {
+          // Ignore bump-labels on Pull Requests
+          if (label.name.startsWith("bump:")) {
+            continue;
+          }
+
+          exclusionPatterns.labels?.push(label.name);
+        }
+        // Check for the author of the Pull Request
+        if (pullRequest.user) {
+          exclusionPatterns.authors?.push(pullRequest.user.login);
+        }
+      }
     }
 
-    config.get(commit.bump)?.changes.push(msg);
+    // Check the individual commit Bump Level
+    exclusionPatterns.labels?.push(bumpLabel);
+
+    if (hasConfigurationElement(exclusionPatterns, config.changelog.exclude)) {
+      continue;
+    }
+
+    for (const category of config.changelog.categories) {
+      // Apply all exclusion patterns from Pull Request metadata on Category
+      if (hasConfigurationElement(exclusionPatterns, category.exclude)) {
+        continue;
+      }
+
+      // Validate whether the commit matches any of the inclusion patterns
+      if (
+        !hasConfigurationElement(
+          { labels: exclusionPatterns.labels?.concat([bumpLabel, "*"]) },
+          { labels: category.labels }
+        )
+      ) {
+        continue;
+      }
+
+      if (!category["messages"]) {
+        category["messages"] = [];
+      }
+      category["messages"].push(await generateChangelogEntry(commit));
+      break;
+    }
   }
 
-  let changelog_formatted = "## What's changed\n";
-  for (const value of config) {
-    if (value[1].changes.length > 0) {
-      changelog_formatted += `### :${value[1].emoji}: ${value[1].title}\n`;
-      for (const msg of value[1].changes) {
-        changelog_formatted += `* ${msg}\n`;
+  let formattedChangelog = "## What's changed\n";
+  for (const category of config.changelog.categories) {
+    if (category["messages"] && category["messages"].length > 0) {
+      formattedChangelog += `### ${category.title}\n`;
+      for (const message of category["messages"]) {
+        formattedChangelog += `* ${message}\n`;
       }
     }
   }
 
-  const diff_range = `${bump.foundVersion.toString()}...${bump.foundVersion
+  const diffRange = `${bump.foundVersion.toString()}...${bump.foundVersion
     .bump(bump.requiredBump)
     ?.toString()}`;
-  changelog_formatted += `\n\n*Diff since last release: [${diff_range}](https://github.com/${owner}/${repo}/compare/${diff_range})*`;
+  formattedChangelog += `\n\n*Diff since last release: [${diffRange}](https://github.com/${owner}/${repo}/compare/${diffRange})*`;
 
-  return changelog_formatted;
+  return formattedChangelog;
 }

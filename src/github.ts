@@ -133,26 +133,25 @@ export async function createTag(tagName: string, sha: string): Promise<void> {
  * @param path Path towards the Commisery configuration file
  */
 export async function getConfig(path: string): Promise<void> {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response: any = await getOctokit().rest.repos.getContent({
-      owner: OWNER,
-      repo: REPO,
-      path,
-      ref: github.context.ref,
-    });
-
-    const configFile = response.data;
-
-    fs.writeFileSync(
-      ".commisery.yml",
-      Buffer.from(configFile.content, "base64")
-    );
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
-    core.debug(error);
-    return;
+  const config = await getContent(path);
+  if (config !== undefined) {
+    fs.writeFileSync(".commisery.yml", config);
   }
+}
+
+/**
+ * Downloads the release configuration (.github/release.y[a]ml) in the repository.
+ * Return empty configuration if the file(s) do not exist.
+ */
+export async function getReleaseConfiguration(): Promise<string> {
+  for (const path of [".github/release.yml", ".github/release.yaml"]) {
+    const content = await getContent(path);
+    if (content !== undefined) {
+      return content;
+    }
+  }
+
+  return "";
 }
 
 /**
@@ -315,5 +314,26 @@ export async function updateSemVerLabel(semverType: SemVerType): Promise<void> {
     core.warning(
       "Unable to update Pull Request labels, did you provide the `write` permission for `issues` and `pull-requests`?"
     );
+  }
+}
+
+/**
+ * Downloads and returns the contents of the specified file path.
+ */
+export async function getContent(path: string): Promise<string | undefined> {
+  try {
+    const response = await getOctokit().rest.repos.getContent({
+      owner: OWNER,
+      repo: REPO,
+      path,
+      ref: github.context.ref,
+    });
+
+    if ("content" in response.data) {
+      return Buffer.from(response.data.content, "base64").toString("utf8");
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    core.debug(error);
   }
 }
