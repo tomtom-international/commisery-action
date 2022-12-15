@@ -283,6 +283,52 @@ describe("Generate Changelog", () => {
     );
   });
 
+  test("Conventional commit label", async () => {
+    const bump: IVersionBumpTypeAndMessages = {
+      foundVersion: new SemVer({ major: 1, minor: 0, patch: 0 }),
+      requiredBump: SemVerType.MINOR,
+      messages: [
+        new ConventionalCommitMessage(
+          "feat!: add pull request reference\n\nThis is the body\n\nImplements: TEST-123"
+        ),
+        new ConventionalCommitMessage(
+          "docs: do GitHub things\n\nThis is the body\n\nImplements #42"
+        ),
+      ],
+    };
+
+    jest.spyOn(github, "getReleaseConfiguration").mockImplementation(() => {
+      return JSON.stringify({
+        changelog: {
+          categories: [
+            {
+              title: "Major Changes",
+              labels: ["bump:major"],
+            },
+            {
+              title: "Documentation",
+              labels: ["type:docs"],
+            },
+          ],
+        },
+      });
+    });
+
+    const changelog = await generateChangelog(bump);
+    expect(changelog).toEqual(
+      dedent(
+        `## What's changed
+        ### Major Changes
+        * Add pull request reference (TEST-123)
+        ### Documentation
+        * Do GitHub things (#42)
+
+
+        *Diff since last release: [1.0.0...1.1.0](https://github.com/tomtom-international/commisery-action/compare/1.0.0...1.1.0)*`
+      )
+    );
+  });
+
   afterAll(() => {
     jest.restoreAllMocks();
   });
