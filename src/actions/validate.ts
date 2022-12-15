@@ -42,7 +42,7 @@ async function run(): Promise<void> {
     const commitMessages = await getMessagesToValidate();
     const compliantMessages = await validateMessages(commitMessages, config);
 
-    updateSemVerLabel(await getVersionBumpType(compliantMessages));
+    await updateSemVerLabel(await getVersionBumpType(compliantMessages));
 
     if (core.getBooleanInput("validate-pull-request-title-bump")) {
       await validatePrTitleBump(config);
