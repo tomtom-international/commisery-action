@@ -51,22 +51,22 @@ describe("Non-compliant Commit Messages", () => {
 describe("Breaking Change", () => {
   test("Using ! indicator on Feat", () => {
     const msg = new ConventionalCommitMessage("feat!: this is breaking");
-    expect(msg.breaking_change).toBe(true);
+    expect(msg.breakingChange).toBe(true);
   });
 
   test("Not using ! indicator on Feat", () => {
     const msg = new ConventionalCommitMessage("feat: this is NOT breaking");
-    expect(msg.breaking_change).toBe(false);
+    expect(msg.breakingChange).toBe(false);
   });
 
   test("Using ! indicator on Fix", () => {
     const msg = new ConventionalCommitMessage("fix!: this is breaking");
-    expect(msg.breaking_change).toBe(true);
+    expect(msg.breakingChange).toBe(true);
   });
 
   test("Not using ! indicator on Fix", () => {
     const msg = new ConventionalCommitMessage("fix: this is NOT breaking");
-    expect(msg.breaking_change).toBe(false);
+    expect(msg.breakingChange).toBe(false);
   });
 
   test("Using BREAKING-CHANGE footer, with body", () => {
@@ -80,7 +80,7 @@ describe("Breaking Change", () => {
          BREAKING-CHANGE: Remove API x`
       )
     );
-    expect(msg.breaking_change).toBe(true);
+    expect(msg.breakingChange).toBe(true);
   });
 
   test("Using BREAKING CHANGE footer, with body", () => {
@@ -94,7 +94,7 @@ describe("Breaking Change", () => {
          BREAKING CHANGE: Remove API x`
       )
     );
-    expect(msg.breaking_change).toBe(true);
+    expect(msg.breakingChange).toBe(true);
   });
 
   test("Using BREAKING-CHANGE footer, without body", () => {
@@ -103,7 +103,7 @@ describe("Breaking Change", () => {
     
               BREAKING-CHANGE: Remove API x`)
     );
-    expect(msg.breaking_change).toBe(true);
+    expect(msg.breakingChange).toBe(true);
   });
 
   test("Using BREAKING CHANGE footer, without body", () => {
@@ -114,7 +114,7 @@ describe("Breaking Change", () => {
          BREAKING CHANGE: Remove API x`
       )
     );
-    expect(msg.breaking_change).toBe(true);
+    expect(msg.breakingChange).toBe(true);
   });
 });
 

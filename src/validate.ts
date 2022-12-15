@@ -36,30 +36,30 @@ interface Message {
  * Determines the list of messages to validate (Pull Request and/or Commits)
  */
 export async function getMessagesToValidate(): Promise<Message[]> {
-  const pullrequest_id = getPullRequestId();
+  const pullRequestId = getPullRequestId();
 
-  const to_validate: Message[] = [];
+  const toValidate: Message[] = [];
 
   // Include Pull Request title
   if (core.getBooleanInput("validate-pull-request")) {
-    to_validate.push({
-      title: `Pull Request Title (#${pullrequest_id})`,
+    toValidate.push({
+      title: `Pull Request Title (#${pullRequestId})`,
       message: await getPullRequestTitle(),
     });
   }
 
   // Include commits associated to the Pull Request
   if (core.getBooleanInput("validate-commits")) {
-    const commits = await getCommits(pullrequest_id);
+    const commits = await getCommits(pullRequestId);
     for (const commit of commits) {
-      to_validate.push({
+      toValidate.push({
         title: `Commit SHA (${commit.sha})`,
         message: commit.commit.message,
       });
     }
   }
 
-  return to_validate;
+  return toValidate;
 }
 
 /**

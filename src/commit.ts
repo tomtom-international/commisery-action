@@ -27,7 +27,7 @@ import * as os from "os";
 
 const BREAKING_CHANGE_TOKEN = "BREAKING-CHANGE";
 const CONVENTIONAL_COMMIT_REGEX =
-  /(?<type>\w+)?((\s*)?\((?<scope>[^()]*)\)(\s*)?)?(?<breaking_change>((\s*)+[!]+(\s*)?)?)(?<separator>((\s+)?:?(\s+)?))(?<description>.*)/;
+  /(?<type>\w+)?((\s*)?\((?<scope>[^()]*)\)(\s*)?)?(?<breakingChange>((\s*)+[!]+(\s*)?)?)(?<separator>((\s+)?:?(\s+)?))(?<description>.*)/;
 const FOOTER_REGEX =
   /^(?<token>[\w-]+|BREAKING\sCHANGE|[\w-\s]+\sby)(?::[ ]|[ ](?=[#]))(?<value>.*)/;
 
@@ -37,7 +37,7 @@ const FOOTER_REGEX =
  */
 export interface ConventionalCommitMetadata {
   body: string[];
-  breaking_change: string;
+  breakingChange: string;
   description: string;
   footers: Footer[];
   separator: string;
@@ -76,22 +76,22 @@ export function getConventionalCommitMetadata(
 ): ConventionalCommitMetadata {
   let footers: Footer[] = [];
   let body: string[] = [];
-  let has_breaking_change = false;
+  let hasBreakingChange = false;
 
   if (message.length > 1) {
-    let end_of_body = 1;
+    let endOfBody = 1;
     // eslint-disable-next-line github/array-foreach
     message.slice(1).forEach((line, index) => {
       const matches = line.match(FOOTER_REGEX)?.groups;
       if (matches) {
         footers.push(new Footer(matches.token, matches.value));
         if (footers[footers.length - 1].token === BREAKING_CHANGE_TOKEN) {
-          has_breaking_change = true;
+          hasBreakingChange = true;
         }
       } else if (footers.length > 0 && line.startsWith(" ")) {
         // Multiline trailers use folding
         footers[footers.length - 1].appendParagrah(line);
-      } else if (has_breaking_change === true && line.trim() === "") {
+      } else if (hasBreakingChange === true && line.trim() === "") {
         // Allow blank lines after BREAKING[- ]CHANGE
         if (footers[footers.length - 1].token !== BREAKING_CHANGE_TOKEN) {
           footers.push(new Footer("", ""));
@@ -99,24 +99,24 @@ export function getConventionalCommitMetadata(
         return;
       } else {
         // Discard detected git trailers as non-compliant item has been found
-        end_of_body = index + 1;
+        endOfBody = index + 1;
         footers = [];
       }
     });
 
     // Set the body
-    if (end_of_body > 1) {
-      body = message.slice(1, end_of_body + 1);
+    if (endOfBody > 1) {
+      body = message.slice(1, endOfBody + 1);
     } else {
-      body = [message[end_of_body]];
+      body = [message[endOfBody]];
     }
   }
 
-  const conventional_subject = message[0].match(
+  const conventionalSubject = message[0].match(
     CONVENTIONAL_COMMIT_REGEX
   )?.groups;
 
-  if (conventional_subject === undefined) {
+  if (conventionalSubject === undefined) {
     throw new Error(
       `Commit is not compliant to Conventional Commits (non-strict)`
     );
@@ -125,12 +125,12 @@ export function getConventionalCommitMetadata(
   const metadata: ConventionalCommitMetadata = {
     body,
     footers,
-    type: conventional_subject.type,
-    scope: conventional_subject.scope,
+    type: conventionalSubject.type,
+    scope: conventionalSubject.scope,
     subject: message[0],
-    breaking_change: conventional_subject.breaking_change,
-    separator: conventional_subject.separator,
-    description: conventional_subject.description,
+    breakingChange: conventionalSubject.breakingChange,
+    separator: conventionalSubject.separator,
+    description: conventionalSubject.description,
   };
 
   return metadata;
@@ -140,7 +140,7 @@ export function getConventionalCommitMetadata(
  * Conventional Commit
  */
 export class ConventionalCommitMessage {
-  breaking_change: boolean;
+  breakingChange: boolean;
   body: string | null;
   bump: SemVerType;
   config: Configuration;
@@ -155,14 +155,14 @@ export class ConventionalCommitMessage {
     hexsha: string | undefined = undefined,
     config: Configuration = new Configuration()
   ) {
-    const split_message: string[] = stripMessage(message).split(os.EOL);
+    const splitMessage: string[] = stripMessage(message).split(os.EOL);
 
     // Skip Mere and Fixup commits
-    if (isMerge(split_message[0])) {
+    if (isMerge(splitMessage[0])) {
       throw new MergeCommitError();
     }
 
-    if (isFixup(split_message[0])) {
+    if (isFixup(splitMessage[0])) {
       throw new FixupCommitError();
     }
 
@@ -170,7 +170,7 @@ export class ConventionalCommitMessage {
     this.config = config;
 
     // Initializes class based on commit message
-    const metadata = getConventionalCommitMetadata(split_message);
+    const metadata = getConventionalCommitMetadata(splitMessage);
     if (metadata === undefined) {
       throw new ConventionalCommitError(
         `Commit is not a Conventional Commit type!`,
@@ -199,7 +199,7 @@ export class ConventionalCommitMessage {
     this.type = metadata.type ? metadata.type : null;
 
     this.bump = this.determineBump(metadata);
-    this.breaking_change = this.bump === SemVerType.MAJOR;
+    this.breakingChange = this.bump === SemVerType.MAJOR;
   }
 
   determineBump(metadata: ConventionalCommitMetadata): SemVerType {
@@ -212,7 +212,7 @@ export class ConventionalCommitMessage {
       return SemVerType.NONE;
     }
 
-    if (metadata.breaking_change === "!") {
+    if (metadata.breakingChange === "!") {
       return SemVerType.MAJOR;
     }
 
@@ -249,12 +249,12 @@ function isMerge(subject: string): boolean {
 }
 
 function stripMessage(message): string {
-  const cut_line = message.indexOf(
+  const cutLine = message.indexOf(
     "# ------------------------ >8 ------------------------\n"
   );
 
-  if (cut_line >= 0 && (cut_line === 0 || message[cut_line - 1] === "\n")) {
-    message = message.substring(cut_line);
+  if (cutLine >= 0 && (cutLine === 0 || message[cutLine - 1] === "\n")) {
+    message = message.substring(cutLine);
   }
 
   // Strip comments

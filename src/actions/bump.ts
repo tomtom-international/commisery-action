@@ -45,7 +45,7 @@ async function run(): Promise<void> {
   await getConfig(core.getInput("config"));
   const config = new Configuration(".commisery.yml");
 
-  const allowedBranchesRegEx = config.allowed_branches;
+  const allowedBranchesRegEx = config.allowedBranches;
   const branchName = context.ref.replace("refs/heads/", "");
   let isBranchAllowedToPublish = false;
 
@@ -100,12 +100,12 @@ async function run(): Promise<void> {
     core.startGroup("🔍 Determining bump");
     const nextVersion: SemVer | null = bumpInfo.foundVersion.bump(
       bumpInfo.requiredBump,
-      config.initial_development
+      config.initialDevelopment
     );
 
     if (bumpInfo.foundVersion.major <= 0) {
       core.warning(
-        config.initial_development
+        config.initialDevelopment
           ? "This repository is under 'initial development'; breaking changes will bump the `MINOR` version."
           : "Enforcing version `1.0.0` as we are no longer in `initial development`."
       );
@@ -113,9 +113,9 @@ async function run(): Promise<void> {
 
     if (nextVersion) {
       // Assign Build Metadata
-      const build_metadata = core.getInput("build-metadata");
-      if (build_metadata) {
-        nextVersion.build = build_metadata;
+      const buildMetadata = core.getInput("build-metadata");
+      if (buildMetadata) {
+        nextVersion.build = buildMetadata;
       }
 
       const nv = nextVersion.toString();

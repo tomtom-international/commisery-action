@@ -69,17 +69,17 @@ export class SemVer {
     return this._build;
   }
 
-  set build(build_metadata: string) {
-    if (build_metadata !== "") {
-      for (const identifier of build_metadata.split(".")) {
+  set build(buildMetadata: string) {
+    if (buildMetadata !== "") {
+      for (const identifier of buildMetadata.split(".")) {
         if (/[^0-9A-Za-z-]/.test(identifier) || identifier.length === 0) {
           throw new Error(
-            `Provided build metadata (${build_metadata}) does not comply to the SemVer specification`
+            `Provided build metadata (${buildMetadata}) does not comply to the SemVer specification`
           );
         }
       }
     }
-    this._build = build_metadata;
+    this._build = buildMetadata;
   }
 
   static fromString(version: string): SemVer | null {
@@ -143,8 +143,8 @@ export class SemVer {
    * Returns a new SemVer object bumped by the provided bump type, or `null` if the
    * provided type is NONE or unknown.
    */
-  bump(what: SemVerType, initial_development = true): SemVer | null {
-    if (!initial_development && this.major <= 0) {
+  bump(what: SemVerType, initialDevelopment = true): SemVer | null {
+    if (!initialDevelopment && this.major <= 0) {
       // Enforce version 1.0.0 in case we are no longer in initial
       // development and the current major version is 0.
       //
@@ -159,7 +159,7 @@ export class SemVer {
 
     switch (what) {
       case SemVerType.MAJOR:
-        if (initial_development && this.major <= 0) {
+        if (initialDevelopment && this.major <= 0) {
           // Bumping major version during initial development is prohibited,
           // bump the minor version instead.
           return this.nextMinor();
