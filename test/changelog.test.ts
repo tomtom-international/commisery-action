@@ -40,7 +40,7 @@ describe("Generate Changelog", () => {
 
     jest
       .spyOn(github, "getAssociatedPullRequests")
-      .mockImplementation(() => [{ number: "123" }]);
+      .mockImplementation(() => [{ number: "123", labels: [] }]);
   });
 
   test("All types of changes", async () => {
@@ -145,6 +145,137 @@ describe("Generate Changelog", () => {
         * Add pull request reference (TEST-123)
         * Do GitHub things (#42)
         * Make GitHub stuff (#51)
+
+
+        *Diff since last release: [1.0.0...1.1.0](https://github.com/tomtom-international/commisery-action/compare/1.0.0...1.1.0)*`
+      )
+    );
+  });
+
+  test("Exclusion labels (Global)", async () => {
+    const bump: IVersionBumpTypeAndMessages = {
+      foundVersion: new SemVer({ major: 1, minor: 0, patch: 0 }),
+      requiredBump: SemVerType.MINOR,
+      messages: [
+        new ConventionalCommitMessage(
+          "feat!: add pull request reference\n\nThis is the body\n\nImplements: TEST-123"
+        ),
+        new ConventionalCommitMessage(
+          "feat: do GitHub things\n\nThis is the body\n\nImplements #42"
+        ),
+      ],
+    };
+
+    jest.spyOn(github, "getReleaseConfiguration").mockImplementation(() => {
+      return JSON.stringify({
+        changelog: {
+          exclude: {
+            labels: ["bump:major"],
+          },
+          categories: [
+            {
+              title: "All changes",
+              labels: ["*"],
+            },
+          ],
+        },
+      });
+    });
+
+    const changelog = await generateChangelog(bump);
+    expect(changelog).toEqual(
+      dedent(
+        `## What's changed
+        ### All changes
+        * Do GitHub things (#42)
+
+
+        *Diff since last release: [1.0.0...1.1.0](https://github.com/tomtom-international/commisery-action/compare/1.0.0...1.1.0)*`
+      )
+    );
+  });
+
+  test("Exclusion labels (Category)", async () => {
+    const bump: IVersionBumpTypeAndMessages = {
+      foundVersion: new SemVer({ major: 1, minor: 0, patch: 0 }),
+      requiredBump: SemVerType.MINOR,
+      messages: [
+        new ConventionalCommitMessage(
+          "feat!: this should be in all changes\n\nThis is the body\n\nImplements: TEST-123"
+        ),
+        new ConventionalCommitMessage(
+          "feat: do GitHub things\n\nThis is the body\n\nImplements #42"
+        ),
+      ],
+    };
+
+    jest.spyOn(github, "getReleaseConfiguration").mockImplementation(() => {
+      return JSON.stringify({
+        changelog: {
+          categories: [
+            {
+              title: "This should be excluded",
+              labels: ["*"],
+              exclude: {
+                labels: ["bump:major", "bump:minor"],
+              },
+            },
+            {
+              title: "All changes",
+              labels: ["*"],
+            },
+          ],
+        },
+      });
+    });
+
+    const changelog = await generateChangelog(bump);
+    expect(changelog).toEqual(
+      dedent(
+        `## What's changed
+        ### All changes
+        * This should be in all changes (TEST-123)
+        * Do GitHub things (#42)
+
+
+        *Diff since last release: [1.0.0...1.1.0](https://github.com/tomtom-international/commisery-action/compare/1.0.0...1.1.0)*`
+      )
+    );
+  });
+
+  test("Missing inclusion label", async () => {
+    const bump: IVersionBumpTypeAndMessages = {
+      foundVersion: new SemVer({ major: 1, minor: 0, patch: 0 }),
+      requiredBump: SemVerType.MINOR,
+      messages: [
+        new ConventionalCommitMessage(
+          "feat!: add pull request reference\n\nThis is the body\n\nImplements: TEST-123"
+        ),
+        new ConventionalCommitMessage(
+          "feat: do GitHub things\n\nThis is the body\n\nImplements #42"
+        ),
+      ],
+    };
+
+    jest.spyOn(github, "getReleaseConfiguration").mockImplementation(() => {
+      return JSON.stringify({
+        changelog: {
+          categories: [
+            {
+              title: "Major Changes",
+              labels: ["bump:major"],
+            },
+          ],
+        },
+      });
+    });
+
+    const changelog = await generateChangelog(bump);
+    expect(changelog).toEqual(
+      dedent(
+        `## What's changed
+        ### Major Changes
+        * Add pull request reference (TEST-123)
 
 
         *Diff since last release: [1.0.0...1.1.0](https://github.com/tomtom-international/commisery-action/compare/1.0.0...1.1.0)*`
