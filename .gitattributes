@@ -1,3 +1,1 @@
-dist/bump/index.js linguist-generated=true
-dist/cli/index.js linguist-generated=true
-dist/validate/index.js linguist-generated=true
+dist/**/index.js linguist-generated=true
