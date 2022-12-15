@@ -165,32 +165,6 @@ export async function getChangelogConfiguration(): Promise<IReleaseConfiguration
 }
 
 /**
- * Checks whether the provided labels/authors are part of the reference set
- */
-function hasConfigurationElement(
-  compare: IExcludeConfiguration,
-  reference?: IExcludeConfiguration
-): boolean {
-  if (compare.authors) {
-    for (const item of compare.authors) {
-      if (reference && reference.authors && reference.authors.includes(item)) {
-        return true;
-      }
-    }
-  }
-
-  if (compare.labels) {
-    for (const item of compare.labels) {
-      if (reference && reference.labels && reference.labels.includes(item)) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-/**
  * Returns a pretty-formatted Changelog (markdown) based on the
  * provided Conventional Commit messages.
  */
@@ -205,10 +179,9 @@ export async function generateChangelog(
 
   for (const commit of bump.messages) {
     const bumpLabel = `bump:${SemVerType[commit.bump].toLowerCase()}`;
-    const exclusionPatterns: IExcludeConfiguration = {
-      labels: [],
-      authors: [],
-    };
+
+    // Always validate the version bump label associated with this commit
+    let labels: string[] = [bumpLabel];
 
     // We will reuse the labels and author associated with a Pull Request
     // (with the exception of `bump:<version`) for all commits associated
@@ -220,41 +193,44 @@ export async function generateChangelog(
       if (pullRequests.length > 0) {
         const pullRequest = pullRequests[0];
 
-        // Check the labels in the Pull Request associated with this commit
-        for (const label of pullRequest.labels) {
-          // Ignore bump-labels on Pull Requests
-          if (label.name.startsWith("bump:")) {
-            continue;
-          }
+        // Append the labels of the associated Pull Request
+        // NOTE: we ignore the version bump label on the PR as this is
+        //       and instead rely on version bump label associated with this
+        //       commit.
+        labels = labels.concat(
+          pullRequest.labels
+            .filter(label => !label.name.startsWith("bump:"))
+            .map(label => label.name)
+        );
 
-          exclusionPatterns.labels?.push(label.name);
-        }
-        // Check for the author of the Pull Request
-        if (pullRequest.user) {
-          exclusionPatterns.authors?.push(pullRequest.user.login);
+        // Check if the author of the Pull Request is part of the exclude list
+        if (
+          pullRequest.user &&
+          config.changelog.exclude?.authors?.includes(pullRequest.user.login)
+        ) {
+          continue;
         }
       }
     }
 
-    // Check the individual commit Bump Level
-    exclusionPatterns.labels?.push(bumpLabel);
-
-    if (hasConfigurationElement(exclusionPatterns, config.changelog.exclude)) {
+    // Check if any of the labels is part of the global exclusion list
+    if (
+      labels.some(label => config.changelog.exclude?.labels?.includes(label))
+    ) {
       continue;
     }
 
     for (const category of config.changelog.categories) {
       // Apply all exclusion patterns from Pull Request metadata on Category
-      if (hasConfigurationElement(exclusionPatterns, category.exclude)) {
+      if (labels.some(label => category.exclude?.labels?.includes(label))) {
         continue;
       }
 
       // Validate whether the commit matches any of the inclusion patterns
       if (
-        !hasConfigurationElement(
-          { labels: exclusionPatterns.labels?.concat([bumpLabel, "*"]) },
-          { labels: category.labels }
-        )
+        !labels
+          .concat([bumpLabel, "*"])
+          .some(label => category.labels?.includes(label))
       ) {
         continue;
       }
