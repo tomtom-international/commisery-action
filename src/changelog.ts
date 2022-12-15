@@ -179,9 +179,12 @@ export async function generateChangelog(
 
   for (const commit of bump.messages) {
     const bumpLabel = `bump:${SemVerType[commit.bump].toLowerCase()}`;
+    const typeLabel = `type:${commit.type.toLowerCase()}`;
 
-    // Always validate the version bump label associated with this commit
-    let labels: string[] = [bumpLabel];
+    // Adds the following items as "virtual" labels for each commit:
+    // * The version bump (`bump:<version>`)
+    // * The conventional commit type (`type:<type>`)
+    let labels: string[] = [bumpLabel, typeLabel];
 
     // We will reuse the labels and author associated with a Pull Request
     // (with the exception of `bump:<version`) for all commits associated

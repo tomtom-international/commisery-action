@@ -16,14 +16,31 @@
 
 import * as core from "@actions/core";
 import { getVersionBumpType } from "../bump";
+import { ConventionalCommitMessage } from "../commit";
 
 import { Configuration } from "../config";
-import { getConfig, isPullRequestEvent, updateSemVerLabel } from "../github";
+import { getConfig, isPullRequestEvent, updateLabels } from "../github";
+import { SemVerType } from "../semver";
 import {
   getMessagesToValidate,
   validateMessages,
   validatePrTitleBump,
 } from "../validate";
+
+/**
+ * Determine labels to add based on the provided conventional commits
+ */
+async function determineLabels(
+  conventionalCommits: ConventionalCommitMessage[]
+): Promise<string[]> {
+  const highestBumpType = await getVersionBumpType(conventionalCommits);
+
+  if (highestBumpType !== SemVerType.NONE) {
+    return [`bump:${SemVerType[highestBumpType].toString().toLowerCase()}`];
+  }
+
+  return [];
+}
 
 async function run(): Promise<void> {
   try {
@@ -42,7 +59,7 @@ async function run(): Promise<void> {
     const commitMessages = await getMessagesToValidate();
     const compliantMessages = await validateMessages(commitMessages, config);
 
-    await updateSemVerLabel(await getVersionBumpType(compliantMessages));
+    await updateLabels(await determineLabels(compliantMessages));
 
     if (core.getBooleanInput("validate-pull-request-title-bump")) {
       await validatePrTitleBump(config);
