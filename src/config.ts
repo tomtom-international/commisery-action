@@ -91,9 +91,9 @@ function verifyTypeMatches(
  * Configuration (from file)
  */
 export class Configuration {
-  allowed_branches = ".*";
-  initial_development = true;
-  max_subject_length = 80;
+  allowedBranches = ".*";
+  initialDevelopment = true;
+  maxSubjectLength = 80;
   tags: IConfigurationRules = DEFAULT_ACCEPTED_TAGS;
   rules: Map<string, IRuleConfigItem> = new Map<string, IRuleConfigItem>();
 
@@ -134,12 +134,12 @@ export class Configuration {
            *   max-subject-length: 80
            */
           if (typeof data[key] === "number") {
-            this.max_subject_length = data[key];
+            this.maxSubjectLength = data[key];
           } else {
             throw new Error(
               `Incorrect type '${typeof data[
                 key
-              ]}' for '${key}', must be '${typeof this.max_subject_length}'!`
+              ]}' for '${key}', must be '${typeof this.maxSubjectLength}'!`
             );
           }
           break;
@@ -218,12 +218,12 @@ export class Configuration {
            *   allowed-branches: "^ma(in|ster)$"
            */
           if (typeof data[key] === "string") {
-            this.allowed_branches = data[key];
+            this.allowedBranches = data[key];
           } else {
             throw new Error(
               `Incorrect type '${typeof data[
                 key
-              ]}' for '${key}', must be '${typeof this.allowed_branches}'!`
+              ]}' for '${key}', must be '${typeof this.allowedBranches}'!`
             );
           }
           break;
@@ -233,12 +233,12 @@ export class Configuration {
            *   initial-development: true
            */
           if (typeof data[key] === "boolean") {
-            this.initial_development = data[key];
+            this.initialDevelopment = data[key];
           } else {
             throw new Error(
               `Incorrect type '${typeof data[
                 key
-              ]}' for '${key}', must be '${typeof this.initial_development}'!`
+              ]}' for '${key}', must be '${typeof this.initialDevelopment}'!`
             );
           }
           break;
@@ -249,7 +249,7 @@ export class Configuration {
   /**
    * Constructs a Configuration parameters from file
    */
-  constructor(config_path: string = DEFAULT_CONFIGURATION_FILE) {
+  constructor(configPath: string = DEFAULT_CONFIGURATION_FILE) {
     // Enable all rules by default
     for (const rule of ALL_RULES) {
       this.rules[rule.id] = {
@@ -257,12 +257,12 @@ export class Configuration {
         enabled: true,
       };
     }
-    if (fs.existsSync(config_path)) {
-      const data = yaml.parse(fs.readFileSync(config_path, "utf8"));
+    if (fs.existsSync(configPath)) {
+      const data = yaml.parse(fs.readFileSync(configPath, "utf8"));
       this.loadFromData(data);
     } else {
-      if (config_path !== DEFAULT_CONFIGURATION_FILE) {
-        throw new Error(`No configuration can be found at: ${config_path}`);
+      if (configPath !== DEFAULT_CONFIGURATION_FILE) {
+        throw new Error(`No configuration can be found at: ${configPath}`);
       }
     }
   }

@@ -109,7 +109,7 @@ export async function getVersionBumpType(
     if (highestBump !== SemVerType.MAJOR) {
       core.debug(
         `Commit type '${message.type}'${
-          message.breaking_change ? " (BREAKING)" : ""
+          message.breakingChange ? " (BREAKING)" : ""
         }, has bump type: ${SemVerType[message.bump]}`
       );
       highestBump = message.bump > highestBump ? message.bump : highestBump;

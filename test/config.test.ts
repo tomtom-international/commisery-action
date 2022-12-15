@@ -65,7 +65,7 @@ describe("Configurable options", () => {
   });
 
   test("Disable nonexistent rule", () => {
-    const core_warning = jest.spyOn(core, "warning").mockImplementation();
+    const coreWarning = jest.spyOn(core, "warning").mockImplementation();
 
     withConfig(
       dedent(`
@@ -78,10 +78,10 @@ describe("Configurable options", () => {
         expect(() => {
           new ConventionalCommitMessage("ci: make things");
         }).not.toThrow(ConventionalCommitError);
-        expect(core_warning).toHaveBeenCalledTimes(1);
+        expect(coreWarning).toHaveBeenCalledTimes(1);
       }
     );
-    core_warning.mockRestore();
+    coreWarning.mockRestore();
   });
 
   test("Override maximum subject length", () => {
@@ -222,13 +222,13 @@ describe("Configurable options", () => {
 
   test("Default initial development value", () => {
     withConfig("", () => {
-      expect(new Configuration().initial_development).toEqual(true);
+      expect(new Configuration().initialDevelopment).toEqual(true);
     });
   });
 
   test("Disable initial development", () => {
     withConfig("initial-development: false", () => {
-      expect(new Configuration().initial_development).toEqual(false);
+      expect(new Configuration().initialDevelopment).toEqual(false);
     });
   });
 });

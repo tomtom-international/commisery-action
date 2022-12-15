@@ -21,13 +21,13 @@ import { generateChangelog } from "../src/changelog";
 import { IVersionBumpTypeAndMessages } from "../src/interfaces";
 import { SemVer, SemVerType } from "../src/semver";
 const github = require("../src/github");
-const github_actions = require("@actions/github");
+const githubActions = require("@actions/github");
 
 // Validate Changelog Generation
 //
 describe("Generate Changelog", () => {
   beforeAll(() => {
-    jest.spyOn(github_actions.context, "repo", "get").mockImplementation(() => {
+    jest.spyOn(githubActions.context, "repo", "get").mockImplementation(() => {
       return {
         owner: "tomtom-international",
         repo: "commisery-action",

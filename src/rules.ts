@@ -145,7 +145,7 @@ class UnknownTagType implements IConventionalCommitRule {
         message.type.toLowerCase(),
         Object.keys(config.tags)
       );
-      const closest_match = matches
+      const closestMatch = matches
         ? matches[0]
         : Object.keys(config.tags).join(", ");
 
@@ -158,7 +158,7 @@ class UnknownTagType implements IConventionalCommitRule {
           start: message.subject.indexOf(message.type) + 1,
           range: message.type.length,
         },
-        expectations: closest_match,
+        expectations: closestMatch,
       });
     }
   }
@@ -252,8 +252,8 @@ class MissingSeparator implements IConventionalCommitRule {
       if (message.scope) {
         columnNumber.start =
           message.subject.indexOf(message.scope) + message.scope.length + 2;
-      } else if (message.breaking_change) {
-        columnNumber.start = message.subject.indexOf(message.breaking_change);
+      } else if (message.breakingChange) {
+        columnNumber.start = message.subject.indexOf(message.breakingChange);
       }
 
       throw new LlvmError({
@@ -293,16 +293,16 @@ class BreakingIndicatorContainsWhitespacing implements IConventionalCommitRule {
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (
-      message.breaking_change &&
-      message.breaking_change.trim() !== message.breaking_change
+      message.breakingChange &&
+      message.breakingChange.trim() !== message.breakingChange
     ) {
       throw new LlvmError({
         message: `[${this.id}] ${this.description}`,
         line: message.subject,
         columnNumber: {
-          start: message.subject.indexOf(message.breaking_change) + 1,
+          start: message.subject.indexOf(message.breakingChange) + 1,
           range:
-            message.breaking_change.length + message.separator.trimEnd().length,
+            message.breakingChange.length + message.separator.trimEnd().length,
         },
         expectations: `!:`,
       });
@@ -318,13 +318,13 @@ class OnlySingleBreakingIndicator implements IConventionalCommitRule {
   description = "Breaking separator should consist of only one indicator";
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
-    if (message.breaking_change && message.breaking_change.trim().length > 1) {
+    if (message.breakingChange && message.breakingChange.trim().length > 1) {
       throw new LlvmError({
         message: `[${this.id}] ${this.description}`,
         line: message.subject,
         columnNumber: {
-          start: message.subject.indexOf(message.breaking_change) + 1,
-          range: message.breaking_change.length + 1,
+          start: message.subject.indexOf(message.breakingChange) + 1,
+          range: message.breakingChange.length + 1,
         },
         expectations: `!:`,
       });
@@ -376,17 +376,17 @@ class SubjectExceedsLineLengthLimit implements IConventionalCommitRule {
     "The commit message's subject should be within the line length limit";
 
   validate(message: ConventionalCommitMetadata, config: Configuration): void {
-    if (message.subject.length > config.max_subject_length) {
+    if (message.subject.length > config.maxSubjectLength) {
       throw new LlvmError({
         message: `[${this.id}] ${this.description} (${
-          config.max_subject_length
+          config.maxSubjectLength
         }), exceeded by ${
-          message.subject.length - config.max_subject_length + 1
+          message.subject.length - config.maxSubjectLength + 1
         } characters`,
         line: message.subject,
         columnNumber: {
-          start: config.max_subject_length,
-          range: message.subject.length - config.max_subject_length + 1,
+          start: config.maxSubjectLength,
+          range: message.subject.length - config.maxSubjectLength + 1,
         },
       });
     }
@@ -432,7 +432,7 @@ class DescriptionInImperativeMood implements IConventionalCommitRule {
     "The commit message's description should be written in imperative mood";
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
-    const common_non_imperative_verbs = [
+    const commonNonImperativeVerbs = [
       "added",
       "adds",
       "adding",
@@ -472,7 +472,7 @@ class DescriptionInImperativeMood implements IConventionalCommitRule {
     ];
     if (
       message.description.match(
-        new RegExp(`^(${common_non_imperative_verbs.join("|")})`, "i")
+        new RegExp(`^(${commonNonImperativeVerbs.join("|")})`, "i")
       )
     ) {
       throw new LlvmError({
@@ -616,7 +616,7 @@ class GitTrailerNeedAColon implements IConventionalCommitRule {
   description = "A colon is required in git-trailers";
 
   validate(message: ConventionalCommitMetadata, config: Configuration): void {
-    const trailer_formats = [
+    const trailerFormats = [
       /^Addresses:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
       /^Closes:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
       /^Fixes:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
@@ -641,7 +641,7 @@ class GitTrailerNeedAColon implements IConventionalCommitRule {
 
       // The one exception we need to handle is "BREAKING CHANGE"
       const checkLine = line.replace(/^BREAKING CHANGE/, "BREAKING-CHANGE");
-      if (trailer_formats.some(key => checkLine.match(key))) {
+      if (trailerFormats.some(key => checkLine.match(key))) {
         if (checkLine.match(/^[A-Za-z0-9-]+ /)) {
           const idx = checkLine.indexOf(" ");
           throw new LlvmError({
