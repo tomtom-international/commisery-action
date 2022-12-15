@@ -18,7 +18,7 @@ import * as difflib from "difflib";
 
 import { ConventionalCommitMetadata } from "./commit";
 import { Configuration } from "./config";
-import { LlvmError, LlvmRange } from "./logging";
+import { LlvmError } from "./logging";
 
 export interface IConventionalCommitRule {
   description: string;
@@ -72,16 +72,15 @@ class NonLowerCaseType implements IConventionalCommitRule {
       return;
     }
     if (message.type.toLowerCase() !== message.type) {
-      const msg = new LlvmError();
-      msg.message = `[${this.id}] ${this.description}`;
-      msg.line = message.subject;
-      msg.column_number = new LlvmRange(
-        message.subject.indexOf(message.type) + 1,
-        message.type.length
-      );
-      msg.expectations = message.type.toLowerCase();
-
-      throw msg;
+      throw new LlvmError({
+        message: `[${this.id}] ${this.description}`,
+        line: message.subject,
+        columnNumber: {
+          start: message.subject.indexOf(message.type) + 1,
+          range: message.type.length,
+        },
+        expectations: message.type.toLowerCase(),
+      });
     }
   }
 }
@@ -95,11 +94,10 @@ class OneWhitelineBetweenSubjectAndBody implements IConventionalCommitRule {
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (message.body.length >= 2 && message.body[1].trim() === "") {
-      const msg = new LlvmError();
-      msg.message = `[${this.id}] ${this.description}`;
-      msg.line = message.subject;
-
-      throw msg;
+      throw new LlvmError({
+        message: `[${this.id}] ${this.description}`,
+        line: message.subject,
+      });
     }
   }
 }
@@ -117,15 +115,14 @@ class TitleCaseDescription implements IConventionalCommitRule {
       message.description &&
       !message.description.startsWith(message.description[0].toLowerCase())
     ) {
-      const msg = new LlvmError();
-      msg.message = `[${this.id}] ${this.description}`;
-      msg.line = message.subject;
-      msg.column_number = new LlvmRange(
-        message.subject.indexOf(message.description) + 1
-      );
-      msg.expectations = message.description[0].toLowerCase();
-
-      throw msg;
+      throw new LlvmError({
+        message: `[${this.id}] ${this.description}`,
+        line: message.subject,
+        columnNumber: {
+          start: message.subject.indexOf(message.description) + 1,
+        },
+        expectations: message.description[0].toLowerCase(),
+      });
     }
   }
 }
@@ -152,18 +149,17 @@ class UnknownTagType implements IConventionalCommitRule {
         ? matches[0]
         : Object.keys(config.tags).join(", ");
 
-      const msg = new LlvmError();
-      msg.message = `[${this.id}] ${
-        this.description
-      }. Use one of: ${Object.keys(config.tags).join(", ")}`;
-      msg.line = message.subject;
-      msg.column_number = new LlvmRange(
-        message.subject.indexOf(message.type) + 1,
-        message.type.length
-      );
-      msg.expectations = closest_match;
-
-      throw msg;
+      throw new LlvmError({
+        message: `[${this.id}] ${this.description}. Use one of: ${Object.keys(
+          config.tags
+        ).join(", ")}`,
+        line: message.subject,
+        columnNumber: {
+          start: message.subject.indexOf(message.type) + 1,
+          range: message.type.length,
+        },
+        expectations: closest_match,
+      });
     }
   }
 }
@@ -181,16 +177,15 @@ class SeparatorContainsTrailingWhitespaces implements IConventionalCommitRule {
     }
 
     if (message.separator !== ": ") {
-      const msg = new LlvmError();
-      msg.message = `[${this.id}] ${this.description}`;
-      msg.line = message.subject;
-      msg.column_number = new LlvmRange(
-        message.subject.indexOf(message.separator) + 1,
-        message.separator.length
-      );
-      msg.expectations = `: `;
-
-      throw msg;
+      throw new LlvmError({
+        message: `[${this.id}] ${this.description}`,
+        line: message.subject,
+        columnNumber: {
+          start: message.subject.indexOf(message.separator) + 1,
+          range: message.separator.length,
+        },
+        expectations: `: `,
+      });
     }
   }
 }
@@ -208,16 +203,14 @@ class ScopeShouldNotBeEmpty implements IConventionalCommitRule {
     }
 
     if (!message.scope.trim()) {
-      const msg = new LlvmError();
-
-      msg.message = `[${this.id}] ${this.description}`;
-      msg.line = message.subject;
-      msg.column_number = new LlvmRange(
-        message.subject.indexOf("(") + 1,
-        message.scope.length + 2
-      );
-
-      throw msg;
+      throw new LlvmError({
+        message: `[${this.id}] ${this.description}`,
+        line: message.subject,
+        columnNumber: {
+          start: message.subject.indexOf("(") + 1,
+          range: message.scope.length + 2,
+        },
+      });
     }
   }
 }
@@ -232,16 +225,15 @@ class ScopeContainsWhitespace implements IConventionalCommitRule {
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (message.scope && message.scope.length !== message.scope.trim().length) {
-      const msg = new LlvmError();
-      msg.message = `[${this.id}] ${this.description}`;
-      msg.line = message.subject;
-      msg.column_number = new LlvmRange(
-        message.subject.indexOf("(") + 2,
-        message.scope.length
-      );
-      msg.expectations = message.scope.trim();
-
-      throw msg;
+      throw new LlvmError({
+        message: `[${this.id}] ${this.description}`,
+        line: message.subject,
+        columnNumber: {
+          start: message.subject.indexOf("(") + 2,
+          range: message.scope.length,
+        },
+        expectations: message.scope.trim(),
+      });
     }
   }
 }
@@ -255,23 +247,21 @@ class MissingSeparator implements IConventionalCommitRule {
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (message.separator === undefined || !message.separator.includes(":")) {
-      const msg = new LlvmError();
-      msg.message = `[${this.id}] ${this.description}`;
-      msg.line = message.subject;
-      if (message.scope) {
-        msg.column_number = new LlvmRange(
-          message.subject.indexOf(message.scope) + message.scope.length + 2
-        );
-      } else if (message.breaking_change) {
-        msg.column_number = new LlvmRange(
-          message.subject.indexOf(message.breaking_change)
-        );
-      } else {
-        msg.column_number = new LlvmRange(message.subject.indexOf(" ") + 1);
-      }
-      msg.expectations = `:`;
+      const columnNumber = { start: message.subject.indexOf(" ") + 1 };
 
-      throw msg;
+      if (message.scope) {
+        columnNumber.start =
+          message.subject.indexOf(message.scope) + message.scope.length + 2;
+      } else if (message.breaking_change) {
+        columnNumber.start = message.subject.indexOf(message.breaking_change);
+      }
+
+      throw new LlvmError({
+        message: `[${this.id}] ${this.description}`,
+        line: message.subject,
+        columnNumber,
+        expectations: `:`,
+      });
     }
   }
 }
@@ -285,12 +275,11 @@ class MissingDescription implements IConventionalCommitRule {
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (!message.description) {
-      const msg = new LlvmError();
-      msg.message = `[${this.id}] ${this.description}`;
-      msg.line = message.subject;
-      msg.column_number = new LlvmRange(message.subject.length + 2);
-
-      throw msg;
+      throw new LlvmError({
+        message: `[${this.id}] ${this.description}`,
+        line: message.subject,
+        columnNumber: { start: message.subject.length + 2 },
+      });
     }
   }
 }
@@ -307,16 +296,16 @@ class BreakingIndicatorContainsWhitespacing implements IConventionalCommitRule {
       message.breaking_change &&
       message.breaking_change.trim() !== message.breaking_change
     ) {
-      const msg = new LlvmError();
-      msg.message = `[${this.id}] ${this.description}`;
-      msg.line = message.subject;
-      msg.column_number = new LlvmRange(
-        message.subject.indexOf(message.breaking_change) + 1,
-        message.breaking_change.length + message.separator.trimEnd().length
-      );
-      msg.expectations = `!:`;
-
-      throw msg;
+      throw new LlvmError({
+        message: `[${this.id}] ${this.description}`,
+        line: message.subject,
+        columnNumber: {
+          start: message.subject.indexOf(message.breaking_change) + 1,
+          range:
+            message.breaking_change.length + message.separator.trimEnd().length,
+        },
+        expectations: `!:`,
+      });
     }
   }
 }
@@ -330,16 +319,15 @@ class OnlySingleBreakingIndicator implements IConventionalCommitRule {
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (message.breaking_change && message.breaking_change.trim().length > 1) {
-      const msg = new LlvmError();
-      msg.message = `[${this.id}] ${this.description}`;
-      msg.line = message.subject;
-      msg.column_number = new LlvmRange(
-        message.subject.indexOf(message.breaking_change) + 1,
-        message.breaking_change.length + 1
-      );
-      msg.expectations = `!:`;
-
-      throw msg;
+      throw new LlvmError({
+        message: `[${this.id}] ${this.description}`,
+        line: message.subject,
+        columnNumber: {
+          start: message.subject.indexOf(message.breaking_change) + 1,
+          range: message.breaking_change.length + 1,
+        },
+        expectations: `!:`,
+      });
     }
   }
 }
@@ -353,11 +341,10 @@ class MissingTypeTag implements IConventionalCommitRule {
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (!message.type) {
-      const msg = new LlvmError();
-      msg.message = `[${this.id}] ${this.description}`;
-      msg.line = message.subject;
-
-      throw msg;
+      throw new LlvmError({
+        message: `[${this.id}] ${this.description}`,
+        line: message.subject,
+      });
     }
   }
 }
@@ -371,12 +358,11 @@ class SubjectShouldNotEndWithPunctuation implements IConventionalCommitRule {
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (message.description.match(/.*[.!?,]$/)) {
-      const msg = new LlvmError();
-      msg.message = `[${this.id}] ${this.description}`;
-      msg.line = message.subject;
-      msg.column_number = new LlvmRange(message.subject.length);
-
-      throw msg;
+      throw new LlvmError({
+        message: `[${this.id}] ${this.description}`,
+        line: message.subject,
+        columnNumber: { start: message.subject.length },
+      });
     }
   }
 }
@@ -391,19 +377,18 @@ class SubjectExceedsLineLengthLimit implements IConventionalCommitRule {
 
   validate(message: ConventionalCommitMetadata, config: Configuration): void {
     if (message.subject.length > config.max_subject_length) {
-      const msg = new LlvmError();
-      msg.message = `[${this.id}] ${this.description} (${
-        config.max_subject_length
-      }), exceeded by ${
-        message.subject.length - config.max_subject_length + 1
-      } characters`;
-      msg.line = message.subject;
-      msg.column_number = new LlvmRange(
-        config.max_subject_length,
-        message.subject.length - config.max_subject_length + 1
-      );
-
-      throw msg;
+      throw new LlvmError({
+        message: `[${this.id}] ${this.description} (${
+          config.max_subject_length
+        }), exceeded by ${
+          message.subject.length - config.max_subject_length + 1
+        } characters`,
+        line: message.subject,
+        columnNumber: {
+          start: config.max_subject_length,
+          range: message.subject.length - config.max_subject_length + 1,
+        },
+      });
     }
   }
 }
@@ -423,17 +408,17 @@ class NoRepeatedTags implements IConventionalCommitRule {
       message.description.split(" ")[0].toLowerCase() ===
       message.type.toLowerCase()
     ) {
-      const msg = new LlvmError();
-      msg.message = `[${this.id}] ${this.description}`;
-      msg.line = message.subject;
-      msg.column_number = new LlvmRange(
-        message.subject.indexOf(message.separator) +
-          message.separator.length +
-          1,
-        message.type.length
-      );
-
-      throw msg;
+      throw new LlvmError({
+        message: `[${this.id}] ${this.description}`,
+        line: message.subject,
+        columnNumber: {
+          start:
+            message.subject.indexOf(message.separator) +
+            message.separator.length +
+            1,
+          range: message.type.length,
+        },
+      });
     }
   }
 }
@@ -490,15 +475,14 @@ class DescriptionInImperativeMood implements IConventionalCommitRule {
         new RegExp(`^(${common_non_imperative_verbs.join("|")})`, "i")
       )
     ) {
-      const msg = new LlvmError();
-      msg.message = `[${this.id}] ${this.description}`;
-      msg.line = message.subject;
-      msg.column_number = new LlvmRange(
-        message.subject.indexOf(message.description) + 1,
-        message.description.split(" ")[0].length
-      );
-
-      throw msg;
+      throw new LlvmError({
+        message: `[${this.id}] ${this.description}`,
+        line: message.subject,
+        columnNumber: {
+          start: message.subject.indexOf(message.description) + 1,
+          range: message.description.split(" ")[0].length,
+        },
+      });
     }
   }
 }
@@ -525,10 +509,9 @@ class MissingEmptyLineBetweenSubjectAndBody implements IConventionalCommitRule {
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (message.body && message.body[0]) {
-      const msg = new LlvmError();
-      msg.message = `[${this.id}] ${this.description}`;
-
-      throw msg;
+      throw new LlvmError({
+        message: `[${this.id}] ${this.description}`,
+      });
     }
   }
 }
@@ -548,12 +531,14 @@ class SubjectContainsIssueReference implements IConventionalCommitRule {
     );
     const match = ISSUE_REGEX.exec(message.subject);
     if (match) {
-      const msg = new LlvmError();
-      msg.message = `[${this.id}] ${this.description}`;
-      msg.line = message.subject;
-      msg.column_number = new LlvmRange(match.index + 1, match[0].length);
-
-      throw msg;
+      throw new LlvmError({
+        message: `[${this.id}] ${this.description}`,
+        line: message.subject,
+        columnNumber: {
+          start: match.index + 1,
+          range: match[0].length,
+        },
+      });
     }
   }
 }
@@ -568,13 +553,15 @@ class GitTrailerContainsWhitespace implements IConventionalCommitRule {
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     for (const item of message.footers) {
       if (item.token.includes(" ")) {
-        const msg = new LlvmError();
-        msg.message = `[${this.id}] ${this.description}`;
-        msg.line = `${item.token}: ${item.value}`;
-        msg.column_number = new LlvmRange(1, item.token.length);
-        msg.expectations = item.token.replace(/ /g, "-");
-
-        throw msg;
+        throw new LlvmError({
+          message: `[${this.id}] ${this.description}`,
+          line: `${item.token}: ${item.value}`,
+          columnNumber: {
+            start: 1,
+            range: item.token.length,
+          },
+          expectations: item.token.replace(/ /g, "-"),
+        });
       }
     }
   }
@@ -590,10 +577,9 @@ class FooterContainsBlankLine implements IConventionalCommitRule {
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     for (const item of message.footers) {
       if (!item.token || item.value.length === 0) {
-        const msg = new LlvmError();
-        msg.message = `[${this.id}] ${this.description}`;
-
-        throw msg;
+        throw new LlvmError({
+          message: `[${this.id}] ${this.description}`,
+        });
       }
     }
   }
@@ -614,10 +600,9 @@ class BreakingChangeMustBeFirstGitTrailer implements IConventionalCommitRule {
         if (index === 0) {
           return;
         }
-        const msg = new LlvmError();
-        msg.message = `[${this.id}] ${this.description}`;
-
-        throw msg;
+        throw new LlvmError({
+          message: `[${this.id}] ${this.description}`,
+        });
       }
     });
   }
@@ -658,18 +643,16 @@ class GitTrailerNeedAColon implements IConventionalCommitRule {
       const checkLine = line.replace(/^BREAKING CHANGE/, "BREAKING-CHANGE");
       if (trailer_formats.some(key => checkLine.match(key))) {
         if (checkLine.match(/^[A-Za-z0-9-]+ /)) {
-          const msg = new LlvmError();
           const idx = checkLine.indexOf(" ");
-
-          msg.message = `[${this.id}] ${this.description}`;
-          msg.line = line;
-          msg.column_number = new LlvmRange(
-            idx + 1,
-            line.substring(idx).length
-          );
-          msg.expectations = `: ${line.substring(idx + 1)}`;
-
-          throw msg;
+          throw new LlvmError({
+            message: `[${this.id}] ${this.description}`,
+            line,
+            columnNumber: {
+              start: idx + 1,
+              range: line.substring(idx).length,
+            },
+            expectations: `: ${line.substring(idx + 1)}`,
+          });
         }
       }
     }

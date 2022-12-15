@@ -14,7 +14,29 @@
  * limitations under the License.
  */
 
-import * as os from "os";
+import { AnnotationProperties } from "@actions/core";
+import { EOL } from "os";
+
+/**
+ * Range interface
+ */
+export interface ILlvmRange {
+  start: number;
+  range?: number;
+}
+
+/**
+ * LlvmMessage Class interface
+ */
+export interface ILlvmMessage {
+  columnNumber?: ILlvmRange;
+  expectations?: string;
+  filePath?: string;
+  level?: LlvmLevel;
+  line?: string;
+  lineNumber?: ILlvmRange;
+  message?: string;
+}
 
 // eslint-disable-next-line no-shadow
 export enum LlvmLevel {
@@ -47,66 +69,102 @@ function formatString(message: string, color: TextFormat): string {
   return `\x1b[${color.toString()}m${message}\x1b[0m`;
 }
 
-export class LlvmRange {
-  start = 1;
-  range: number | undefined = undefined;
-
-  constructor(start = 1, range: number | undefined = undefined) {
-    this.start = start;
-    this.range = range;
-  }
-}
-
 export class LlvmMessage {
-  column_number: LlvmRange = new LlvmRange();
-  expectations: string | undefined = undefined;
-  file_path: string | undefined = undefined;
-  level: LlvmLevel = LlvmLevel.NOTE;
-  line: string | undefined = undefined;
-  line_number: LlvmRange = new LlvmRange();
-  message: string | undefined = undefined;
+  columnNumber: ILlvmRange;
+  expectations?: string;
+  filePath?: string;
+  level: LlvmLevel;
+  line?: string;
+  lineNumber: ILlvmRange;
+  message?: string;
 
-  report(): string {
-    let _message = "";
+  constructor({
+    columnNumber: columnNumber,
+    expectations,
+    filePath: filePath,
+    level = LlvmLevel.NOTE,
+    line,
+    lineNumber: lineNumber,
+    message,
+  }: ILlvmMessage) {
+    this.columnNumber = columnNumber ?? { start: 1, range: undefined };
+    this.expectations = expectations;
+    this.filePath = filePath;
+    this.level = level;
+    this.line = line;
+    this.lineNumber = lineNumber ?? { start: 1, range: undefined };
+    this.message = message;
+  }
 
-    if (this.file_path) {
-      _message = `${this.file_path}:${this.line_number.start}:${this.column_number.start}: `;
+  getAnnotationProperties(): AnnotationProperties {
+    const props: AnnotationProperties = {
+      file: this.filePath,
+      title: this.message,
+      startLine: this.lineNumber.start,
+      startColumn: this.columnNumber.start,
+    };
+
+    if (this.lineNumber.range !== undefined) {
+      props.endLine = this.lineNumber.start + this.lineNumber.range;
     }
 
-    _message = formatString(
-      `${_message}${formatLevel(this.level)}: ${this.message}`,
+    if (this.columnNumber.range !== undefined) {
+      props.endColumn = this.columnNumber.start + this.columnNumber.range;
+    }
+
+    return props;
+  }
+
+  report(): string {
+    let message = "";
+
+    if (this.filePath) {
+      message = `${this.filePath}:${this.lineNumber.start}:${
+        this.columnNumber.start + 1
+      }: `;
+    }
+
+    message = formatString(
+      `${message}${formatLevel(this.level)}: ${this.message}`,
       TextFormat.BOLD
     );
 
     if (this.line === undefined) {
-      return _message;
+      return message;
     }
 
-    const indicator_color = this.expectations
+    const indicatorColor = this.expectations
       ? TextFormat.LIGHT_GREEN
       : TextFormat.RED;
-    let _indicator =
-      this.line.trimEnd() +
-      os.EOL +
-      " ".repeat(this.column_number.start - 1) +
-      formatString("^", indicator_color);
 
-    if (this.column_number.range !== undefined) {
-      _indicator += formatString(
-        "~".repeat(this.column_number.range - 1),
-        indicator_color
-      );
+    let indicator =
+      this.line.trimEnd() +
+      EOL +
+      " ".repeat(this.columnNumber.start - 1) +
+      formatString("^", indicatorColor);
+
+    if (this.columnNumber.range !== undefined) {
+      if (this.columnNumber.range > 1) {
+        indicator += formatString(
+          "~".repeat(this.columnNumber.range - 1),
+          indicatorColor
+        );
+      }
     }
 
     if (this.expectations !== undefined) {
-      _indicator +=
-        os.EOL + " ".repeat(this.column_number.start - 1) + this.expectations;
+      indicator +=
+        EOL + " ".repeat(this.columnNumber.start - 1) + this.expectations;
     }
 
-    return _message + os.EOL + _indicator;
+    return message + EOL + indicator;
   }
 }
 
 export class LlvmError extends LlvmMessage {
   level: LlvmLevel = LlvmLevel.ERROR;
+}
+
+export class LlvmWarning extends LlvmMessage {
+  level: LlvmLevel = LlvmLevel.WARNING;
 }
