@@ -39,7 +39,7 @@ jobs:
       
   release-packages:
     name: Release Packages
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     needs: github-release
     if: needs.github-release.outputs.next-version != ''
 
@@ -59,6 +59,11 @@ jobs:
       
       - name: Package the CLI
         run: npm run package
+      
+      - name: Codesign MacOS Binaries
+        run: |
+          codesign -s "-" bin/commisery-macos-arm64
+          codesign -s "-" bin/commisery-macos-x64
 
       - uses: AButler/upload-release-assets@v2.0
         with:

@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Binary outputs
+bin/
+
 # Compiled project files
 # dist/
 
