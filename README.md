@@ -217,16 +217,24 @@ changelog:
     - title: 🐛 Bug Fixes
       labels:
         - bump:patch
+    - title: 📃 Documentation
+      labels:
+        - type:docs
     - title: 🚧 Other changes
       labels:
         - "*"
 ```
 
-During generation, each individual conventional commit will be checked against the
-labels denoting the SemVer bump (`bump:<version>`) to determine its associated category.
+During generation, each individual conventional commit will associated with the following
+labels:
 
-> **NOTE**: The `bump:<version>` label set on your Pull Request will be ignored in favor of
-individual commits
+| Label | Description |
+| --- | --- |
+| `bump:<version>` | The SemVer version to be bumped by this individual commit |
+| `type:<type>` | Conventional Commit type associated with this commit message |
+
+> **NOTE**: The `bump:<version>` and `type:<type>` labels set on your Pull Request will be
+ignored in favor of individual commits
 
 Please refer to the ["Automatically generated release notes"](https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes#configuring-automatically-generated-release-notes) documentation for more details
 
