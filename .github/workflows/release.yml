@@ -78,6 +78,6 @@ jobs:
           ref: ${{ needs.github-release.outputs.next-version }}
 
       - name: Update the ${{ needs.github-release.outputs.next-version }} tag
-        uses: actions/publish-action@v0.2.1
+        uses: actions/publish-action@v0.2.2
         with:
           source-tag: ${{ needs.github-release.outputs.next-version }}
