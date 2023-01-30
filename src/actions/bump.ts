@@ -17,7 +17,7 @@
 import * as core from "@actions/core";
 
 import { context } from "@actions/github";
-
+import { RequestError } from "@octokit/request-error";
 import { getVersionBumpTypeAndMessages } from "../bump";
 import { generateChangelog } from "../changelog";
 import { Configuration } from "../config";
@@ -25,6 +25,7 @@ import {
   createRelease,
   createTag,
   getConfig,
+  getShaForTag,
   isPullRequestEvent,
 } from "../github";
 import { IVersionBumpTypeAndMessages } from "../interfaces";
@@ -127,7 +128,7 @@ async function run(): Promise<void> {
         if (!isBranchAllowedToPublish) {
           core.startGroup(`ℹ️ Branch ${branchName} is not allowed to publish`);
           core.info(
-            `Only branches that match the following regex may publish:\n${allowedBranchesRegEx}`
+            `Only branches that match the following ECMA-262 regular expression may publish:\n${allowedBranchesRegEx}`
           );
         } else if (isPullRequestEvent()) {
           core.startGroup(
@@ -139,12 +140,41 @@ async function run(): Promise<void> {
           );
         } else {
           core.startGroup(`ℹ️ Creating ${relType} ${nv}..`);
-          if (tag) {
-            createTag(nv, context.sha);
-          } else {
-            const changelog = await generateChangelog(bumpInfo);
-            createRelease(nv, context.sha, changelog);
+          try {
+            if (tag) {
+              await createTag(nv, context.sha);
+            } else {
+              const changelog = await generateChangelog(bumpInfo);
+              await createRelease(nv, context.sha, changelog);
+            }
+          } catch (ex: unknown) {
+            // The most likely failure is a preexisting tag, in which case
+            // a RequestError with statuscode 422 will be thrown
+            const commit = await getShaForTag(`refs/tags/${nv}`);
+            if (ex instanceof RequestError && ex.status === 422 && commit) {
+              core.setFailed(
+                `Unable to create ${relType}; the tag "${nv}" already exists in the repository, ` +
+                  `it currently points to ${commit}.\n` +
+                  "You can find the branch(es) associated with the tag with:\n" +
+                  `  git fetch -t; git branch --contains ${nv}`
+              );
+            } else if (ex instanceof RequestError) {
+              core.setFailed(
+                `Unable to create ${relType} with the name "${nv}" due to ` +
+                  `HTTP request error (status ${ex.status}):\n${ex.message}`
+              );
+            } else if (ex instanceof Error) {
+              core.setFailed(
+                `Unable to create ${relType} with the name "${nv}":\n${ex.message}`
+              );
+            } else {
+              core.setFailed(`Unknown error during ${relType} creation`);
+              throw ex;
+            }
+            core.endGroup();
+            return;
           }
+          core.info("Succeeded");
         }
       } else {
         core.startGroup(`ℹ️ Not creating tag or release for ${nv}..`);

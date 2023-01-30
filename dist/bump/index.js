@@ -11459,6 +11459,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(2186));
 const github_1 = __nccwpck_require__(5438);
+const request_error_1 = __nccwpck_require__(537);
 const bump_1 = __nccwpck_require__(1692);
 const changelog_1 = __nccwpck_require__(8598);
 const config_1 = __nccwpck_require__(6373);
@@ -11538,7 +11539,7 @@ function run() {
                     const relType = tag ? "tag" : "release";
                     if (!isBranchAllowedToPublish) {
                         core.startGroup(`ℹ️ Branch ${branchName} is not allowed to publish`);
-                        core.info(`Only branches that match the following regex may publish:\n${allowedBranchesRegEx}`);
+                        core.info(`Only branches that match the following ECMA-262 regular expression may publish:\n${allowedBranchesRegEx}`);
                     }
                     else if ((0, github_2.isPullRequestEvent)()) {
                         core.startGroup(`ℹ️ Not creating ${relType} on a pull request event.`);
@@ -11547,13 +11548,40 @@ function run() {
                     }
                     else {
                         core.startGroup(`ℹ️ Creating ${relType} ${nv}..`);
-                        if (tag) {
-                            (0, github_2.createTag)(nv, github_1.context.sha);
+                        try {
+                            if (tag) {
+                                yield (0, github_2.createTag)(nv, github_1.context.sha);
+                            }
+                            else {
+                                const changelog = yield (0, changelog_1.generateChangelog)(bumpInfo);
+                                yield (0, github_2.createRelease)(nv, github_1.context.sha, changelog);
+                            }
                         }
-                        else {
-                            const changelog = yield (0, changelog_1.generateChangelog)(bumpInfo);
-                            (0, github_2.createRelease)(nv, github_1.context.sha, changelog);
+                        catch (ex) {
+                            // The most likely failure is a preexisting tag, in which case
+                            // a RequestError with statuscode 422 will be thrown
+                            const commit = yield (0, github_2.getShaForTag)(`refs/tags/${nv}`);
+                            if (ex instanceof request_error_1.RequestError && ex.status === 422 && commit) {
+                                core.setFailed(`Unable to create ${relType}; the tag "${nv}" already exists in the repository, ` +
+                                    `it currently points to ${commit}.\n` +
+                                    "You can find the branch(es) associated with the tag with:\n" +
+                                    `  git fetch -t; git branch --contains ${nv}`);
+                            }
+                            else if (ex instanceof request_error_1.RequestError) {
+                                core.setFailed(`Unable to create ${relType} with the name "${nv}" due to ` +
+                                    `HTTP request error (status ${ex.status}):\n${ex.message}`);
+                            }
+                            else if (ex instanceof Error) {
+                                core.setFailed(`Unable to create ${relType} with the name "${nv}":\n${ex.message}`);
+                            }
+                            else {
+                                core.setFailed(`Unknown error during ${relType} creation`);
+                                throw ex;
+                            }
+                            core.endGroup();
+                            return;
                         }
+                        core.info("Succeeded");
                     }
                 }
                 else {
@@ -12608,7 +12636,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getContent = exports.updateLabels = exports.getAssociatedPullRequests = exports.getLatestTags = exports.getCommitsSince = exports.getReleaseConfiguration = exports.getConfig = exports.createTag = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.getPullRequestTitle = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
+exports.getContent = exports.updateLabels = exports.getAssociatedPullRequests = exports.getLatestTags = exports.getShaForTag = exports.getCommitsSince = exports.getReleaseConfiguration = exports.getConfig = exports.createTag = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.getPullRequestTitle = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const fs = __importStar(__nccwpck_require__(7147));
 const github = __importStar(__nccwpck_require__(5438));
@@ -12756,6 +12784,31 @@ function getCommitsSince(sha, pageSize) {
     });
 }
 exports.getCommitsSince = getCommitsSince;
+/**
+ * Get the commit sha associated with the provided tag, or `undefined` if
+ * the tag doesn't exist.
+ */
+function getShaForTag(tag) {
+    var _a;
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!tag.startsWith("refs/tags/")) {
+            tag = `refs/tags/${tag}`;
+        }
+        const result = yield getOctokit().graphql(`
+      {
+        repository(owner: "${OWNER}", name: "${REPO}") {
+          ref(qualifiedName: "${tag}") {
+            target {
+              oid
+            }
+          }
+        }
+      }
+    `);
+        return (_a = result.repository.ref) === null || _a === void 0 ? void 0 : _a.target.oid;
+    });
+}
+exports.getShaForTag = getShaForTag;
 /**
  * Retrieve `pageSize` tags in the current repo
  */
