@@ -11581,8 +11581,7 @@ const PAGE_SIZE = 100;
  */
 function getSemVerIfMatches(prefix, tagName, tagSha, commitSha) {
     if (commitSha === tagSha) {
-        // eslint-disable-next-line func-style
-        const dbg = function (tag, commit, message) {
+        const dbg = (tag, commit, message) => {
             core.debug(`Tag '${tag}' on commit '${commit.slice(0, 6)}' ${message}`);
         };
         // If provided, make sure that the prefix matches as well
