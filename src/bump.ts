@@ -53,8 +53,7 @@ function getSemVerIfMatches(
   commitSha: string
 ): SemVer | null {
   if (commitSha === tagSha) {
-    // eslint-disable-next-line func-style
-    const dbg = function (tag: string, commit: string, message: string): void {
+    const dbg = (tag, commit, message): void => {
       core.debug(`Tag '${tag}' on commit '${commit.slice(0, 6)}' ${message}`);
     };
     // If provided, make sure that the prefix matches as well
