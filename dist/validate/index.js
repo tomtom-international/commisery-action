@@ -12290,7 +12290,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getContent = exports.updateLabels = exports.getAssociatedPullRequests = exports.getLatestTags = exports.getCommitsSince = exports.getReleaseConfiguration = exports.getConfig = exports.createTag = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.getPullRequestTitle = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
+exports.getContent = exports.updateLabels = exports.getAssociatedPullRequests = exports.getLatestTags = exports.getShaForTag = exports.getCommitsSince = exports.getReleaseConfiguration = exports.getConfig = exports.createTag = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.getPullRequestTitle = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const fs = __importStar(__nccwpck_require__(7147));
 const github = __importStar(__nccwpck_require__(5438));
@@ -12438,6 +12438,31 @@ function getCommitsSince(sha, pageSize) {
     });
 }
 exports.getCommitsSince = getCommitsSince;
+/**
+ * Get the commit sha associated with the provided tag, or `undefined` if
+ * the tag doesn't exist.
+ */
+function getShaForTag(tag) {
+    var _a;
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!tag.startsWith("refs/tags/")) {
+            tag = `refs/tags/${tag}`;
+        }
+        const result = yield getOctokit().graphql(`
+      {
+        repository(owner: "${OWNER}", name: "${REPO}") {
+          ref(qualifiedName: "${tag}") {
+            target {
+              oid
+            }
+          }
+        }
+      }
+    `);
+        return (_a = result.repository.ref) === null || _a === void 0 ? void 0 : _a.target.oid;
+    });
+}
+exports.getShaForTag = getShaForTag;
 /**
  * Retrieve `pageSize` tags in the current repo
  */

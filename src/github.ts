@@ -173,6 +173,39 @@ export async function getCommitsSince(
 }
 
 /**
+ * Get the commit sha associated with the provided tag, or `undefined` if
+ * the tag doesn't exist.
+ */
+export async function getShaForTag(tag: string): Promise<string | undefined> {
+  interface graphqlQueryResult {
+    repository: {
+      ref: {
+        target: {
+          oid: string;
+        };
+      };
+    };
+  }
+
+  if (!tag.startsWith("refs/tags/")) {
+    tag = `refs/tags/${tag}`;
+  }
+  const result: graphqlQueryResult = await getOctokit().graphql(`
+      {
+        repository(owner: "${OWNER}", name: "${REPO}") {
+          ref(qualifiedName: "${tag}") {
+            target {
+              oid
+            }
+          }
+        }
+      }
+    `);
+
+  return result.repository.ref?.target.oid;
+}
+
+/**
  * Retrieve `pageSize` tags in the current repo
  */
 export async function getLatestTags(pageSize: number): Promise<IGitTag[]> {
