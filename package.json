@@ -17,9 +17,9 @@
   "version": "1.0.0",
   "scripts": {
     "build": "run-p build:*",
-    "build:cli": "ncc build -o dist/cli src/cli/cli.ts --minify",
-    "build:validate": "ncc build -o dist/validate src/actions/validate.ts --minify",
-    "build:bump": "ncc build -o dist/bump src/actions/bump.ts --minify",
+    "build:cli": "ncc build -o dist/cli src/cli/cli.ts",
+    "build:validate": "ncc build -o dist/validate src/actions/validate.ts",
+    "build:bump": "ncc build -o dist/bump src/actions/bump.ts",
     "test": "jest",
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write **/*.ts && prettier --write **/**/*.ts",
