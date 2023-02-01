@@ -13026,14 +13026,16 @@ class LlvmMessage {
         }
         return props;
     }
-    report() {
+    subject() {
         let message = "";
         if (this.filePath) {
             message = `${this.filePath}:${this.lineNumber.start}:${this.columnNumber.start + 1}: `;
         }
-        message = formatString(`${message}${formatLevel(this.level)}: ${this.message}`, TextFormat.BOLD);
+        return formatString(`${message}${formatLevel(this.level)}: ${this.message}`, TextFormat.BOLD);
+    }
+    indicator() {
         if (this.line === undefined) {
-            return message;
+            return undefined;
         }
         const indicatorColor = this.expectations
             ? TextFormat.LIGHT_GREEN
@@ -13051,7 +13053,11 @@ class LlvmMessage {
             indicator +=
                 os_1.EOL + " ".repeat(this.columnNumber.start - 1) + this.expectations;
         }
-        return message + os_1.EOL + indicator;
+        return indicator;
+    }
+    report() {
+        const indicator = this.indicator();
+        return this.subject() + (indicator ? os_1.EOL + indicator : "");
     }
 }
 exports.LlvmMessage = LlvmMessage;
@@ -13147,12 +13153,12 @@ function validateRules(message, config) {
 }
 exports.validateRules = validateRules;
 /**
- * The commit message's tag type should be in lower case
+ * Type tag should be in lower case
  */
 class NonLowerCaseType {
     constructor() {
         this.id = "C001";
-        this.description = "The commit message's tag type should be in lower case";
+        this.description = "Type tag should be in lower case";
     }
     validate(message, _) {
         if (message.type === undefined) {
@@ -13189,12 +13195,12 @@ class OneWhitelineBetweenSubjectAndBody {
     }
 }
 /**
- * The commit message's description should not start with a capital case letter
+ * Description should not start with a capital case letter
  */
 class TitleCaseDescription {
     constructor() {
         this.id = "C003";
-        this.description = "The commit message's description should not start with a capital case letter";
+        this.description = "Description should not start with a capital case letter";
     }
     validate(message, _) {
         if (message.description &&
@@ -13211,12 +13217,12 @@ class TitleCaseDescription {
     }
 }
 /**
- * Commit message's subject should not contain an unknown tag type
+ * Subject should not contain an unknown tag type
  */
 class UnknownTagType {
     constructor() {
         this.id = "C004";
-        this.description = "Commit message's subject should not contain an unknown tag type";
+        this.description = "Subject should not contain an unknown tag type";
     }
     validate(message, config) {
         if (message.type === undefined) {
@@ -13240,12 +13246,12 @@ class UnknownTagType {
     }
 }
 /**
- * Only one whitespace allowed after the ":" separator
+ * Zero spaces before and only one space allowed after the ":" separator
  */
 class SeparatorContainsTrailingWhitespaces {
     constructor() {
         this.id = "C005";
-        this.description = 'Only one whitespace allowed after the ":" separator';
+        this.description = 'Zero spaces before and only one space allowed after the ":" separator';
     }
     validate(message, _) {
         if (message.separator === null) {
@@ -13265,12 +13271,12 @@ class SeparatorContainsTrailingWhitespaces {
     }
 }
 /**
- * The commit message's scope should not be empty
+ * Scope should not be empty
  */
 class ScopeShouldNotBeEmpty {
     constructor() {
         this.id = "C006";
-        this.description = "The commit message's scope should not be empty";
+        this.description = "Scope should not be empty";
     }
     validate(message, _) {
         if (message.scope === undefined) {
@@ -13289,12 +13295,12 @@ class ScopeShouldNotBeEmpty {
     }
 }
 /**
- * The commit message's scope should not contain any whitespacing
+ * Scope should not contain any whitespace
  */
 class ScopeContainsWhitespace {
     constructor() {
         this.id = "C007";
-        this.description = "The commit message's scope should not contain any whitespacing";
+        this.description = "Scope should not contain any whitespace";
     }
     validate(message, _) {
         if (message.scope && message.scope.length !== message.scope.trim().length) {
@@ -13311,12 +13317,12 @@ class ScopeContainsWhitespace {
     }
 }
 /**
- * The commit message's subject requires a separator (": ") after the type tag
+ * Subject requires a separator (": ") after the type tag
  */
 class MissingSeparator {
     constructor() {
         this.id = "C008";
-        this.description = `The commit message's subject requires a separator (": ") after the type tag`;
+        this.description = `Subject requires a separator (": ") after the type tag`;
     }
     validate(message, _) {
         if (message.separator === undefined || !message.separator.includes(":")) {
@@ -13338,12 +13344,12 @@ class MissingSeparator {
     }
 }
 /**
- * The commit message requires a description
+ * Subject requires a description
  */
 class MissingDescription {
     constructor() {
         this.id = "C009";
-        this.description = "The commit message requires a description";
+        this.description = "Subject requires a description";
     }
     validate(message, _) {
         if (!message.description) {
@@ -13401,12 +13407,12 @@ class OnlySingleBreakingIndicator {
     }
 }
 /**
- * The commit message's subject requires a type
+ * Subject requires a type
  */
 class MissingTypeTag {
     constructor() {
         this.id = "C012";
-        this.description = "The commit message's subject requires a type";
+        this.description = "Subject requires a type";
     }
     validate(message, _) {
         if (!message.type) {
@@ -13418,12 +13424,12 @@ class MissingTypeTag {
     }
 }
 /**
- * The commit message's subject should not end with punctuation
+ * Subject should not end with punctuation
  */
 class SubjectShouldNotEndWithPunctuation {
     constructor() {
         this.id = "C013";
-        this.description = "The commit message's subject should not end with punctuation";
+        this.description = "Subject should not end with punctuation";
     }
     validate(message, _) {
         if (message.description.match(/.*[.!?,]$/)) {
@@ -13436,12 +13442,12 @@ class SubjectShouldNotEndWithPunctuation {
     }
 }
 /**
- * The commit message's subject should be within the line length limit
+ * Subject should be within the line length limit
  */
 class SubjectExceedsLineLengthLimit {
     constructor() {
         this.id = "C014";
-        this.description = "The commit message's subject should be within the line length limit";
+        this.description = "Subject should be within the line length limit";
     }
     validate(message, config) {
         if (message.subject.length > config.maxSubjectLength) {
@@ -13484,12 +13490,12 @@ class NoRepeatedTags {
     }
 }
 /**
- * The commit message's description should be written in imperative mood
+ * Description should be written in imperative mood
  */
 class DescriptionInImperativeMood {
     constructor() {
         this.id = "C016";
-        this.description = "The commit message's description should be written in imperative mood";
+        this.description = "Description should be written in imperative mood";
     }
     validate(message, _) {
         const commonNonImperativeVerbs = [
@@ -13555,12 +13561,12 @@ class SubjectContainsReviewRemarks {
     }
 }
 /**
- * The commit message should contain an empty line between subject and body
+ * Commit message should contain an empty line between subject and body
  */
 class MissingEmptyLineBetweenSubjectAndBody {
     constructor() {
         this.id = "C018";
-        this.description = "The commit message should contain an empty line between subject and body";
+        this.description = "Commit message should contain an empty line between subject and body";
     }
     validate(message, _) {
         if (message.body && message.body[0]) {
@@ -13571,12 +13577,12 @@ class MissingEmptyLineBetweenSubjectAndBody {
     }
 }
 /**
- * The commit message's subject should not contain a ticket reference
+ * Subject should not contain a ticket reference
  */
 class SubjectContainsIssueReference {
     constructor() {
         this.id = "C019";
-        this.description = "The commit message's subject should not contain a ticket reference";
+        this.description = "Subject should not contain a ticket reference";
     }
     validate(message, _) {
         const ALLOWED = ["AES", "CVE", "CWE", "PEP", "SHA", "UTF", "VT"];
@@ -13595,12 +13601,12 @@ class SubjectContainsIssueReference {
     }
 }
 /**
- * Git-trailer should not contain whitespace(s)
+ * Git-trailer should not contain whitespace
  */
 class GitTrailerContainsWhitespace {
     constructor() {
         this.id = "C020";
-        this.description = "Git-trailer should not contain whitespace(s)";
+        this.description = "Git-trailer should not contain whitespace";
     }
     validate(message, _) {
         for (const item of message.footers) {

@@ -61,11 +61,11 @@ export function validateRules(
 }
 
 /**
- * The commit message's tag type should be in lower case
+ * Type tag should be in lower case
  */
 class NonLowerCaseType implements IConventionalCommitRule {
   id = "C001";
-  description = "The commit message's tag type should be in lower case";
+  description = "Type tag should be in lower case";
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (message.type === undefined) {
@@ -103,12 +103,11 @@ class OneWhitelineBetweenSubjectAndBody implements IConventionalCommitRule {
 }
 
 /**
- * The commit message's description should not start with a capital case letter
+ * Description should not start with a capital case letter
  */
 class TitleCaseDescription implements IConventionalCommitRule {
   id = "C003";
-  description =
-    "The commit message's description should not start with a capital case letter";
+  description = "Description should not start with a capital case letter";
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (
@@ -128,12 +127,11 @@ class TitleCaseDescription implements IConventionalCommitRule {
 }
 
 /**
- * Commit message's subject should not contain an unknown tag type
+ * Subject should not contain an unknown tag type
  */
 class UnknownTagType implements IConventionalCommitRule {
   id = "C004";
-  description =
-    "Commit message's subject should not contain an unknown tag type";
+  description = "Subject should not contain an unknown tag type";
 
   validate(message: ConventionalCommitMetadata, config: Configuration): void {
     if (message.type === undefined) {
@@ -165,11 +163,12 @@ class UnknownTagType implements IConventionalCommitRule {
 }
 
 /**
- * Only one whitespace allowed after the ":" separator
+ * Zero spaces before and only one space allowed after the ":" separator
  */
 class SeparatorContainsTrailingWhitespaces implements IConventionalCommitRule {
   id = "C005";
-  description = 'Only one whitespace allowed after the ":" separator';
+  description =
+    'Zero spaces before and only one space allowed after the ":" separator';
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (message.separator === null) {
@@ -191,11 +190,11 @@ class SeparatorContainsTrailingWhitespaces implements IConventionalCommitRule {
 }
 
 /**
- * The commit message's scope should not be empty
+ * Scope should not be empty
  */
 class ScopeShouldNotBeEmpty implements IConventionalCommitRule {
   id = "C006";
-  description = "The commit message's scope should not be empty";
+  description = "Scope should not be empty";
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (message.scope === undefined) {
@@ -216,12 +215,11 @@ class ScopeShouldNotBeEmpty implements IConventionalCommitRule {
 }
 
 /**
- * The commit message's scope should not contain any whitespacing
+ * Scope should not contain any whitespace
  */
 class ScopeContainsWhitespace implements IConventionalCommitRule {
   id = "C007";
-  description =
-    "The commit message's scope should not contain any whitespacing";
+  description = "Scope should not contain any whitespace";
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (message.scope && message.scope.length !== message.scope.trim().length) {
@@ -239,11 +237,11 @@ class ScopeContainsWhitespace implements IConventionalCommitRule {
 }
 
 /**
- * The commit message's subject requires a separator (": ") after the type tag
+ * Subject requires a separator (": ") after the type tag
  */
 class MissingSeparator implements IConventionalCommitRule {
   id = "C008";
-  description = `The commit message's subject requires a separator (": ") after the type tag`;
+  description = `Subject requires a separator (": ") after the type tag`;
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (message.separator === undefined || !message.separator.includes(":")) {
@@ -267,11 +265,11 @@ class MissingSeparator implements IConventionalCommitRule {
 }
 
 /**
- * The commit message requires a description
+ * Subject requires a description
  */
 class MissingDescription implements IConventionalCommitRule {
   id = "C009";
-  description = "The commit message requires a description";
+  description = "Subject requires a description";
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (!message.description) {
@@ -333,11 +331,11 @@ class OnlySingleBreakingIndicator implements IConventionalCommitRule {
 }
 
 /**
- * The commit message's subject requires a type
+ * Subject requires a type
  */
 class MissingTypeTag implements IConventionalCommitRule {
   id = "C012";
-  description = "The commit message's subject requires a type";
+  description = "Subject requires a type";
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (!message.type) {
@@ -350,11 +348,11 @@ class MissingTypeTag implements IConventionalCommitRule {
 }
 
 /**
- * The commit message's subject should not end with punctuation
+ * Subject should not end with punctuation
  */
 class SubjectShouldNotEndWithPunctuation implements IConventionalCommitRule {
   id = "C013";
-  description = "The commit message's subject should not end with punctuation";
+  description = "Subject should not end with punctuation";
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (message.description.match(/.*[.!?,]$/)) {
@@ -368,12 +366,11 @@ class SubjectShouldNotEndWithPunctuation implements IConventionalCommitRule {
 }
 
 /**
- * The commit message's subject should be within the line length limit
+ * Subject should be within the line length limit
  */
 class SubjectExceedsLineLengthLimit implements IConventionalCommitRule {
   id = "C014";
-  description =
-    "The commit message's subject should be within the line length limit";
+  description = "Subject should be within the line length limit";
 
   validate(message: ConventionalCommitMetadata, config: Configuration): void {
     if (message.subject.length > config.maxSubjectLength) {
@@ -424,12 +421,11 @@ class NoRepeatedTags implements IConventionalCommitRule {
 }
 
 /**
- * The commit message's description should be written in imperative mood
+ * Description should be written in imperative mood
  */
 class DescriptionInImperativeMood implements IConventionalCommitRule {
   id = "C016";
-  description =
-    "The commit message's description should be written in imperative mood";
+  description = "Description should be written in imperative mood";
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     const commonNonImperativeVerbs = [
@@ -500,12 +496,12 @@ class SubjectContainsReviewRemarks implements IConventionalCommitRule {
 }
 
 /**
- * The commit message should contain an empty line between subject and body
+ * Commit message should contain an empty line between subject and body
  */
 class MissingEmptyLineBetweenSubjectAndBody implements IConventionalCommitRule {
   id = "C018";
   description =
-    "The commit message should contain an empty line between subject and body";
+    "Commit message should contain an empty line between subject and body";
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (message.body && message.body[0]) {
@@ -517,12 +513,11 @@ class MissingEmptyLineBetweenSubjectAndBody implements IConventionalCommitRule {
 }
 
 /**
- * The commit message's subject should not contain a ticket reference
+ * Subject should not contain a ticket reference
  */
 class SubjectContainsIssueReference implements IConventionalCommitRule {
   id = "C019";
-  description =
-    "The commit message's subject should not contain a ticket reference";
+  description = "Subject should not contain a ticket reference";
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     const ALLOWED = ["AES", "CVE", "CWE", "PEP", "SHA", "UTF", "VT"];
@@ -544,11 +539,11 @@ class SubjectContainsIssueReference implements IConventionalCommitRule {
 }
 
 /**
- * Git-trailer should not contain whitespace(s)
+ * Git-trailer should not contain whitespace
  */
 class GitTrailerContainsWhitespace implements IConventionalCommitRule {
   id = "C020";
-  description = "Git-trailer should not contain whitespace(s)";
+  description = "Git-trailer should not contain whitespace";
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     for (const item of message.footers) {

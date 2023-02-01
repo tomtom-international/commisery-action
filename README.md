@@ -155,7 +155,7 @@ See [permissions](#permissions) for more details on the required GitHub token pe
 | --- | --- | --- |
 | `token` | YES | GitHub Token provided by GitHub, see [Authenticating with the GITHUB_TOKEN] |
 | `validate-pull-request` | NO | Includes the Pull Request title and description as part of the Conventional Commit validation (DEFAULT: `true`) |
-| `validate-pull-request-title-bump` | NO | Ensures that the Pull Request title's version bump level matches that of its commits (DEFAULT: `true`) |
+| `validate-pull-request-title-bump` | NO | Ensures that the Pull Request title's version bump level matches that of its commits (implies `validate-pull-request`) (DEFAULT: `true`) |
 | `validate-commits` | NO | Includes commits associated with the current Pull Request as part of the Conventional Commit validation (DEFAULT: `true`) |
 | `config` | NO | Location of the Commisery configuration file (default: `.commisery.yml`)
 
