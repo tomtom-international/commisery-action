@@ -22,8 +22,8 @@ import { Configuration } from "../config";
 import { getConfig, isPullRequestEvent, updateLabels } from "../github";
 import { SemVerType } from "../semver";
 import {
-  getMessagesToValidate,
-  validateMessages,
+  validateCommitMessages,
+  validatePrTitle,
   validatePrTitleBump,
 } from "../validate";
 
@@ -50,19 +50,31 @@ async function run(): Promise<void> {
       );
       return;
     }
-
-    // Load configuration
     await getConfig(core.getInput("config"));
     const config = new Configuration(".commisery.yml");
+    let compliant = true;
 
-    // Validate each commit against Conventional Commit standard
-    const commitMessages = await getMessagesToValidate();
-    const compliantMessages = await validateMessages(commitMessages, config);
-
-    await updateLabels(await determineLabels(compliantMessages));
+    if (core.getBooleanInput("validate-commits")) {
+      // Validate the current PR's commit messages
+      const result = await validateCommitMessages(config);
+      compliant &&= result.compliant;
+      await updateLabels(await determineLabels(result.messages));
+    }
 
     if (core.getBooleanInput("validate-pull-request-title-bump")) {
-      await validatePrTitleBump(config);
+      const ok = await validatePrTitleBump(config);
+      compliant &&= ok;
+
+      // Validating the PR title bump level implies validating the title itself
+    } else if (core.getBooleanInput("validate-pull-request")) {
+      const ok = (await validatePrTitle(config)) !== undefined;
+      compliant &&= ok;
+    }
+
+    core.info(""); // add vertical whitespace
+
+    if (compliant) {
+      core.info("✅ The pull request passed all configured checks");
     }
   } catch (ex) {
     core.setFailed((ex as Error).message);

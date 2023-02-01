@@ -115,7 +115,7 @@ export class LlvmMessage {
     return props;
   }
 
-  report(): string {
+  subject(): string {
     let message = "";
 
     if (this.filePath) {
@@ -124,15 +124,16 @@ export class LlvmMessage {
       }: `;
     }
 
-    message = formatString(
+    return formatString(
       `${message}${formatLevel(this.level)}: ${this.message}`,
       TextFormat.BOLD
     );
+  }
 
+  indicator(): string | undefined {
     if (this.line === undefined) {
-      return message;
+      return undefined;
     }
-
     const indicatorColor = this.expectations
       ? TextFormat.LIGHT_GREEN
       : TextFormat.RED;
@@ -156,8 +157,12 @@ export class LlvmMessage {
       indicator +=
         EOL + " ".repeat(this.columnNumber.start - 1) + this.expectations;
     }
+    return indicator;
+  }
 
-    return message + EOL + indicator;
+  report(): string {
+    const indicator = this.indicator();
+    return this.subject() + (indicator ? EOL + indicator : "");
   }
 }
 

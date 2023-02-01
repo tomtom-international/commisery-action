@@ -27,60 +27,72 @@ import {
   MergeCommitError,
 } from "./errors";
 
-interface Message {
-  title: string;
-  message: string;
+interface ValidationResult {
+  compliant: boolean;
+  messages: ConventionalCommitMessage[];
 }
 
-/**
- * Determines the list of messages to validate (Pull Request and/or Commits)
- */
-export async function getMessagesToValidate(): Promise<Message[]> {
-  const pullRequestId = getPullRequestId();
+function outputErrors(
+  message: string,
+  errors: LlvmError[],
+  sha: string | undefined
+): void {
+  const isPrTitle = sha === undefined;
 
-  const toValidate: Message[] = [];
-
-  // Include Pull Request title
-  if (core.getBooleanInput("validate-pull-request")) {
-    toValidate.push({
-      title: `Pull Request Title (#${pullRequestId})`,
-      message: await getPullRequestTitle(),
-    });
+  if (isPrTitle) {
+    core.startGroup(`❌ Pull request title`);
+    core.info(
+      "⚠️ A pull request's title is the default value for a generated merge commit. " +
+        "It should therefore adhere to the Conventional Commits specification as well.\n" +
+        "This check can be disabled by defining the `validate-pull-request` and `validate-pull-request-title-bump` " +
+        "action parameters as `false` in the workflow file.\n"
+    );
+  } else {
+    core.startGroup(`❌ Commit (${sha})`);
   }
-
-  // Include commits associated to the Pull Request
-  if (core.getBooleanInput("validate-commits")) {
-    const commits = await getCommits(pullRequestId);
-    for (const commit of commits) {
-      toValidate.push({
-        title: `Commit SHA (${commit.sha})`,
-        message: commit.commit.message,
-      });
+  for (const error of errors) {
+    if (error.message === undefined) {
+      continue;
+    }
+    core.error(error.message, {
+      title: isPrTitle ? `(PR title) ${message}` : `(Commit ${sha}) ${message}`,
+    });
+    const indicatorMaybe = error.indicator();
+    if (indicatorMaybe) {
+      core.info(indicatorMaybe);
     }
   }
-
-  return toValidate;
+  core.endGroup();
 }
 
 /**
- * Validates all specified messages
+ * Validates all commit messages in the current pull request.
  */
-export async function validateMessages(
-  messages: Message[],
+export async function validateCommitMessages(
   config: Configuration
-): Promise<ConventionalCommitMessage[]> {
-  let success = true;
+): Promise<ValidationResult> {
   const conventionalCommitMessages: ConventionalCommitMessage[] = [];
+  interface CommitResults {
+    message: string;
+    sha: string;
+    errors: LlvmError[];
+  }
 
-  for (const item of messages) {
-    let errors: LlvmError[] = [];
+  const results: CommitResults[] = [];
+
+  const commits = await getCommits(getPullRequestId());
+  for (const commit of commits) {
+    const message = commit.commit.message;
+    const sha = commit.sha;
+
     try {
       conventionalCommitMessages.push(
-        new ConventionalCommitMessage(item.message, undefined, config)
+        new ConventionalCommitMessage(message, undefined, config)
       );
+      results.push({ message, sha, errors: [] });
     } catch (error) {
       if (error instanceof ConventionalCommitError) {
-        errors = error.errors;
+        results.push({ message, sha, errors: error.errors });
       } else if (
         error instanceof MergeCommitError ||
         error instanceof FixupCommitError
@@ -88,75 +100,121 @@ export async function validateMessages(
         continue;
       }
     }
+  }
 
-    if (errors.length > 0) {
-      core.startGroup(`❌ ${item.title}: ${item.message}`);
-      for (const error of errors) {
-        core.info(error.report());
-      }
+  const goodCommits = results.filter(c => {
+    return c.errors.length === 0;
+  });
+  const badCommits = results.filter(c => {
+    return c.errors.length !== 0;
+  });
 
-      for (const error of errors) {
-        if (error.message !== undefined) {
-          core.error(error.message, {
-            title: `(${item.title}) ${item.message}`,
-          });
-        }
-      }
-      success = false;
+  if (goodCommits.length > 0) {
+    core.info(
+      `✅ ${badCommits.length === 0 ? "All " : ""}${goodCommits.length}` +
+        ` of the pull request's commits are valid Conventional Commits`
+    );
+    for (const c of goodCommits) {
+      core.startGroup(`✅ Commit (${c.sha})`);
+      core.info(c.message);
       core.endGroup();
-    } else {
-      core.info(`✅ ${item.title}`);
+    }
+  }
+  if (badCommits.length > 0) {
+    core.info(""); // for vertical whitespace
+    core.setFailed(
+      `${badCommits.length} of the pull request's commits are not valid Conventional Commits`
+    );
+    for (const c of badCommits) {
+      outputErrors(c.message, c.errors, c.sha);
     }
   }
 
-  if (!success) {
-    core.setFailed(
-      `Your Pull Request is not compliant with the Conventional Commits specification`
-    );
-  } else {
-    core.info(
-      "✅ Your Pull Request complies with the Conventional Commits specification!"
-    );
-  }
-
-  return conventionalCommitMessages;
+  return {
+    compliant: badCommits.length === 0,
+    messages: conventionalCommitMessages,
+  };
 }
 
 /**
- * Validates bump level consistency between the PR title and its commits
+ * Validates the pull request title and, if compliant, returns it as a
+ * ConventionalCommitMessage object.
+ */
+export async function validatePrTitle(
+  config: Configuration
+): Promise<ConventionalCommitMessage | undefined> {
+  const prTitleText = await getPullRequestTitle();
+  let errors: LlvmError[] = [];
+  let conventionalCommitMessage: ConventionalCommitMessage | undefined;
+
+  core.info(""); // for vertical whitespace
+  let errorMessage =
+    "The pull request title is not compliant " +
+    "with the Conventional Commits specification";
+  try {
+    conventionalCommitMessage = new ConventionalCommitMessage(prTitleText);
+  } catch (error) {
+    if (error instanceof ConventionalCommitError) {
+      errors = error.errors;
+    } else {
+      if (error instanceof MergeCommitError) {
+        errorMessage = `${errorMessage} (it describes a merge commit)`;
+      } else if (error instanceof FixupCommitError) {
+        errorMessage = `${errorMessage} (it describes a fixup commit)`;
+      }
+      core.setFailed(errorMessage);
+      return undefined;
+    }
+  }
+  if (errors.length > 0) {
+    core.setFailed(errorMessage);
+    outputErrors(prTitleText, errors, undefined);
+  } else {
+    core.startGroup(
+      `✅ The pull request title is compliant with the Conventional Commits specification`
+    );
+    core.info(prTitleText);
+    core.endGroup();
+  }
+  return conventionalCommitMessage;
+}
+
+/**
+ * Validates bump level consistency between the PR title and its commits.
+ * This implies that the PR title must comply with the Conventional Commits spec.
  */
 export async function validatePrTitleBump(
   config: Configuration
-): Promise<void> {
+): Promise<boolean> {
   const prTitleText = await getPullRequestTitle();
   const commits: string[] = (await getCommits(getPullRequestId())).map(m => {
     return m.commit.message;
   });
   let highestBump: SemVerType = SemVerType.NONE;
-  let atLeastOneConventionalCommitFound = false;
-  const prTitle = (() => {
-    try {
-      return new ConventionalCommitMessage(prTitleText);
-    } catch (error) {
-      throw new Error(
-        `The PR title does not conform to the Conventional Commits specification.`
-      );
-    }
-  })();
+  const prTitle = await validatePrTitle(config);
+  const baseError =
+    "Cannot validate the consistency of bump levels between PR title and PR commits";
+
+  if (prTitle === undefined) {
+    core.warning(
+      `${baseError}, as PR title is not a valid Conventional Commits message.`
+    );
+    return false;
+  }
 
   if (commits.length === 0) {
     core.warning("No commits found in this pull request.");
-    return;
+    return true;
   }
+
+  core.info(""); // for vertical whitespace
 
   for (const commit of commits) {
     try {
       const cc = new ConventionalCommitMessage(commit);
       highestBump = cc.bump > highestBump ? cc.bump : highestBump;
-      atLeastOneConventionalCommitFound = true;
     } catch (error) {
       if (
-        // We'll just ignore non-compliant commits
         !(
           error instanceof ConventionalCommitError ||
           error instanceof MergeCommitError ||
@@ -165,32 +223,30 @@ export async function validatePrTitleBump(
       ) {
         throw error;
       }
+      core.warning(`${baseError}, as the PR contains non-compliant commits`);
+      return false;
     }
   }
 
-  if (!atLeastOneConventionalCommitFound) {
-    core.warning(
-      "PR title conforms to Conventional Commits, but none of its commits do."
-    );
-    return;
-  }
-
   if (highestBump !== prTitle.bump) {
-    const messageList = ` - ${commits.join("\n - ")}`;
+    const commitSubjects = commits.map(m => {
+      return m.split("\n")[0];
+    });
 
     core.setFailed(
-      `The PR title's bump level is not consistent with its commits.`
+      "The PR title's bump level is not consistent with its commits.\n" +
+        `The PR title type ${prTitle.type} represents bump level ` +
+        `${SemVerType[prTitle.bump]}, while the highest bump in the ` +
+        `commits is ${SemVerType[highestBump]}.\n` +
+        `PR title: "${prTitleText}"\n` +
+        `Commit list:\n${` - ${commitSubjects.join("\n - ")}`}`
     );
 
-    core.error(`The PR title represents bump level ${
-      SemVerType[prTitle.bump]
-    }, while the highest bump in the commits is ${SemVerType[highestBump]}.
-PR title: "${prTitleText}"
-Commit list:
-${messageList}`);
+    return false;
   } else {
     core.info(
-      `✅ Pull request title bump level is consistent with its commits`
+      `✅ The pull request title's bump level is consistent with the PR's commits`
     );
+    return true;
   }
 }

@@ -11482,15 +11482,27 @@ function run() {
                 core.warning("Conventional Commit Message validation requires a workflow using the `pull_request` trigger!");
                 return;
             }
-            // Load configuration
             yield (0, github_1.getConfig)(core.getInput("config"));
             const config = new config_1.Configuration(".commisery.yml");
-            // Validate each commit against Conventional Commit standard
-            const commitMessages = yield (0, validate_1.getMessagesToValidate)();
-            const compliantMessages = yield (0, validate_1.validateMessages)(commitMessages, config);
-            yield (0, github_1.updateLabels)(yield determineLabels(compliantMessages));
+            let compliant = true;
+            if (core.getBooleanInput("validate-commits")) {
+                // Validate the current PR's commit messages
+                const result = yield (0, validate_1.validateCommitMessages)(config);
+                compliant && (compliant = result.compliant);
+                yield (0, github_1.updateLabels)(yield determineLabels(result.messages));
+            }
             if (core.getBooleanInput("validate-pull-request-title-bump")) {
-                yield (0, validate_1.validatePrTitleBump)(config);
+                const ok = yield (0, validate_1.validatePrTitleBump)(config);
+                compliant && (compliant = ok);
+                // Validating the PR title bump level implies validating the title itself
+            }
+            else if (core.getBooleanInput("validate-pull-request")) {
+                const ok = (yield (0, validate_1.validatePrTitle)(config)) !== undefined;
+                compliant && (compliant = ok);
+            }
+            core.info(""); // add vertical whitespace
+            if (compliant) {
+                core.info("✅ The pull request passed all configured checks");
             }
         }
         catch (ex) {
@@ -12680,14 +12692,16 @@ class LlvmMessage {
         }
         return props;
     }
-    report() {
+    subject() {
         let message = "";
         if (this.filePath) {
             message = `${this.filePath}:${this.lineNumber.start}:${this.columnNumber.start + 1}: `;
         }
-        message = formatString(`${message}${formatLevel(this.level)}: ${this.message}`, TextFormat.BOLD);
+        return formatString(`${message}${formatLevel(this.level)}: ${this.message}`, TextFormat.BOLD);
+    }
+    indicator() {
         if (this.line === undefined) {
-            return message;
+            return undefined;
         }
         const indicatorColor = this.expectations
             ? TextFormat.LIGHT_GREEN
@@ -12705,7 +12719,11 @@ class LlvmMessage {
             indicator +=
                 os_1.EOL + " ".repeat(this.columnNumber.start - 1) + this.expectations;
         }
-        return message + os_1.EOL + indicator;
+        return indicator;
+    }
+    report() {
+        const indicator = this.indicator();
+        return this.subject() + (indicator ? os_1.EOL + indicator : "");
     }
 }
 exports.LlvmMessage = LlvmMessage;
@@ -12801,12 +12819,12 @@ function validateRules(message, config) {
 }
 exports.validateRules = validateRules;
 /**
- * The commit message's tag type should be in lower case
+ * Type tag should be in lower case
  */
 class NonLowerCaseType {
     constructor() {
         this.id = "C001";
-        this.description = "The commit message's tag type should be in lower case";
+        this.description = "Type tag should be in lower case";
     }
     validate(message, _) {
         if (message.type === undefined) {
@@ -12843,12 +12861,12 @@ class OneWhitelineBetweenSubjectAndBody {
     }
 }
 /**
- * The commit message's description should not start with a capital case letter
+ * Description should not start with a capital case letter
  */
 class TitleCaseDescription {
     constructor() {
         this.id = "C003";
-        this.description = "The commit message's description should not start with a capital case letter";
+        this.description = "Description should not start with a capital case letter";
     }
     validate(message, _) {
         if (message.description &&
@@ -12865,12 +12883,12 @@ class TitleCaseDescription {
     }
 }
 /**
- * Commit message's subject should not contain an unknown tag type
+ * Subject should not contain an unknown tag type
  */
 class UnknownTagType {
     constructor() {
         this.id = "C004";
-        this.description = "Commit message's subject should not contain an unknown tag type";
+        this.description = "Subject should not contain an unknown tag type";
     }
     validate(message, config) {
         if (message.type === undefined) {
@@ -12894,12 +12912,12 @@ class UnknownTagType {
     }
 }
 /**
- * Only one whitespace allowed after the ":" separator
+ * Zero spaces before and only one space allowed after the ":" separator
  */
 class SeparatorContainsTrailingWhitespaces {
     constructor() {
         this.id = "C005";
-        this.description = 'Only one whitespace allowed after the ":" separator';
+        this.description = 'Zero spaces before and only one space allowed after the ":" separator';
     }
     validate(message, _) {
         if (message.separator === null) {
@@ -12919,12 +12937,12 @@ class SeparatorContainsTrailingWhitespaces {
     }
 }
 /**
- * The commit message's scope should not be empty
+ * Scope should not be empty
  */
 class ScopeShouldNotBeEmpty {
     constructor() {
         this.id = "C006";
-        this.description = "The commit message's scope should not be empty";
+        this.description = "Scope should not be empty";
     }
     validate(message, _) {
         if (message.scope === undefined) {
@@ -12943,12 +12961,12 @@ class ScopeShouldNotBeEmpty {
     }
 }
 /**
- * The commit message's scope should not contain any whitespacing
+ * Scope should not contain any whitespace
  */
 class ScopeContainsWhitespace {
     constructor() {
         this.id = "C007";
-        this.description = "The commit message's scope should not contain any whitespacing";
+        this.description = "Scope should not contain any whitespace";
     }
     validate(message, _) {
         if (message.scope && message.scope.length !== message.scope.trim().length) {
@@ -12965,12 +12983,12 @@ class ScopeContainsWhitespace {
     }
 }
 /**
- * The commit message's subject requires a separator (": ") after the type tag
+ * Subject requires a separator (": ") after the type tag
  */
 class MissingSeparator {
     constructor() {
         this.id = "C008";
-        this.description = `The commit message's subject requires a separator (": ") after the type tag`;
+        this.description = `Subject requires a separator (": ") after the type tag`;
     }
     validate(message, _) {
         if (message.separator === undefined || !message.separator.includes(":")) {
@@ -12992,12 +13010,12 @@ class MissingSeparator {
     }
 }
 /**
- * The commit message requires a description
+ * Subject requires a description
  */
 class MissingDescription {
     constructor() {
         this.id = "C009";
-        this.description = "The commit message requires a description";
+        this.description = "Subject requires a description";
     }
     validate(message, _) {
         if (!message.description) {
@@ -13055,12 +13073,12 @@ class OnlySingleBreakingIndicator {
     }
 }
 /**
- * The commit message's subject requires a type
+ * Subject requires a type
  */
 class MissingTypeTag {
     constructor() {
         this.id = "C012";
-        this.description = "The commit message's subject requires a type";
+        this.description = "Subject requires a type";
     }
     validate(message, _) {
         if (!message.type) {
@@ -13072,12 +13090,12 @@ class MissingTypeTag {
     }
 }
 /**
- * The commit message's subject should not end with punctuation
+ * Subject should not end with punctuation
  */
 class SubjectShouldNotEndWithPunctuation {
     constructor() {
         this.id = "C013";
-        this.description = "The commit message's subject should not end with punctuation";
+        this.description = "Subject should not end with punctuation";
     }
     validate(message, _) {
         if (message.description.match(/.*[.!?,]$/)) {
@@ -13090,12 +13108,12 @@ class SubjectShouldNotEndWithPunctuation {
     }
 }
 /**
- * The commit message's subject should be within the line length limit
+ * Subject should be within the line length limit
  */
 class SubjectExceedsLineLengthLimit {
     constructor() {
         this.id = "C014";
-        this.description = "The commit message's subject should be within the line length limit";
+        this.description = "Subject should be within the line length limit";
     }
     validate(message, config) {
         if (message.subject.length > config.maxSubjectLength) {
@@ -13138,12 +13156,12 @@ class NoRepeatedTags {
     }
 }
 /**
- * The commit message's description should be written in imperative mood
+ * Description should be written in imperative mood
  */
 class DescriptionInImperativeMood {
     constructor() {
         this.id = "C016";
-        this.description = "The commit message's description should be written in imperative mood";
+        this.description = "Description should be written in imperative mood";
     }
     validate(message, _) {
         const commonNonImperativeVerbs = [
@@ -13209,12 +13227,12 @@ class SubjectContainsReviewRemarks {
     }
 }
 /**
- * The commit message should contain an empty line between subject and body
+ * Commit message should contain an empty line between subject and body
  */
 class MissingEmptyLineBetweenSubjectAndBody {
     constructor() {
         this.id = "C018";
-        this.description = "The commit message should contain an empty line between subject and body";
+        this.description = "Commit message should contain an empty line between subject and body";
     }
     validate(message, _) {
         if (message.body && message.body[0]) {
@@ -13225,12 +13243,12 @@ class MissingEmptyLineBetweenSubjectAndBody {
     }
 }
 /**
- * The commit message's subject should not contain a ticket reference
+ * Subject should not contain a ticket reference
  */
 class SubjectContainsIssueReference {
     constructor() {
         this.id = "C019";
-        this.description = "The commit message's subject should not contain a ticket reference";
+        this.description = "Subject should not contain a ticket reference";
     }
     validate(message, _) {
         const ALLOWED = ["AES", "CVE", "CWE", "PEP", "SHA", "UTF", "VT"];
@@ -13249,12 +13267,12 @@ class SubjectContainsIssueReference {
     }
 }
 /**
- * Git-trailer should not contain whitespace(s)
+ * Git-trailer should not contain whitespace
  */
 class GitTrailerContainsWhitespace {
     constructor() {
         this.id = "C020";
-        this.description = "Git-trailer should not contain whitespace(s)";
+        this.description = "Git-trailer should not contain whitespace";
     }
     validate(message, _) {
         for (const item of message.footers) {
@@ -13643,92 +13661,138 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.validatePrTitleBump = exports.validateMessages = exports.getMessagesToValidate = void 0;
+exports.validatePrTitleBump = exports.validatePrTitle = exports.validateCommitMessages = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const commit_1 = __nccwpck_require__(1730);
 const github_1 = __nccwpck_require__(978);
 const semver_1 = __nccwpck_require__(8593);
 const errors_1 = __nccwpck_require__(6976);
-/**
- * Determines the list of messages to validate (Pull Request and/or Commits)
- */
-function getMessagesToValidate() {
-    return __awaiter(this, void 0, void 0, function* () {
-        const pullRequestId = (0, github_1.getPullRequestId)();
-        const toValidate = [];
-        // Include Pull Request title
-        if (core.getBooleanInput("validate-pull-request")) {
-            toValidate.push({
-                title: `Pull Request Title (#${pullRequestId})`,
-                message: yield (0, github_1.getPullRequestTitle)(),
-            });
+function outputErrors(message, errors, sha) {
+    const isPrTitle = sha === undefined;
+    if (isPrTitle) {
+        core.startGroup(`❌ Pull request title`);
+        core.info("⚠️ A pull request's title is the default value for a generated merge commit. " +
+            "It should therefore adhere to the Conventional Commits specification as well.\n" +
+            "This check can be disabled by defining the `validate-pull-request` and `validate-pull-request-title-bump` " +
+            "action parameters as `false` in the workflow file.\n");
+    }
+    else {
+        core.startGroup(`❌ Commit (${sha})`);
+    }
+    for (const error of errors) {
+        if (error.message === undefined) {
+            continue;
         }
-        // Include commits associated to the Pull Request
-        if (core.getBooleanInput("validate-commits")) {
-            const commits = yield (0, github_1.getCommits)(pullRequestId);
-            for (const commit of commits) {
-                toValidate.push({
-                    title: `Commit SHA (${commit.sha})`,
-                    message: commit.commit.message,
-                });
-            }
+        core.error(error.message, {
+            title: isPrTitle ? `(PR title) ${message}` : `(Commit ${sha}) ${message}`,
+        });
+        const indicatorMaybe = error.indicator();
+        if (indicatorMaybe) {
+            core.info(indicatorMaybe);
         }
-        return toValidate;
-    });
+    }
+    core.endGroup();
 }
-exports.getMessagesToValidate = getMessagesToValidate;
 /**
- * Validates all specified messages
+ * Validates all commit messages in the current pull request.
  */
-function validateMessages(messages, config) {
+function validateCommitMessages(config) {
     return __awaiter(this, void 0, void 0, function* () {
-        let success = true;
         const conventionalCommitMessages = [];
-        for (const item of messages) {
-            let errors = [];
+        const results = [];
+        const commits = yield (0, github_1.getCommits)((0, github_1.getPullRequestId)());
+        for (const commit of commits) {
+            const message = commit.commit.message;
+            const sha = commit.sha;
             try {
-                conventionalCommitMessages.push(new commit_1.ConventionalCommitMessage(item.message, undefined, config));
+                conventionalCommitMessages.push(new commit_1.ConventionalCommitMessage(message, undefined, config));
+                results.push({ message, sha, errors: [] });
             }
             catch (error) {
                 if (error instanceof errors_1.ConventionalCommitError) {
-                    errors = error.errors;
+                    results.push({ message, sha, errors: error.errors });
                 }
                 else if (error instanceof errors_1.MergeCommitError ||
                     error instanceof errors_1.FixupCommitError) {
                     continue;
                 }
             }
-            if (errors.length > 0) {
-                core.startGroup(`❌ ${item.title}: ${item.message}`);
-                for (const error of errors) {
-                    core.info(error.report());
-                }
-                for (const error of errors) {
-                    if (error.message !== undefined) {
-                        core.error(error.message, {
-                            title: `(${item.title}) ${item.message}`,
-                        });
-                    }
-                }
-                success = false;
+        }
+        const goodCommits = results.filter(c => {
+            return c.errors.length === 0;
+        });
+        const badCommits = results.filter(c => {
+            return c.errors.length !== 0;
+        });
+        if (goodCommits.length > 0) {
+            core.info(`✅ ${badCommits.length === 0 ? "All " : ""}${goodCommits.length}` +
+                ` of the pull request's commits are valid Conventional Commits`);
+            for (const c of goodCommits) {
+                core.startGroup(`✅ Commit (${c.sha})`);
+                core.info(c.message);
                 core.endGroup();
             }
-            else {
-                core.info(`✅ ${item.title}`);
+        }
+        if (badCommits.length > 0) {
+            core.info(""); // for vertical whitespace
+            core.setFailed(`${badCommits.length} of the pull request's commits are not valid Conventional Commits`);
+            for (const c of badCommits) {
+                outputErrors(c.message, c.errors, c.sha);
             }
         }
-        if (!success) {
-            core.setFailed(`Your Pull Request is not compliant with the Conventional Commits specification`);
-        }
-        else {
-            core.info("✅ Your Pull Request complies with the Conventional Commits specification!");
-        }
-        return conventionalCommitMessages;
+        return {
+            compliant: badCommits.length === 0,
+            messages: conventionalCommitMessages,
+        };
     });
 }
-exports.validateMessages = validateMessages;
+exports.validateCommitMessages = validateCommitMessages;
 /**
- * Validates bump level consistency between the PR title and its commits
+ * Validates the pull request title and, if compliant, returns it as a
+ * ConventionalCommitMessage object.
+ */
+function validatePrTitle(config) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const prTitleText = yield (0, github_1.getPullRequestTitle)();
+        let errors = [];
+        let conventionalCommitMessage;
+        core.info(""); // for vertical whitespace
+        let errorMessage = "The pull request title is not compliant " +
+            "with the Conventional Commits specification";
+        try {
+            conventionalCommitMessage = new commit_1.ConventionalCommitMessage(prTitleText);
+        }
+        catch (error) {
+            if (error instanceof errors_1.ConventionalCommitError) {
+                errors = error.errors;
+            }
+            else {
+                if (error instanceof errors_1.MergeCommitError) {
+                    errorMessage = `${errorMessage} (it describes a merge commit)`;
+                }
+                else if (error instanceof errors_1.FixupCommitError) {
+                    errorMessage = `${errorMessage} (it describes a fixup commit)`;
+                }
+                core.setFailed(errorMessage);
+                return undefined;
+            }
+        }
+        if (errors.length > 0) {
+            core.setFailed(errorMessage);
+            outputErrors(prTitleText, errors, undefined);
+        }
+        else {
+            core.startGroup(`✅ The pull request title is compliant with the Conventional Commits specification`);
+            core.info(prTitleText);
+            core.endGroup();
+        }
+        return conventionalCommitMessage;
+    });
+}
+exports.validatePrTitle = validatePrTitle;
+/**
+ * Validates bump level consistency between the PR title and its commits.
+ * This implies that the PR title must comply with the Conventional Commits spec.
  */
 function validatePrTitleBump(config) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -13737,49 +13801,47 @@ function validatePrTitleBump(config) {
             return m.commit.message;
         });
         let highestBump = semver_1.SemVerType.NONE;
-        let atLeastOneConventionalCommitFound = false;
-        const prTitle = (() => {
-            try {
-                return new commit_1.ConventionalCommitMessage(prTitleText);
-            }
-            catch (error) {
-                throw new Error(`The PR title does not conform to the Conventional Commits specification.`);
-            }
-        })();
+        const prTitle = yield validatePrTitle(config);
+        const baseError = "Cannot validate the consistency of bump levels between PR title and PR commits";
+        if (prTitle === undefined) {
+            core.warning(`${baseError}, as PR title is not a valid Conventional Commits message.`);
+            return false;
+        }
         if (commits.length === 0) {
             core.warning("No commits found in this pull request.");
-            return;
+            return true;
         }
+        core.info(""); // for vertical whitespace
         for (const commit of commits) {
             try {
                 const cc = new commit_1.ConventionalCommitMessage(commit);
                 highestBump = cc.bump > highestBump ? cc.bump : highestBump;
-                atLeastOneConventionalCommitFound = true;
             }
             catch (error) {
-                if (
-                // We'll just ignore non-compliant commits
-                !(error instanceof errors_1.ConventionalCommitError ||
+                if (!(error instanceof errors_1.ConventionalCommitError ||
                     error instanceof errors_1.MergeCommitError ||
                     error instanceof errors_1.FixupCommitError)) {
                     throw error;
                 }
+                core.warning(`${baseError}, as the PR contains non-compliant commits`);
+                return false;
             }
         }
-        if (!atLeastOneConventionalCommitFound) {
-            core.warning("PR title conforms to Conventional Commits, but none of its commits do.");
-            return;
-        }
         if (highestBump !== prTitle.bump) {
-            const messageList = ` - ${commits.join("\n - ")}`;
-            core.setFailed(`The PR title's bump level is not consistent with its commits.`);
-            core.error(`The PR title represents bump level ${semver_1.SemVerType[prTitle.bump]}, while the highest bump in the commits is ${semver_1.SemVerType[highestBump]}.
-PR title: "${prTitleText}"
-Commit list:
-${messageList}`);
+            const commitSubjects = commits.map(m => {
+                return m.split("\n")[0];
+            });
+            core.setFailed("The PR title's bump level is not consistent with its commits.\n" +
+                `The PR title type ${prTitle.type} represents bump level ` +
+                `${semver_1.SemVerType[prTitle.bump]}, while the highest bump in the ` +
+                `commits is ${semver_1.SemVerType[highestBump]}.\n` +
+                `PR title: "${prTitleText}"\n` +
+                `Commit list:\n${` - ${commitSubjects.join("\n - ")}`}`);
+            return false;
         }
         else {
-            core.info(`✅ Pull request title bump level is consistent with its commits`);
+            core.info(`✅ The pull request title's bump level is consistent with the PR's commits`);
+            return true;
         }
     });
 }
