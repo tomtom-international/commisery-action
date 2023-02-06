@@ -141,8 +141,14 @@ class TitleCaseDescription implements IConventionalCommitRule {
  */
 class UnknownTagType implements IConventionalCommitRule {
   id = "C004";
+<<<<<<< HEAD
   description = "Subject should not contain an unknown tag type";
   default = true;
+||||||| parent of 002644f (fix(C004): reword description ('s/tag type/type tag/'))
+  description = "Subject should not contain an unknown tag type";
+=======
+  description = "Subject should not contain an unknown type tag";
+>>>>>>> 002644f (fix(C004): reword description ('s/tag type/type tag/'))
 
   validate(message: ConventionalCommitMetadata, config: Configuration): void {
     if (message.type === undefined) {
