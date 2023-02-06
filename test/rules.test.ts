@@ -80,9 +80,9 @@ function assertRuleNoValidationError(
 
 describe("Rules", () => {
   /**
-   * The commit message's tag type should be in lower case
+   * The commit message's type tag should be in lower case
    */
-  test("[C001] The commit message's tag type should be in lower case", () => {
+  test("[C001] The commit message's type tag should be in lower case", () => {
     for (const message of [
       "Chore: did something",
       "CHORE: did something",
