@@ -23,6 +23,7 @@ import { LlvmError } from "./logging";
 export interface IConventionalCommitRule {
   description: string;
   id: string;
+  default: boolean;
 
   validate: (
     message: ConventionalCommitMetadata,
@@ -40,8 +41,8 @@ export function validateRules(
   const errors: LlvmError[] = [];
 
   const disabledRules = Object.entries(config.rules)
-    .map(([k, v]) => (!v.enabled ? k : undefined))
-    .filter((r): r is string => !!r);
+    .filter(item => !(item[1] as Object)["enabled"])
+    .map(item => item[0]);
 
   for (const rule of ALL_RULES) {
     try {
@@ -60,12 +61,19 @@ export function validateRules(
   return errors;
 }
 
+const ISSUE_REGEX_IGNORED_KEYWORDS = ["AES", "CVE", "PEP", "SHA", "UTF", "VT"];
+const ISSUE_REGEX = new RegExp(
+  `(?!\\b(?:${ISSUE_REGEX_IGNORED_KEYWORDS.join(
+    "|"
+  )})\\b)\\b[A-Z]+-[0-9]+\\b(?!-)`
+);
+
 /**
- * Type tag should be in lower case
  */
 class NonLowerCaseType implements IConventionalCommitRule {
   id = "C001";
   description = "Type tag should be in lower case";
+  default = true;
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (message.type === undefined) {
@@ -91,6 +99,7 @@ class NonLowerCaseType implements IConventionalCommitRule {
 class OneWhitelineBetweenSubjectAndBody implements IConventionalCommitRule {
   id = "C002";
   description = "Only one empty line between subject and body";
+  default = true;
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (message.body.length >= 2 && message.body[1].trim() === "") {
@@ -108,6 +117,7 @@ class OneWhitelineBetweenSubjectAndBody implements IConventionalCommitRule {
 class TitleCaseDescription implements IConventionalCommitRule {
   id = "C003";
   description = "Description should not start with a capital case letter";
+  default = true;
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (
@@ -132,6 +142,7 @@ class TitleCaseDescription implements IConventionalCommitRule {
 class UnknownTagType implements IConventionalCommitRule {
   id = "C004";
   description = "Subject should not contain an unknown tag type";
+  default = true;
 
   validate(message: ConventionalCommitMetadata, config: Configuration): void {
     if (message.type === undefined) {
@@ -169,6 +180,7 @@ class SeparatorContainsTrailingWhitespaces implements IConventionalCommitRule {
   id = "C005";
   description =
     'Zero spaces before and only one space allowed after the ":" separator';
+  default = true;
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (message.separator === null) {
@@ -195,6 +207,7 @@ class SeparatorContainsTrailingWhitespaces implements IConventionalCommitRule {
 class ScopeShouldNotBeEmpty implements IConventionalCommitRule {
   id = "C006";
   description = "Scope should not be empty";
+  default = true;
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (message.scope === undefined) {
@@ -220,6 +233,7 @@ class ScopeShouldNotBeEmpty implements IConventionalCommitRule {
 class ScopeContainsWhitespace implements IConventionalCommitRule {
   id = "C007";
   description = "Scope should not contain any whitespace";
+  default = true;
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (message.scope && message.scope.length !== message.scope.trim().length) {
@@ -242,6 +256,7 @@ class ScopeContainsWhitespace implements IConventionalCommitRule {
 class MissingSeparator implements IConventionalCommitRule {
   id = "C008";
   description = `Subject requires a separator (": ") after the type tag`;
+  default = true;
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (message.separator === undefined || !message.separator.includes(":")) {
@@ -270,6 +285,7 @@ class MissingSeparator implements IConventionalCommitRule {
 class MissingDescription implements IConventionalCommitRule {
   id = "C009";
   description = "Subject requires a description";
+  default = true;
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (!message.description) {
@@ -288,6 +304,7 @@ class MissingDescription implements IConventionalCommitRule {
 class BreakingIndicatorContainsWhitespacing implements IConventionalCommitRule {
   id = "C010";
   description = 'No whitespace allowed around the "!" indicator';
+  default = true;
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (
@@ -314,6 +331,7 @@ class BreakingIndicatorContainsWhitespacing implements IConventionalCommitRule {
 class OnlySingleBreakingIndicator implements IConventionalCommitRule {
   id = "C011";
   description = "Breaking separator should consist of only one indicator";
+  default = true;
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (message.breakingChange && message.breakingChange.trim().length > 1) {
@@ -336,6 +354,7 @@ class OnlySingleBreakingIndicator implements IConventionalCommitRule {
 class MissingTypeTag implements IConventionalCommitRule {
   id = "C012";
   description = "Subject requires a type";
+  default = true;
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (!message.type) {
@@ -353,6 +372,7 @@ class MissingTypeTag implements IConventionalCommitRule {
 class SubjectShouldNotEndWithPunctuation implements IConventionalCommitRule {
   id = "C013";
   description = "Subject should not end with punctuation";
+  default = true;
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (message.description.match(/.*[.!?,]$/)) {
@@ -371,6 +391,7 @@ class SubjectShouldNotEndWithPunctuation implements IConventionalCommitRule {
 class SubjectExceedsLineLengthLimit implements IConventionalCommitRule {
   id = "C014";
   description = "Subject should be within the line length limit";
+  default = true;
 
   validate(message: ConventionalCommitMetadata, config: Configuration): void {
     if (message.subject.length > config.maxSubjectLength) {
@@ -396,6 +417,7 @@ class SubjectExceedsLineLengthLimit implements IConventionalCommitRule {
 class NoRepeatedTags implements IConventionalCommitRule {
   id = "C015";
   description = "Description should not start with a repetition of the tag";
+  default = true;
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (message.description === undefined || message.type === undefined) {
@@ -426,6 +448,7 @@ class NoRepeatedTags implements IConventionalCommitRule {
 class DescriptionInImperativeMood implements IConventionalCommitRule {
   id = "C016";
   description = "Description should be written in imperative mood";
+  default = true;
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     const commonNonImperativeVerbs = [
@@ -489,6 +512,7 @@ class DescriptionInImperativeMood implements IConventionalCommitRule {
 class SubjectContainsReviewRemarks implements IConventionalCommitRule {
   id = "C017";
   description = "Subject should not contain reference to review comments";
+  default = true;
 
   validate(_: ConventionalCommitMetadata, __: Configuration): void {
     // TODO: implement this rule
@@ -502,6 +526,7 @@ class MissingEmptyLineBetweenSubjectAndBody implements IConventionalCommitRule {
   id = "C018";
   description =
     "Commit message should contain an empty line between subject and body";
+  default = true;
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (message.body && message.body[0]) {
@@ -518,12 +543,9 @@ class MissingEmptyLineBetweenSubjectAndBody implements IConventionalCommitRule {
 class SubjectContainsIssueReference implements IConventionalCommitRule {
   id = "C019";
   description = "Subject should not contain a ticket reference";
+  default = true;
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
-    const ALLOWED = ["AES", "CVE", "CWE", "PEP", "SHA", "UTF", "VT"];
-    const ISSUE_REGEX = new RegExp(
-      `(?!\\b(?:${ALLOWED.join("|")})\\b)\\b[A-Z]+-[0-9]+\\b(?!-)`
-    );
     const match = ISSUE_REGEX.exec(message.subject);
     if (match) {
       throw new LlvmError({
@@ -544,6 +566,7 @@ class SubjectContainsIssueReference implements IConventionalCommitRule {
 class GitTrailerContainsWhitespace implements IConventionalCommitRule {
   id = "C020";
   description = "Git-trailer should not contain whitespace";
+  default = true;
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     for (const item of message.footers) {
@@ -568,6 +591,7 @@ class GitTrailerContainsWhitespace implements IConventionalCommitRule {
 class FooterContainsBlankLine implements IConventionalCommitRule {
   id = "C022";
   description = "Footer should not contain any blank line(s)";
+  default = true;
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     for (const item of message.footers) {
@@ -587,6 +611,7 @@ class BreakingChangeMustBeFirstGitTrailer implements IConventionalCommitRule {
   id = "C023";
   description =
     "The BREAKING CHANGE git-trailer should be the first element in the footer";
+  default = true;
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     // eslint-disable-next-line github/array-foreach
@@ -609,6 +634,7 @@ class BreakingChangeMustBeFirstGitTrailer implements IConventionalCommitRule {
 class GitTrailerNeedAColon implements IConventionalCommitRule {
   id = "C024";
   description = "A colon is required in git-trailers";
+  default = true;
 
   validate(message: ConventionalCommitMetadata, config: Configuration): void {
     const trailerFormats = [
@@ -661,6 +687,23 @@ class GitTrailerNeedAColon implements IConventionalCommitRule {
  * This rule has been removed and its ID should therefore not be re-used.
  */
 
+/**
+ * A ticket reference is required in at least one footer value
+ */
+class FooterContainsTicketReference implements IConventionalCommitRule {
+  id = "C026";
+  description = "A ticket reference is required in at least one footer value";
+  default = false;
+
+  validate(message: ConventionalCommitMetadata, config: Configuration): void {
+    if (!message.footers.some(footer => ISSUE_REGEX.exec(footer.value))) {
+      throw new LlvmError({
+        message: `[${this.id}] ${this.description}`,
+      });
+    }
+  }
+}
+
 export const ALL_RULES = [
   new NonLowerCaseType(),
   new OneWhitelineBetweenSubjectAndBody(),
@@ -685,6 +728,7 @@ export const ALL_RULES = [
   new FooterContainsBlankLine(),
   new BreakingChangeMustBeFirstGitTrailer(),
   new GitTrailerNeedAColon(),
+  new FooterContainsTicketReference(),
 ];
 
 export function getConventionalCommitRule(id: string): IConventionalCommitRule {

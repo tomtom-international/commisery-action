@@ -40,7 +40,7 @@ function withConfig(contents: string, func) {
   const read = jest
     .spyOn(fs, "readFileSync")
     .mockImplementation(() => contents);
-  func();
+  func(new Configuration());
   exists.mockRestore();
   read.mockRestore();
 }
@@ -48,6 +48,50 @@ function withConfig(contents: string, func) {
 // Validation of the Configuration parameters
 //
 describe("Configurable options", () => {
+  test("Default enabled ruleset", () => {
+    const expectedRules = [
+      "C001",
+      "C002",
+      "C003",
+      "C004",
+      "C005",
+      "C006",
+      "C007",
+      "C008",
+      "C009",
+      "C010",
+      "C011",
+      "C012",
+      "C013",
+      "C014",
+      "C015",
+      "C016",
+      "C017",
+      "C018",
+      "C019",
+      "C020",
+      "C022",
+      "C023",
+      "C024",
+    ];
+    withConfig("", config => {
+      const enabledRules = Object.entries(config.rules)
+        .filter(item => (item[1] as Object)["enabled"])
+        .map(item => item[0]);
+      expect(enabledRules).toEqual(expectedRules);
+    });
+  });
+
+  test("Default disabled ruleset", () => {
+    const expectedRules = ["C026"];
+    withConfig("", config => {
+      const disabledRules = Object.entries(config.rules)
+        .filter(item => !(item[1] as Object)["enabled"])
+        .map(item => item[0]);
+      expect(disabledRules).toEqual(expectedRules);
+    });
+  });
+
   test("Disable specific rule", () => {
     withConfig(
       dedent(`
@@ -56,9 +100,16 @@ describe("Configurable options", () => {
           - C003
           - C016
         `),
-      () => {
+      config => {
+        expect(config.rules["C003"].enabled).toEqual(false);
+        expect(config.rules["C016"].enabled).toEqual(false);
+
         expect(() => {
-          new ConventionalCommitMessage("fix: updated testing");
+          new ConventionalCommitMessage(
+            "fix: updated testing",
+            undefined,
+            config
+          );
         }).not.toThrow(ConventionalCommitError);
       }
     );
@@ -74,9 +125,9 @@ describe("Configurable options", () => {
           - XYZZY0123
           - C002
         `),
-      () => {
+      config => {
         expect(() => {
-          new ConventionalCommitMessage("ci: make things");
+          new ConventionalCommitMessage("ci: make things", undefined, config);
         }).not.toThrow(ConventionalCommitError);
         expect(coreWarning).toHaveBeenCalledTimes(1);
       }
@@ -84,23 +135,65 @@ describe("Configurable options", () => {
     coreWarning.mockRestore();
   });
 
-  test("Override maximum subject length", () => {
+  test("Enable specific rule", () => {
     withConfig(
       dedent(`
-        max-subject-length: 100
-        disable:
-          - C003
-          - C016
+        enable:
+          - C026
         `),
-      () => {
+      config => {
+        expect(config.rules["C026"].enabled).toEqual(true);
+
         expect(() => {
-          new ConventionalCommitMessage(`fix: add ${"0".repeat(91)}`);
-        }).not.toThrow(ConventionalCommitError);
-        expect(() => {
-          new ConventionalCommitMessage(`fix: add ${"0".repeat(92)}`);
+          new ConventionalCommitMessage(
+            dedent(`
+            fix: updated testing`),
+            undefined,
+            config
+          );
         }).toThrow(ConventionalCommitError);
       }
     );
+  });
+
+  test("Enable nonexistent rule", () => {
+    const coreWarning = jest.spyOn(core, "warning").mockImplementation();
+
+    withConfig(
+      dedent(`
+        enable:
+          - C001
+          - XYZZY0123
+          - C002
+        `),
+      config => {
+        expect(coreWarning).toHaveBeenCalledTimes(1);
+      }
+    );
+    coreWarning.mockRestore();
+  });
+
+  test("Default maximum subject length", () => {
+    withConfig("", config => {
+      expect(config.maxSubjectLength).toEqual(80);
+    });
+  });
+
+  test("Override maximum subject length", () => {
+    withConfig("max-subject-length: 100", config => {
+      expect(config.maxSubjectLength).toEqual(100);
+    });
+  });
+
+  test("Default tags", () => {
+    withConfig("", config => {
+      for (const [key, value] of Object.entries(
+        _testData.DEFAULT_ACCEPTED_TAGS
+      )) {
+        expect(config.tags[key]).not.toBeUndefined();
+        expect(config.tags[key].bump).toEqual(value.bump);
+      }
+    });
   });
 
   test("Additional patch bumping tag with uppercase letter", () => {
@@ -113,9 +206,11 @@ describe("Configurable options", () => {
         disable:
           - C001
         `),
-      () => {
+      config => {
         const msg = new ConventionalCommitMessage(
-          "typeA: do something requiring a custom type"
+          "typeA: do something requiring a custom type",
+          undefined,
+          config
         );
         expect(msg.bump).toBe(SemVerType.PATCH);
       }
@@ -130,10 +225,12 @@ describe("Configurable options", () => {
             description: Some custom type
             bump: true
         `),
-      () => {
+      config => {
         expect(() => {
           new ConventionalCommitMessage(
-            "typeA: do something requiring a custom type"
+            "typeA: do something requiring a custom type",
+            undefined,
+            config
           );
         }).toThrow(ConventionalCommitError);
       }
@@ -149,9 +246,11 @@ describe("Configurable options", () => {
         disable:
           - C001
         `),
-      () => {
+      config => {
         const msg = new ConventionalCommitMessage(
-          "typeA: do something requiring a custom type"
+          "typeA: do something requiring a custom type",
+          undefined,
+          config
         );
         expect(msg.bump).toBe(SemVerType.NONE);
       }
@@ -174,11 +273,13 @@ describe("Configurable options", () => {
         disable:
           - C001
         `),
-      () => {
+      config => {
         // Types are overwritten, so expect "chore" not to be acceptable
         expect(() => {
           const msg2 = new ConventionalCommitMessage(
-            "chore: add something chore-ish"
+            "chore: add something chore-ish",
+            undefined,
+            config
           );
         }).toThrow(ConventionalCommitError);
       }
@@ -192,8 +293,8 @@ describe("Configurable options", () => {
           perf:
             bump: true
         `),
-      () => {
-        const acceptedTypes = Object.keys(new Configuration().tags);
+      config => {
+        const acceptedTypes = Object.keys(config.tags);
 
         expect(acceptedTypes).toHaveLength(3);
         expect(acceptedTypes).toEqual(
@@ -212,8 +313,8 @@ describe("Configurable options", () => {
           improvement:
             bump: true
         `),
-      () => {
-        expect(new Configuration().tags["perf"].description).toEqual(
+      config => {
+        expect(config.tags["perf"].description).toEqual(
           _testData.DEFAULT_ACCEPTED_TAGS["perf"].description
         );
       }
@@ -221,14 +322,26 @@ describe("Configurable options", () => {
   });
 
   test("Default initial development value", () => {
-    withConfig("", () => {
-      expect(new Configuration().initialDevelopment).toEqual(true);
+    withConfig("", config => {
+      expect(config.initialDevelopment).toEqual(true);
     });
   });
 
   test("Disable initial development", () => {
-    withConfig("initial-development: false", () => {
-      expect(new Configuration().initialDevelopment).toEqual(false);
+    withConfig("initial-development: false", config => {
+      expect(config.initialDevelopment).toEqual(false);
+    });
+  });
+
+  test("Default allowed branches", () => {
+    withConfig("", config => {
+      expect(config.allowedBranches).toEqual(".*");
+    });
+  });
+
+  test("Customize allowed branches", () => {
+    withConfig("allowed-branches: main", config => {
+      expect(config.allowedBranches).toEqual("main");
     });
   });
 });

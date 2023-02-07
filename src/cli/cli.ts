@@ -109,7 +109,7 @@ program
       dedent(`
     Commisery Validation rules
     --------------------------
-    [${green}o${reset}]: ${gray}rule is enabled${reset}, [${red}x${reset}]: ${gray}rule has been disabled${reset}
+    [${green}o${reset}]: ${gray}rule is enabled${reset}, [${red}x${reset}]: ${gray}rule is disabled${reset}
     `)
     );
 
