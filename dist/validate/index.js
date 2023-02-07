@@ -12023,6 +12023,7 @@ const DEFAULT_ACCEPTED_TAGS = {
 const CONFIG_ITEMS = [
     "max-subject-length",
     "tags",
+    "enable",
     "disable",
     "allowed-branches",
     "initial-development",
@@ -12051,19 +12052,22 @@ class Configuration {
                 throw new Error(`Unknown configuration item '${key} detected!`);
             }
             switch (key) {
+                case "enable":
                 case "disable":
                     /* Example YAML:
                      *   disable:
                      *     - C001
                      *     - C018
+                     *   enable:
+                     *     - C026
                      */
                     if (typeof data[key] === "object") {
                         for (const item of data[key]) {
                             if (item in this.rules) {
-                                this.rules[item].enabled = false;
+                                this.rules[item].enabled = key === "enable";
                             }
                             else {
-                                core.warning(`Rule "${item}" is unknown; disabling it has no effect.`);
+                                core.warning(`Rule "${item}" is unknown; enabling or disabling it has no effect.`);
                             }
                         }
                     }
@@ -12174,11 +12178,10 @@ class Configuration {
         this.maxSubjectLength = 80;
         this.tags = DEFAULT_ACCEPTED_TAGS;
         this.rules = new Map();
-        // Enable all rules by default
         for (const rule of rules_1.ALL_RULES) {
             this.rules[rule.id] = {
                 description: rule.description,
-                enabled: true,
+                enabled: rule.default,
             };
         }
         if (fs.existsSync(configPath)) {
@@ -12798,8 +12801,8 @@ const logging_1 = __nccwpck_require__(1517);
 function validateRules(message, config) {
     const errors = [];
     const disabledRules = Object.entries(config.rules)
-        .map(([k, v]) => (!v.enabled ? k : undefined))
-        .filter((r) => !!r);
+        .filter(item => !item[1]["enabled"])
+        .map(item => item[0]);
     for (const rule of exports.ALL_RULES) {
         try {
             if (!disabledRules.includes(rule.id)) {
@@ -12818,13 +12821,15 @@ function validateRules(message, config) {
     return errors;
 }
 exports.validateRules = validateRules;
+const ISSUE_REGEX_IGNORED_KEYWORDS = ["AES", "CVE", "PEP", "SHA", "UTF", "VT"];
+const ISSUE_REGEX = new RegExp(`(?!\\b(?:${ISSUE_REGEX_IGNORED_KEYWORDS.join("|")})\\b)\\b[A-Z]+-[0-9]+\\b(?!-)`);
 /**
- * Type tag should be in lower case
  */
 class NonLowerCaseType {
     constructor() {
         this.id = "C001";
         this.description = "Type tag should be in lower case";
+        this.default = true;
     }
     validate(message, _) {
         if (message.type === undefined) {
@@ -12850,6 +12855,7 @@ class OneWhitelineBetweenSubjectAndBody {
     constructor() {
         this.id = "C002";
         this.description = "Only one empty line between subject and body";
+        this.default = true;
     }
     validate(message, _) {
         if (message.body.length >= 2 && message.body[1].trim() === "") {
@@ -12867,6 +12873,7 @@ class TitleCaseDescription {
     constructor() {
         this.id = "C003";
         this.description = "Description should not start with a capital case letter";
+        this.default = true;
     }
     validate(message, _) {
         if (message.description &&
@@ -12889,6 +12896,7 @@ class UnknownTagType {
     constructor() {
         this.id = "C004";
         this.description = "Subject should not contain an unknown tag type";
+        this.default = true;
     }
     validate(message, config) {
         if (message.type === undefined) {
@@ -12918,6 +12926,7 @@ class SeparatorContainsTrailingWhitespaces {
     constructor() {
         this.id = "C005";
         this.description = 'Zero spaces before and only one space allowed after the ":" separator';
+        this.default = true;
     }
     validate(message, _) {
         if (message.separator === null) {
@@ -12943,6 +12952,7 @@ class ScopeShouldNotBeEmpty {
     constructor() {
         this.id = "C006";
         this.description = "Scope should not be empty";
+        this.default = true;
     }
     validate(message, _) {
         if (message.scope === undefined) {
@@ -12967,6 +12977,7 @@ class ScopeContainsWhitespace {
     constructor() {
         this.id = "C007";
         this.description = "Scope should not contain any whitespace";
+        this.default = true;
     }
     validate(message, _) {
         if (message.scope && message.scope.length !== message.scope.trim().length) {
@@ -12989,6 +13000,7 @@ class MissingSeparator {
     constructor() {
         this.id = "C008";
         this.description = `Subject requires a separator (": ") after the type tag`;
+        this.default = true;
     }
     validate(message, _) {
         if (message.separator === undefined || !message.separator.includes(":")) {
@@ -13016,6 +13028,7 @@ class MissingDescription {
     constructor() {
         this.id = "C009";
         this.description = "Subject requires a description";
+        this.default = true;
     }
     validate(message, _) {
         if (!message.description) {
@@ -13034,6 +13047,7 @@ class BreakingIndicatorContainsWhitespacing {
     constructor() {
         this.id = "C010";
         this.description = 'No whitespace allowed around the "!" indicator';
+        this.default = true;
     }
     validate(message, _) {
         if (message.breakingChange &&
@@ -13057,6 +13071,7 @@ class OnlySingleBreakingIndicator {
     constructor() {
         this.id = "C011";
         this.description = "Breaking separator should consist of only one indicator";
+        this.default = true;
     }
     validate(message, _) {
         if (message.breakingChange && message.breakingChange.trim().length > 1) {
@@ -13079,6 +13094,7 @@ class MissingTypeTag {
     constructor() {
         this.id = "C012";
         this.description = "Subject requires a type";
+        this.default = true;
     }
     validate(message, _) {
         if (!message.type) {
@@ -13096,6 +13112,7 @@ class SubjectShouldNotEndWithPunctuation {
     constructor() {
         this.id = "C013";
         this.description = "Subject should not end with punctuation";
+        this.default = true;
     }
     validate(message, _) {
         if (message.description.match(/.*[.!?,]$/)) {
@@ -13114,6 +13131,7 @@ class SubjectExceedsLineLengthLimit {
     constructor() {
         this.id = "C014";
         this.description = "Subject should be within the line length limit";
+        this.default = true;
     }
     validate(message, config) {
         if (message.subject.length > config.maxSubjectLength) {
@@ -13135,6 +13153,7 @@ class NoRepeatedTags {
     constructor() {
         this.id = "C015";
         this.description = "Description should not start with a repetition of the tag";
+        this.default = true;
     }
     validate(message, _) {
         if (message.description === undefined || message.type === undefined) {
@@ -13162,6 +13181,7 @@ class DescriptionInImperativeMood {
     constructor() {
         this.id = "C016";
         this.description = "Description should be written in imperative mood";
+        this.default = true;
     }
     validate(message, _) {
         const commonNonImperativeVerbs = [
@@ -13221,6 +13241,7 @@ class SubjectContainsReviewRemarks {
     constructor() {
         this.id = "C017";
         this.description = "Subject should not contain reference to review comments";
+        this.default = true;
     }
     validate(_, __) {
         // TODO: implement this rule
@@ -13233,6 +13254,7 @@ class MissingEmptyLineBetweenSubjectAndBody {
     constructor() {
         this.id = "C018";
         this.description = "Commit message should contain an empty line between subject and body";
+        this.default = true;
     }
     validate(message, _) {
         if (message.body && message.body[0]) {
@@ -13249,10 +13271,9 @@ class SubjectContainsIssueReference {
     constructor() {
         this.id = "C019";
         this.description = "Subject should not contain a ticket reference";
+        this.default = true;
     }
     validate(message, _) {
-        const ALLOWED = ["AES", "CVE", "CWE", "PEP", "SHA", "UTF", "VT"];
-        const ISSUE_REGEX = new RegExp(`(?!\\b(?:${ALLOWED.join("|")})\\b)\\b[A-Z]+-[0-9]+\\b(?!-)`);
         const match = ISSUE_REGEX.exec(message.subject);
         if (match) {
             throw new logging_1.LlvmError({
@@ -13273,6 +13294,7 @@ class GitTrailerContainsWhitespace {
     constructor() {
         this.id = "C020";
         this.description = "Git-trailer should not contain whitespace";
+        this.default = true;
     }
     validate(message, _) {
         for (const item of message.footers) {
@@ -13297,6 +13319,7 @@ class FooterContainsBlankLine {
     constructor() {
         this.id = "C022";
         this.description = "Footer should not contain any blank line(s)";
+        this.default = true;
     }
     validate(message, _) {
         for (const item of message.footers) {
@@ -13315,6 +13338,7 @@ class BreakingChangeMustBeFirstGitTrailer {
     constructor() {
         this.id = "C023";
         this.description = "The BREAKING CHANGE git-trailer should be the first element in the footer";
+        this.default = true;
     }
     validate(message, _) {
         // eslint-disable-next-line github/array-foreach
@@ -13337,6 +13361,7 @@ class GitTrailerNeedAColon {
     constructor() {
         this.id = "C024";
         this.description = "A colon is required in git-trailers";
+        this.default = true;
     }
     validate(message, config) {
         const trailerFormats = [
@@ -13386,6 +13411,23 @@ class GitTrailerNeedAColon {
  *     "Only a single ticket or issue may be referenced per trailer";
  * This rule has been removed and its ID should therefore not be re-used.
  */
+/**
+ * A ticket reference is required in at least one footer value
+ */
+class FooterContainsTicketReference {
+    constructor() {
+        this.id = "C026";
+        this.description = "A ticket reference is required in at least one footer value";
+        this.default = false;
+    }
+    validate(message, config) {
+        if (!message.footers.some(footer => ISSUE_REGEX.exec(footer.value))) {
+            throw new logging_1.LlvmError({
+                message: `[${this.id}] ${this.description}`,
+            });
+        }
+    }
+}
 exports.ALL_RULES = [
     new NonLowerCaseType(),
     new OneWhitelineBetweenSubjectAndBody(),
@@ -13410,6 +13452,7 @@ exports.ALL_RULES = [
     new FooterContainsBlankLine(),
     new BreakingChangeMustBeFirstGitTrailer(),
     new GitTrailerNeedAColon(),
+    new FooterContainsTicketReference(),
 ];
 function getConventionalCommitRule(id) {
     for (const rule of exports.ALL_RULES) {

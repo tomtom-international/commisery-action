@@ -65,6 +65,7 @@ const DEFAULT_ACCEPTED_TAGS: IConfigurationRules = {
 const CONFIG_ITEMS = [
   "max-subject-length",
   "tags",
+  "enable",
   "disable",
   "allowed-branches",
   "initial-development",
@@ -104,19 +105,22 @@ export class Configuration {
       }
 
       switch (key) {
+        case "enable":
         case "disable":
           /* Example YAML:
            *   disable:
            *     - C001
            *     - C018
+           *   enable:
+           *     - C026
            */
           if (typeof data[key] === "object") {
             for (const item of data[key]) {
               if (item in this.rules) {
-                this.rules[item].enabled = false;
+                this.rules[item].enabled = key === "enable";
               } else {
                 core.warning(
-                  `Rule "${item}" is unknown; disabling it has no effect.`
+                  `Rule "${item}" is unknown; enabling or disabling it has no effect.`
                 );
               }
             }
@@ -250,11 +254,10 @@ export class Configuration {
    * Constructs a Configuration parameters from file
    */
   constructor(configPath: string = DEFAULT_CONFIGURATION_FILE) {
-    // Enable all rules by default
     for (const rule of ALL_RULES) {
       this.rules[rule.id] = {
         description: rule.description,
-        enabled: true,
+        enabled: rule.default,
       };
     }
     if (fs.existsSync(configPath)) {

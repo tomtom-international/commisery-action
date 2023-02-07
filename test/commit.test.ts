@@ -304,7 +304,7 @@ describe("Scope", () => {
 //
 describe("Type", () => {
   test("Chore Commit", () => {
-    const msg = new ConventionalCommitMessage("chore: did somethig");
+    const msg = new ConventionalCommitMessage("chore: did something");
     expect(msg.type).toBe("chore");
   });
 

@@ -22,14 +22,16 @@ import {
   IConventionalCommitRule,
 } from "../src/rules";
 import { ConventionalCommitError } from "../src/errors";
+import { Configuration } from "../src/config";
 
 function assertRuleValidationError(
   message: string,
-  type: IConventionalCommitRule
+  type: IConventionalCommitRule,
+  config: Configuration = new Configuration()
 ) {
   expect(type).not.toBeUndefined();
   try {
-    const msg = new ConventionalCommitMessage(message);
+    const msg = new ConventionalCommitMessage(message, undefined, config);
     expect(msg).not.toBeDefined();
   } catch (error: any) {
     let foundError = false;
@@ -51,11 +53,12 @@ function assertRuleValidationError(
 
 function assertRuleNoValidationError(
   message: string,
-  type: IConventionalCommitRule
+  type: IConventionalCommitRule,
+  config: Configuration = new Configuration()
 ) {
   expect(type).not.toBeUndefined();
   try {
-    const msg = new ConventionalCommitMessage(message);
+    const msg = new ConventionalCommitMessage(message, undefined, config);
     expect(msg).toBeDefined();
   } catch (error: any) {
     let foundError = false;
@@ -349,18 +352,32 @@ describe("Rules", () => {
    * [C014] The commit message's subject should be within the line length limit
    */
   test(`[C014] The commit message's subject should be within the line length limit`, () => {
+    const config = new Configuration();
+    config.maxSubjectLength = 100;
+
     for (const message of [
-      "feat: 789012345678901234567890123456789012345678901234567890123456789012345678901",
+      `feat: ${"0".repeat(95)}`,
+      `feat: ${"0".repeat(100)}`,
+      `feat: ${"0".repeat(1000)}`,
     ]) {
-      assertRuleValidationError(message, getConventionalCommitRule("C014"));
+      assertRuleValidationError(
+        message,
+        getConventionalCommitRule("C014"),
+        config
+      );
     }
 
     for (const message of [
+      `feat: ${"0".repeat(94)}`,
       "chore: this is a chore",
       "feat(scope)!: breaking change with scope",
       "fix:fix without whitespacing",
     ]) {
-      assertRuleNoValidationError(message, getConventionalCommitRule("C014"));
+      assertRuleNoValidationError(
+        message,
+        getConventionalCommitRule("C014"),
+        config
+      );
     }
   });
 
@@ -588,6 +605,60 @@ describe("Rules", () => {
           what with there being a space in the trailer keyword and such.`),
     ]) {
       assertRuleNoValidationError(message, getConventionalCommitRule("C024"));
+    }
+  });
+
+  /**
+   * [C026] A ticket reference is required in at least one footer value
+   */
+  test(`[C026] A ticket reference is required in at least one footer value`, () => {
+    const config = new Configuration();
+    config.rules["C026"].enabled = true;
+
+    for (const message of [
+      "test: no footer",
+      "test(TICKET-1234): ticket reference in subject",
+      dedent(`test: single footer, no ticket reference
+
+        Token: Value`),
+      dedent(`test: single footer, ticket reference in token
+
+        TICKET-1234: Implements`),
+      dedent(`test: multiple footers, keywords instead of ticket references
+
+        Implements: AES-128, CVE-123, PEP-8, SHA-256, UTF-16, VT-123
+        Token: Value`),
+    ]) {
+      assertRuleValidationError(
+        message,
+        getConventionalCommitRule("C026"),
+        config
+      );
+    }
+
+    for (const message of [
+      dedent(`test: one footer, one ticket reference
+
+        Fixes: ISS-1`),
+      dedent(`test: one footer, multiple ticket references
+
+        Fixes: ISS-1, TICKET-1234`),
+      dedent(`test: multiple footers, one ticket reference
+
+        Token: Value
+        Implements: TICKET-1234`),
+      dedent(`test: multiple footer, multiple ticket references
+
+        Fixes: ISS-1
+        Implements: TICKET-1234
+        Token: Value
+        `),
+    ]) {
+      assertRuleNoValidationError(
+        message,
+        getConventionalCommitRule("C026"),
+        config
+      );
     }
   });
 });

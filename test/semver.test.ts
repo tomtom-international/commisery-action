@@ -233,7 +233,7 @@ describe("Build metadata", () => {
       });
     }).toThrow(Error);
   });
-  test("Empty indentifier in build metadata", () => {
+  test("Empty identifier in build metadata", () => {
     expect(() => {
       new SemVer({
         major: 1,
