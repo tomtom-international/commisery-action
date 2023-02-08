@@ -36,15 +36,10 @@ function assertRuleValidationError(
   } catch (error: any) {
     let foundError = false;
 
-    if (!(error instanceof ConventionalCommitError)) {
-      console.log(error);
-    }
-
     expect(error).toBeInstanceOf(ConventionalCommitError);
     for (const err of error.errors) {
       if (err.message && err.message.startsWith(`[${type.id}]`)) {
         foundError = true;
-        console.log(err.report());
       }
     }
     expect(foundError).toBe(true);
@@ -63,15 +58,10 @@ function assertRuleNoValidationError(
   } catch (error: any) {
     let foundError = false;
 
-    if (!(error instanceof ConventionalCommitError)) {
-      console.log(error);
-    }
-
     expect(error).toBeInstanceOf(ConventionalCommitError);
     for (const err of error.errors) {
       if (err.message && err.message.startsWith(`[${type.id}]`)) {
         foundError = true;
-        console.log(err.report());
       }
     }
     expect(foundError).toBe(false);
