@@ -11468,7 +11468,7 @@ const validate_1 = __nccwpck_require__(4953);
  */
 function determineLabels(conventionalCommits) {
     return __awaiter(this, void 0, void 0, function* () {
-        const highestBumpType = yield (0, bump_1.getVersionBumpType)(conventionalCommits);
+        const highestBumpType = (0, bump_1.getVersionBumpType)(conventionalCommits);
         if (highestBumpType !== semver_1.SemVerType.NONE) {
             return [`bump:${semver_1.SemVerType[highestBumpType].toString().toLowerCase()}`];
         }
@@ -11487,7 +11487,7 @@ function run() {
             let compliant = true;
             if (core.getBooleanInput("validate-commits")) {
                 // Validate the current PR's commit messages
-                const result = yield (0, validate_1.validateCommitMessages)(config);
+                const result = yield (0, validate_1.validateCommitsInCurrentPR)(config);
                 compliant && (compliant = result.compliant);
                 yield (0, github_1.updateLabels)(yield determineLabels(result.messages));
             }
@@ -11571,9 +11571,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getVersionBumpTypeAndMessages = exports.getVersionBumpType = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const github_1 = __nccwpck_require__(978);
-const commit_1 = __nccwpck_require__(1730);
 const semver_1 = __nccwpck_require__(8593);
-const errors_1 = __nccwpck_require__(6976);
+const validate_1 = __nccwpck_require__(4953);
 const PAGE_SIZE = 100;
 /**
  * Returns a SemVer object if:
@@ -11612,35 +11611,19 @@ function getSemVerIfMatches(prefix, tagName, tagSha, commitSha) {
     }
     return null;
 }
-function getMessageAsConventionalCommit(commitMessage, hexsha, config) {
-    try {
-        return new commit_1.ConventionalCommitMessage(commitMessage, hexsha, config);
-    }
-    catch (error) {
-        // Ignore compliancy errors, but rethrow other errors
-        if (!(error instanceof errors_1.ConventionalCommitError ||
-            error instanceof errors_1.MergeCommitError ||
-            error instanceof errors_1.FixupCommitError)) {
-            throw error;
-        }
-    }
-    return null;
-}
 /**
  * Determines the highest SemVer bump level based on the provided
  * list of Conventional Commits
  */
 function getVersionBumpType(messages) {
-    return __awaiter(this, void 0, void 0, function* () {
-        let highestBump = semver_1.SemVerType.NONE;
-        for (const message of messages) {
-            if (highestBump !== semver_1.SemVerType.MAJOR) {
-                core.debug(`Commit type '${message.type}'${message.breakingChange ? " (BREAKING)" : ""}, has bump type: ${semver_1.SemVerType[message.bump]}`);
-                highestBump = message.bump > highestBump ? message.bump : highestBump;
-            }
+    let highestBump = semver_1.SemVerType.NONE;
+    for (const message of messages) {
+        if (highestBump !== semver_1.SemVerType.MAJOR) {
+            core.debug(`Commit type '${message.type}'${message.breakingChange ? " (BREAKING)" : ""}, has bump type: ${semver_1.SemVerType[message.bump]}`);
+            highestBump = message.bump > highestBump ? message.bump : highestBump;
         }
-        return highestBump;
-    });
+    }
+    return highestBump;
 }
 exports.getVersionBumpType = getVersionBumpType;
 /**
@@ -11668,7 +11651,6 @@ exports.getVersionBumpType = getVersionBumpType;
 function getVersionBumpTypeAndMessages(prefix, targetSha, config) {
     return __awaiter(this, void 0, void 0, function* () {
         let semVer = null;
-        const conventionalCommits = [];
         const nonConventionalCommits = [];
         core.debug(`Fetching last ${PAGE_SIZE} tags and commits from ${targetSha}..`);
         const [commits, tags] = yield Promise.all([
@@ -11676,6 +11658,7 @@ function getVersionBumpTypeAndMessages(prefix, targetSha, config) {
             (0, github_1.getLatestTags)(PAGE_SIZE),
         ]);
         core.debug("Fetch complete");
+        const commitList = [];
         commit_loop: for (const commit of commits) {
             // Try and match this commit's hash to a tag
             for (const tag of tags) {
@@ -11685,27 +11668,16 @@ function getVersionBumpTypeAndMessages(prefix, targetSha, config) {
                 }
             }
             core.debug(`Commit ${commit.sha.slice(0, 6)} is not associated with a tag`);
-            core.debug(`Examining message: ${commit.commit.message}`);
-            const msg = getMessageAsConventionalCommit(commit.commit.message, commit.sha, config);
-            // Determine the required bump if this is a conventional commit
-            if (msg) {
-                conventionalCommits.push(msg);
-            }
-            else {
-                nonConventionalCommits.push(commit.commit.message);
-            }
+            commitList.push({ message: commit.message, sha: commit.sha });
         }
-        if (nonConventionalCommits.length > 0) {
-            const plural = nonConventionalCommits.length !== 1;
-            core.info(`The following commit${plural ? "s were" : " was"} not accepted as ${plural ? "Conventional Commits" : " a Conventional Commit"}`);
-            for (const c of nonConventionalCommits) {
-                core.info(` - "${c}"`);
-            }
-        }
+        const results = (0, validate_1.processCommits)(commitList, config);
+        const convCommits = results
+            .map(r => r.message)
+            .filter((r) => r !== undefined);
         return {
             foundVersion: semVer,
-            requiredBump: yield getVersionBumpType(conventionalCommits),
-            messages: conventionalCommits,
+            requiredBump: getVersionBumpType(convCommits),
+            processedCommits: results,
         };
     });
 }
@@ -11878,6 +11850,7 @@ class ConventionalCommitMessage {
         this.footers = metadata.footers;
         this.scope = metadata.scope ? metadata.scope : null;
         this.type = metadata.type;
+        this.subject = metadata.subject;
         this.bump = this.determineBump(metadata);
         this.breakingChange = this.bump === semver_1.SemVerType.MAJOR;
     }
@@ -11898,7 +11871,7 @@ class ConventionalCommitMessage {
         }
         const patchBumpingTypes = Object.entries(this.config.tags)
             .map(([key, value]) => (value.bump ? key : undefined))
-            .filter((e) => !!e);
+            .filter((e) => e !== undefined);
         if (!patchBumpingTypes.includes("fix"))
             patchBumpingTypes.push("fix");
         if (patchBumpingTypes.includes(metadata.type.trim())) {
@@ -12305,7 +12278,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getContent = exports.updateLabels = exports.getAssociatedPullRequests = exports.getLatestTags = exports.getShaForTag = exports.getCommitsSince = exports.getReleaseConfiguration = exports.getConfig = exports.createTag = exports.createRelease = exports.getPullRequest = exports.getCommits = exports.getPullRequestTitle = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
+exports.getContent = exports.updateLabels = exports.getAssociatedPullRequests = exports.getLatestTags = exports.getShaForTag = exports.getCommitsSince = exports.getReleaseConfiguration = exports.getConfig = exports.createTag = exports.createRelease = exports.getPullRequest = exports.getCommitsInPR = exports.getPullRequestTitle = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const fs = __importStar(__nccwpck_require__(7147));
 const github = __importStar(__nccwpck_require__(5438));
@@ -12316,6 +12289,18 @@ const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
 function getOctokit() {
     const githubToken = core.getInput("token");
     return github.getOctokit(githubToken);
+}
+/**
+ * @param commits[] List of commits as returned by GitHub API `/repos/listCommits`
+ * @return List of ICommit objects representing the input list
+ */
+function githubCommitsAsICommits(commits) {
+    return commits.map((c) => {
+        return {
+            message: c.commit.message,
+            sha: c.sha,
+        };
+    });
 }
 /**
  * Returns whether we are running in context of a Pull Request event
@@ -12341,22 +12326,22 @@ function getPullRequestTitle() {
 }
 exports.getPullRequestTitle = getPullRequestTitle;
 /**
- * Retrieves a list of commits associated with the specified Pull Request
- * @param pullRequestId GitHub Pullrequest ID
- * @returns List of commit objects
+ * Retrieves a list of commits associated with the specified pull request
+ * @param pullRequestId GitHub pull request ID
+ * @returns ICommit[] List of ICommit objects
  */
-function getCommits(pullRequestId) {
+function getCommitsInPR(pullRequestId) {
     return __awaiter(this, void 0, void 0, function* () {
-        // Retrieve commits from provided Pull Request
+        // Retrieve commits from provided pull request
         const { data: commits } = yield getOctokit().rest.pulls.listCommits({
             owner: OWNER,
             repo: REPO,
             pull_number: pullRequestId,
         });
-        return commits;
+        return githubCommitsAsICommits(commits);
     });
 }
-exports.getCommits = getCommits;
+exports.getCommitsInPR = getCommitsInPR;
 /**
  * Retrieves the Pull Request associated with the specified Pull Request ID
  * @param pullRequestId GitHub Pullrequest ID
@@ -12449,7 +12434,7 @@ function getCommitsSince(sha, pageSize) {
             sha,
             per_page: pageSize,
         });
-        return commits;
+        return githubCommitsAsICommits(commits);
     });
 }
 exports.getCommitsSince = getCommitsSince;
@@ -12890,7 +12875,7 @@ class TitleCaseDescription {
     }
 }
 /**
- * Subject should not contain an unknown tag type
+ * Subject should not contain an unknown type tag
  */
 class UnknownTagType {
     constructor() {
@@ -13704,15 +13689,23 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.validatePrTitleBump = exports.validatePrTitle = exports.validateCommitMessages = void 0;
+exports.validatePrTitleBump = exports.validatePrTitle = exports.validateCommitsInCurrentPR = exports.processCommits = exports.outputCommitListErrors = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const commit_1 = __nccwpck_require__(1730);
 const github_1 = __nccwpck_require__(978);
 const semver_1 = __nccwpck_require__(8593);
 const errors_1 = __nccwpck_require__(6976);
-function outputErrors(message, errors, sha) {
-    const isPrTitle = sha === undefined;
-    if (isPrTitle) {
+/**
+/* Takes a single non-compliant commit `message`, its `sha`, and its list of
+ * `errors`, and outputs them to `core.error` if the parameter `useErrorLevel`
+ * is `true`, or `core.warning` otherwise.
+ * If `sha` is `undefined`, the message is assumed to be a pull request title
+ * and the output will reflect that.
+ */
+function outputCommitErrors(message, errors, sha, useErrorLevel) {
+    var _a;
+    const isPullRequestTitle = sha === undefined;
+    if (isPullRequestTitle) {
         core.startGroup(`❌ Pull request title`);
         core.info("⚠️ A pull request's title is the default value for a generated merge commit. " +
             "It should therefore adhere to the Conventional Commits specification as well.\n" +
@@ -13720,14 +13713,18 @@ function outputErrors(message, errors, sha) {
             "action parameters as `false` in the workflow file.\n");
     }
     else {
-        core.startGroup(`❌ Commit (${sha})`);
+        const subject = ((_a = message.match(/^.*$/m)) !== null && _a !== void 0 ? _a : [""])[0];
+        core.startGroup(`❌ Commit (${sha.slice(0, 8)}): ${subject}`);
     }
     for (const error of errors) {
         if (error.message === undefined) {
             continue;
         }
-        core.error(error.message, {
-            title: isPrTitle ? `(PR title) ${message}` : `(Commit ${sha}) ${message}`,
+        const outputFunc = useErrorLevel ? core.error : core.warning;
+        outputFunc(error.message, {
+            title: isPullRequestTitle
+                ? `(PR title) ${message}`
+                : `(Commit ${sha.slice(0, 8)}) ${message}`,
         });
         const indicatorMaybe = error.indicator();
         if (indicatorMaybe) {
@@ -13737,59 +13734,82 @@ function outputErrors(message, errors, sha) {
     core.endGroup();
 }
 /**
- * Validates all commit messages in the current pull request.
+ * Takes an array of IValidationResult objects and outputs the errors
+ * contained therein.
+ * When `useErrorLevel` is set to `true`, the commit errors are printed
+ * the on error level (when `false`, the warning level).
  */
-function validateCommitMessages(config) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const conventionalCommitMessages = [];
-        const results = [];
-        const commits = yield (0, github_1.getCommits)((0, github_1.getPullRequestId)());
-        for (const commit of commits) {
-            const message = commit.commit.message;
-            const sha = commit.sha;
-            try {
-                conventionalCommitMessages.push(new commit_1.ConventionalCommitMessage(message, undefined, config));
-                results.push({ message, sha, errors: [] });
+function outputCommitListErrors(validationResults, useErrorLevel) {
+    for (const c of validationResults) {
+        if (c.errors.length > 0) {
+            outputCommitErrors(c.input.message, c.errors, c.input.sha, useErrorLevel);
+        }
+    }
+}
+exports.outputCommitListErrors = outputCommitListErrors;
+/* Takes an array of ICommit interface objects and process them using the
+ * provided `Configuration` into an array of IValidationResult objects.
+ * This contains the input, ConventionalCommitMessage object if compliant,
+ * and any errors relating to the message if not.
+ */
+function processCommits(commits, config) {
+    const results = [];
+    for (const commit of commits) {
+        const message = commit.message;
+        const sha = commit.sha;
+        try {
+            const cc = new commit_1.ConventionalCommitMessage(message, undefined, config);
+            results.push({ input: commit, message: cc, errors: [] });
+        }
+        catch (error) {
+            if (error instanceof errors_1.ConventionalCommitError) {
+                results.push({
+                    input: commit,
+                    message: undefined,
+                    errors: error.errors,
+                });
             }
-            catch (error) {
-                if (error instanceof errors_1.ConventionalCommitError) {
-                    results.push({ message, sha, errors: error.errors });
-                }
-                else if (error instanceof errors_1.MergeCommitError ||
-                    error instanceof errors_1.FixupCommitError) {
-                    continue;
-                }
+            else if (error instanceof errors_1.MergeCommitError ||
+                error instanceof errors_1.FixupCommitError) {
+                continue;
             }
         }
-        const goodCommits = results.filter(c => {
-            return c.errors.length === 0;
-        });
-        const badCommits = results.filter(c => {
-            return c.errors.length !== 0;
-        });
-        if (goodCommits.length > 0) {
-            core.info(`✅ ${badCommits.length === 0 ? "All " : ""}${goodCommits.length}` +
+    }
+    return results;
+}
+exports.processCommits = processCommits;
+/**
+ * Validates all commit messages in the current pull request.
+ */
+function validateCommitsInCurrentPR(config) {
+    var _a;
+    return __awaiter(this, void 0, void 0, function* () {
+        const conventionalCommitMessages = [];
+        const commits = yield (0, github_1.getCommitsInPR)((0, github_1.getPullRequestId)());
+        const results = processCommits(commits, config);
+        const passResults = results.filter(c => c.errors.length === 0);
+        const failResults = results.filter(c => c.errors.length !== 0);
+        if (passResults.length > 0) {
+            core.info(`✅ ${failResults.length === 0 ? "All " : ""}${passResults.length}` +
                 ` of the pull request's commits are valid Conventional Commits`);
-            for (const c of goodCommits) {
-                core.startGroup(`✅ Commit (${c.sha})`);
-                core.info(c.message);
+            for (const c of passResults) {
+                core.startGroup(`✅ Commit (${c.input.sha.slice(0, 8)}): ${(_a = c.message) === null || _a === void 0 ? void 0 : _a.subject}`);
+                core.info(c.input.message);
                 core.endGroup();
             }
         }
-        if (badCommits.length > 0) {
+        if (failResults.length > 0) {
             core.info(""); // for vertical whitespace
-            core.setFailed(`${badCommits.length} of the pull request's commits are not valid Conventional Commits`);
-            for (const c of badCommits) {
-                outputErrors(c.message, c.errors, c.sha);
-            }
+            core.setFailed(`${failResults.length} of the pull request's commits are not valid Conventional Commits`);
+            outputCommitListErrors(failResults, true);
         }
         return {
-            compliant: badCommits.length === 0,
-            messages: conventionalCommitMessages,
+            compliant: failResults.length === 0,
+            messages: passResults.map(r => r.message),
         };
     });
 }
-exports.validateCommitMessages = validateCommitMessages;
+exports.validateCommitsInCurrentPR = validateCommitsInCurrentPR;
 /**
  * Validates the pull request title and, if compliant, returns it as a
  * ConventionalCommitMessage object.
@@ -13822,7 +13842,7 @@ function validatePrTitle(config) {
         }
         if (errors.length > 0) {
             core.setFailed(errorMessage);
-            outputErrors(prTitleText, errors, undefined);
+            outputCommitErrors(prTitleText, errors, undefined, true);
         }
         else {
             core.startGroup(`✅ The pull request title is compliant with the Conventional Commits specification`);
@@ -13838,12 +13858,10 @@ exports.validatePrTitle = validatePrTitle;
  * This implies that the PR title must comply with the Conventional Commits spec.
  */
 function validatePrTitleBump(config) {
+    var _a, _b;
     return __awaiter(this, void 0, void 0, function* () {
         const prTitleText = yield (0, github_1.getPullRequestTitle)();
-        const commits = (yield (0, github_1.getCommits)((0, github_1.getPullRequestId)())).map(m => {
-            return m.commit.message;
-        });
-        let highestBump = semver_1.SemVerType.NONE;
+        const commits = yield (0, github_1.getCommitsInPR)((0, github_1.getPullRequestId)());
         const prTitle = yield validatePrTitle(config);
         const baseError = "Cannot validate the consistency of bump levels between PR title and PR commits";
         if (prTitle === undefined) {
@@ -13855,25 +13873,24 @@ function validatePrTitleBump(config) {
             return true;
         }
         core.info(""); // for vertical whitespace
-        for (const commit of commits) {
-            try {
-                const cc = new commit_1.ConventionalCommitMessage(commit);
-                highestBump = cc.bump > highestBump ? cc.bump : highestBump;
-            }
-            catch (error) {
-                if (!(error instanceof errors_1.ConventionalCommitError ||
-                    error instanceof errors_1.MergeCommitError ||
-                    error instanceof errors_1.FixupCommitError)) {
-                    throw error;
-                }
-                core.warning(`${baseError}, as the PR contains non-compliant commits`);
-                return false;
-            }
+        const results = processCommits(commits, config);
+        if (results.some(c => c.errors.length !== 0)) {
+            // Abort if the list contains any non-compliant commits; bump level
+            // validation only really makes sense if all commits are found to
+            // be compliant.
+            core.warning(`${baseError}, as the PR contains non-compliant commits`);
+            return false;
         }
+        const highestBump = (_b = (_a = results.reduce((acc, val) => {
+            var _a, _b, _c, _d;
+            const accb = (_b = (_a = acc.message) === null || _a === void 0 ? void 0 : _a.bump) !== null && _b !== void 0 ? _b : semver_1.SemVerType.NONE;
+            const valb = (_d = (_c = val.message) === null || _c === void 0 ? void 0 : _c.bump) !== null && _d !== void 0 ? _d : semver_1.SemVerType.NONE;
+            return accb > valb ? acc : val;
+        }).message) === null || _a === void 0 ? void 0 : _a.bump) !== null && _b !== void 0 ? _b : semver_1.SemVerType.NONE;
         if (highestBump !== prTitle.bump) {
-            const commitSubjects = commits.map(m => {
-                return m.split("\n")[0];
-            });
+            const commitSubjects = results
+                .map(r => { var _a; return (_a = r.message) === null || _a === void 0 ? void 0 : _a.subject; })
+                .filter(x => x !== undefined);
             core.setFailed("The PR title's bump level is not consistent with its commits.\n" +
                 `The PR title type ${prTitle.type} represents bump level ` +
                 `${semver_1.SemVerType[prTitle.bump]}, while the highest bump in the ` +

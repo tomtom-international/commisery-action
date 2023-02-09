@@ -148,6 +148,7 @@ export class ConventionalCommitMessage {
   footers: Footer[];
   hexsha: string | undefined;
   scope: string | null;
+  subject: string;
   type: string;
 
   constructor(
@@ -197,6 +198,7 @@ export class ConventionalCommitMessage {
     this.footers = metadata.footers;
     this.scope = metadata.scope ? metadata.scope : null;
     this.type = metadata.type;
+    this.subject = metadata.subject;
 
     this.bump = this.determineBump(metadata);
     this.breakingChange = this.bump === SemVerType.MAJOR;
@@ -222,7 +224,7 @@ export class ConventionalCommitMessage {
 
     const patchBumpingTypes: string[] = Object.entries(this.config.tags)
       .map(([key, value]) => (value.bump ? key : undefined))
-      .filter((e): e is string => !!e);
+      .filter((e): e is string => e !== undefined);
 
     if (!patchBumpingTypes.includes("fix")) patchBumpingTypes.push("fix");
 

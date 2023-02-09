@@ -185,6 +185,9 @@ Filtering the Git version tags is also possible, by providing a `version-prefix`
 _exactly_ with the value of `version-prefix` shall be taken into account while determining and bumping versions.
 As an example, for version tag `componentX-1.2.3`, the version prefix would be `componentX-`.
 
+Since GitHub CI may append a reference to the PR number in merge/squash commits (depending on the settings),
+certain rules (e.g. subject length), are disabled when processing commit messages while determining the next version.
+
 #### Initial Development
 
 During initial development, you should avoid bumping the `MAJOR` version.

@@ -20,6 +20,7 @@ import { context } from "@actions/github";
 import { RequestError } from "@octokit/request-error";
 import { getVersionBumpTypeAndMessages } from "../bump";
 import { generateChangelog } from "../changelog";
+import { ConventionalCommitMessage } from "../commit";
 import { Configuration } from "../config";
 import {
   createRelease,
@@ -29,7 +30,8 @@ import {
   isPullRequestEvent,
 } from "../github";
 import { IVersionBumpTypeAndMessages } from "../interfaces";
-import { SemVer } from "../semver";
+import { SemVer, SemVerType } from "../semver";
+import { outputCommitListErrors, processCommits } from "../validate";
 
 /**
  * Bump action entrypoint
@@ -98,19 +100,69 @@ async function run(): Promise<void> {
     }
     core.endGroup();
 
-    core.startGroup("🔍 Determining bump");
-    const nextVersion: SemVer | null = bumpInfo.foundVersion.bump(
-      bumpInfo.requiredBump,
-      config.initialDevelopment
+    const nonCompliantCommits = bumpInfo.processedCommits.filter(
+      c => !c.message
     );
+    if (nonCompliantCommits.length > 0) {
+      const totalLen = bumpInfo.processedCommits.length;
+      const ncLen = nonCompliantCommits.length;
+
+      core.info(""); // for vertical whitespace
+
+      if (ncLen === totalLen) {
+        const commitsDoNotComply =
+          totalLen === 1
+            ? "The only encountered commit does not comply"
+            : `None of the encountered ${totalLen} commits comply`;
+
+        core.warning(
+          `${commitsDoNotComply} with the Conventional Commits specification, ` +
+            "so the intended bump level could not be determined.\n" +
+            "As a result, no version bump will be performed."
+        );
+      } else {
+        const [pluralDo, pluralBe] =
+          ncLen !== 1 ? ["do", "are"] : ["does", "is"];
+
+        core.warning(
+          `${ncLen} of the encountered ${totalLen} commits ` +
+            `${pluralDo} not comply with the Conventional Commits ` +
+            `specification and ${pluralBe} therefore NOT considered ` +
+            "while determining the bump level."
+        );
+      }
+      const pluralCommit = ncLen === 1 ? "commit" : "commits";
+      core.info(`⚠️ Non-compliant ${pluralCommit}:`);
+      outputCommitListErrors(nonCompliantCommits, false);
+    }
 
     if (bumpInfo.foundVersion.major <= 0) {
+      core.info("");
       core.warning(
         config.initialDevelopment
           ? "This repository is under 'initial development'; breaking changes will bump the `MINOR` version."
           : "Enforcing version `1.0.0` as we are no longer in `initial development`."
       );
     }
+
+    core.info("");
+    core.startGroup("🔍 Determining bump");
+    const compliantCommits = bumpInfo.processedCommits
+      .filter(c => c.message !== undefined)
+      .map(c => ({
+        msg: c.message as ConventionalCommitMessage,
+        sha: c.input.sha.slice(0, 8),
+      }));
+
+    for (const { msg, sha } of compliantCommits) {
+      const bumpString = msg.bump === 0 ? "No" : SemVerType[msg.bump];
+      core.info(`- ${bumpString} bump for commit (${sha}): ${msg.subject}`);
+    }
+
+    const nextVersion = bumpInfo.foundVersion.bump(
+      bumpInfo.requiredBump,
+      config.initialDevelopment
+    );
 
     if (nextVersion) {
       // Assign Build Metadata
