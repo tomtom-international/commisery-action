@@ -18,10 +18,20 @@ import dedent from "dedent";
 
 import { ConventionalCommitMessage } from "../src/commit";
 import { generateChangelog } from "../src/changelog";
-import { IVersionBumpTypeAndMessages } from "../src/interfaces";
+import { IVersionBumpTypeAndMessages, ICommit } from "../src/interfaces";
 import { SemVer, SemVerType } from "../src/semver";
 const github = require("../src/github");
 const githubActions = require("@actions/github");
+
+function createMessages(messages: ICommit[]) {
+  return messages.map(c => {
+    return {
+      input: c,
+      message: new ConventionalCommitMessage(c.message, c.sha), // don't catch exceptions
+      errors: [],
+    };
+  });
+}
 
 // Validate Changelog Generation
 //
@@ -47,25 +57,25 @@ describe("Generate Changelog", () => {
     const bump: IVersionBumpTypeAndMessages = {
       foundVersion: new SemVer({ major: 1, minor: 0, patch: 0 }),
       requiredBump: SemVerType.MINOR,
-      messages: [
-        new ConventionalCommitMessage("feat!: breaks the API"),
-        new ConventionalCommitMessage("feat: add new feature"),
-        new ConventionalCommitMessage("fix: avoid crash"),
-        new ConventionalCommitMessage("ci: non-bumping commit"),
-      ],
+      processedCommits: createMessages([
+        { message: "feat!: breaks the API", sha: "17e57c03317" },
+        { message: "feat: add new feature", sha: "27e57c03317" },
+        { message: "fix: avoid crash", sha: "37e57c03317" },
+        { message: "ci: non-bumping commit", sha: "47e57c03317" },
+      ]),
     };
     const changelog = await generateChangelog(bump);
     expect(changelog).toEqual(
       dedent(
         `## What's changed
           ### :warning: Breaking Changes
-          * Breaks the API
+          * Breaks the API (#123) [[17e57c](https://github.com/tomtom-international/commisery-action/commit/17e57c03317)]
           ### :rocket: New Features
-          * Add new feature
+          * Add new feature (#123) [[27e57c](https://github.com/tomtom-international/commisery-action/commit/27e57c03317)]
           ### :bug: Bug Fixes
-          * Avoid crash
+          * Avoid crash (#123) [[37e57c](https://github.com/tomtom-international/commisery-action/commit/37e57c03317)]
           ### :construction_worker: Other changes
-          * Non-bumping commit
+          * Non-bumping commit (#123) [[47e57c](https://github.com/tomtom-international/commisery-action/commit/47e57c03317)]
   
   
           *Diff since last release: [1.0.0...1.1.0](https://github.com/tomtom-international/commisery-action/compare/1.0.0...1.1.0)*`
@@ -77,12 +87,9 @@ describe("Generate Changelog", () => {
     const bump: IVersionBumpTypeAndMessages = {
       foundVersion: new SemVer({ major: 1, minor: 0, patch: 0 }),
       requiredBump: SemVerType.MINOR,
-      messages: [
-        new ConventionalCommitMessage(
-          "feat: add pull request reference",
-          "0x123abc"
-        ),
-      ],
+      processedCommits: createMessages([
+        { message: "feat: add pull request reference", sha: "0x123abc" },
+      ]),
     };
     const changelog = await generateChangelog(bump);
     expect(changelog).toEqual(
@@ -101,12 +108,9 @@ describe("Generate Changelog", () => {
     const bump: IVersionBumpTypeAndMessages = {
       foundVersion: new SemVer({ major: 1, minor: 0, patch: 0 }),
       requiredBump: SemVerType.MINOR,
-      messages: [
-        new ConventionalCommitMessage(
-          "feat: add pull request reference (#1)",
-          "0x123abc"
-        ),
-      ],
+      processedCommits: createMessages([
+        { message: "feat: add pull request reference (#1)", sha: "0x123abc" },
+      ]),
     };
     const changelog = await generateChangelog(bump);
     expect(changelog).toEqual(
@@ -125,26 +129,32 @@ describe("Generate Changelog", () => {
     const bump: IVersionBumpTypeAndMessages = {
       foundVersion: new SemVer({ major: 1, minor: 0, patch: 0 }),
       requiredBump: SemVerType.MINOR,
-      messages: [
-        new ConventionalCommitMessage(
-          "feat: add pull request reference\n\nThis is the body\n\nImplements: TEST-123"
-        ),
-        new ConventionalCommitMessage(
-          "feat: do GitHub things\n\nThis is the body\n\nImplements #42"
-        ),
-        new ConventionalCommitMessage(
-          "feat: make GitHub stuff\n\nThis is the body\n\nImplements: #51"
-        ),
-      ],
+      processedCommits: createMessages([
+        {
+          message:
+            "feat: add pull request reference\n\nThis is the body\n\nImplements: TEST-123",
+          sha: "17e57c03317",
+        },
+        {
+          message:
+            "feat: do GitHub things\n\nThis is the body\n\nImplements #42",
+          sha: "27e57c03317",
+        },
+        {
+          message:
+            "feat: make GitHub stuff\n\nThis is the body\n\nImplements: #51",
+          sha: "37e57c03317",
+        },
+      ]),
     };
     const changelog = await generateChangelog(bump);
     expect(changelog).toEqual(
       dedent(
         `## What's changed
         ### :rocket: New Features
-        * Add pull request reference (TEST-123)
-        * Do GitHub things (#42)
-        * Make GitHub stuff (#51)
+        * Add pull request reference (#123) (TEST-123) [[17e57c](https://github.com/tomtom-international/commisery-action/commit/17e57c03317)]
+        * Do GitHub things (#123) (#42) [[27e57c](https://github.com/tomtom-international/commisery-action/commit/27e57c03317)]
+        * Make GitHub stuff (#123) (#51) [[37e57c](https://github.com/tomtom-international/commisery-action/commit/37e57c03317)]
 
 
         *Diff since last release: [1.0.0...1.1.0](https://github.com/tomtom-international/commisery-action/compare/1.0.0...1.1.0)*`
@@ -156,14 +166,18 @@ describe("Generate Changelog", () => {
     const bump: IVersionBumpTypeAndMessages = {
       foundVersion: new SemVer({ major: 1, minor: 0, patch: 0 }),
       requiredBump: SemVerType.MINOR,
-      messages: [
-        new ConventionalCommitMessage(
-          "feat!: add pull request reference\n\nThis is the body\n\nImplements: TEST-123"
-        ),
-        new ConventionalCommitMessage(
-          "feat: do GitHub things\n\nThis is the body\n\nImplements #42"
-        ),
-      ],
+      processedCommits: createMessages([
+        {
+          message:
+            "feat!: add pull request reference\n\nThis is the body\n\nImplements: TEST-123",
+          sha: "17e57c03317",
+        },
+        {
+          message:
+            "feat: do GitHub things\n\nThis is the body\n\nImplements #42",
+          sha: "27e57c03317",
+        },
+      ]),
     };
 
     jest.spyOn(github, "getReleaseConfiguration").mockImplementation(() => {
@@ -187,7 +201,7 @@ describe("Generate Changelog", () => {
       dedent(
         `## What's changed
         ### All changes
-        * Do GitHub things (#42)
+        * Do GitHub things (#123) (#42) [[27e57c](https://github.com/tomtom-international/commisery-action/commit/27e57c03317)]
 
 
         *Diff since last release: [1.0.0...1.1.0](https://github.com/tomtom-international/commisery-action/compare/1.0.0...1.1.0)*`
@@ -199,14 +213,18 @@ describe("Generate Changelog", () => {
     const bump: IVersionBumpTypeAndMessages = {
       foundVersion: new SemVer({ major: 1, minor: 0, patch: 0 }),
       requiredBump: SemVerType.MINOR,
-      messages: [
-        new ConventionalCommitMessage(
-          "feat!: this should be in all changes\n\nThis is the body\n\nImplements: TEST-123"
-        ),
-        new ConventionalCommitMessage(
-          "feat: do GitHub things\n\nThis is the body\n\nImplements #42"
-        ),
-      ],
+      processedCommits: createMessages([
+        {
+          message:
+            "feat!: this should be in all changes\n\nThis is the body\n\nImplements: TEST-123",
+          sha: "17e57c03317",
+        },
+        {
+          message:
+            "feat: do GitHub things\n\nThis is the body\n\nImplements #42",
+          sha: "27e57c03317",
+        },
+      ]),
     };
 
     jest.spyOn(github, "getReleaseConfiguration").mockImplementation(() => {
@@ -234,8 +252,8 @@ describe("Generate Changelog", () => {
       dedent(
         `## What's changed
         ### All changes
-        * This should be in all changes (TEST-123)
-        * Do GitHub things (#42)
+        * This should be in all changes (#123) (TEST-123) [[17e57c](https://github.com/tomtom-international/commisery-action/commit/17e57c03317)]
+        * Do GitHub things (#123) (#42) [[27e57c](https://github.com/tomtom-international/commisery-action/commit/27e57c03317)]
 
 
         *Diff since last release: [1.0.0...1.1.0](https://github.com/tomtom-international/commisery-action/compare/1.0.0...1.1.0)*`
@@ -247,14 +265,18 @@ describe("Generate Changelog", () => {
     const bump: IVersionBumpTypeAndMessages = {
       foundVersion: new SemVer({ major: 1, minor: 0, patch: 0 }),
       requiredBump: SemVerType.MINOR,
-      messages: [
-        new ConventionalCommitMessage(
-          "feat!: add pull request reference\n\nThis is the body\n\nImplements: TEST-123"
-        ),
-        new ConventionalCommitMessage(
-          "feat: do GitHub things\n\nThis is the body\n\nImplements #42"
-        ),
-      ],
+      processedCommits: createMessages([
+        {
+          message:
+            "feat!: add pull request reference\n\nThis is the body\n\nImplements: TEST-123",
+          sha: "17e57c03317",
+        },
+        {
+          message:
+            "feat: do GitHub things\n\nThis is the body\n\nImplements #42",
+          sha: "27e57c03317",
+        },
+      ]),
     };
 
     jest.spyOn(github, "getReleaseConfiguration").mockImplementation(() => {
@@ -275,7 +297,7 @@ describe("Generate Changelog", () => {
       dedent(
         `## What's changed
         ### Major Changes
-        * Add pull request reference (TEST-123)
+        * Add pull request reference (#123) (TEST-123) [[17e57c](https://github.com/tomtom-international/commisery-action/commit/17e57c03317)]
 
 
         *Diff since last release: [1.0.0...1.1.0](https://github.com/tomtom-international/commisery-action/compare/1.0.0...1.1.0)*`
@@ -287,14 +309,18 @@ describe("Generate Changelog", () => {
     const bump: IVersionBumpTypeAndMessages = {
       foundVersion: new SemVer({ major: 1, minor: 0, patch: 0 }),
       requiredBump: SemVerType.MINOR,
-      messages: [
-        new ConventionalCommitMessage(
-          "feat!: add pull request reference\n\nThis is the body\n\nImplements: TEST-123"
-        ),
-        new ConventionalCommitMessage(
-          "docs: do GitHub things\n\nThis is the body\n\nImplements #42"
-        ),
-      ],
+      processedCommits: createMessages([
+        {
+          message:
+            "feat!: add pull request reference\n\nThis is the body\n\nImplements: TEST-123",
+          sha: "17e57c03317",
+        },
+        {
+          message:
+            "docs: do GitHub things\n\nThis is the body\n\nImplements #42",
+          sha: "27e57c03317",
+        },
+      ]),
     };
 
     jest.spyOn(github, "getReleaseConfiguration").mockImplementation(() => {
@@ -319,9 +345,9 @@ describe("Generate Changelog", () => {
       dedent(
         `## What's changed
         ### Major Changes
-        * Add pull request reference (TEST-123)
+        * Add pull request reference (#123) (TEST-123) [[17e57c](https://github.com/tomtom-international/commisery-action/commit/17e57c03317)]
         ### Documentation
-        * Do GitHub things (#42)
+        * Do GitHub things (#123) (#42) [[27e57c](https://github.com/tomtom-international/commisery-action/commit/27e57c03317)]
 
 
         *Diff since last release: [1.0.0...1.1.0](https://github.com/tomtom-international/commisery-action/compare/1.0.0...1.1.0)*`

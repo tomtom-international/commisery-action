@@ -10553,6 +10553,7 @@ class ConventionalCommitMessage {
         this.footers = metadata.footers;
         this.scope = metadata.scope ? metadata.scope : null;
         this.type = metadata.type;
+        this.subject = metadata.subject;
         this.bump = this.determineBump(metadata);
         this.breakingChange = this.bump === semver_1.SemVerType.MAJOR;
     }
@@ -10573,7 +10574,7 @@ class ConventionalCommitMessage {
         }
         const patchBumpingTypes = Object.entries(this.config.tags)
             .map(([key, value]) => (value.bump ? key : undefined))
-            .filter((e) => !!e);
+            .filter((e) => e !== undefined);
         if (!patchBumpingTypes.includes("fix"))
             patchBumpingTypes.push("fix");
         if (patchBumpingTypes.includes(metadata.type.trim())) {
@@ -11199,7 +11200,7 @@ class TitleCaseDescription {
     }
 }
 /**
- * Subject should not contain an unknown tag type
+ * Subject should not contain an unknown type tag
  */
 class UnknownTagType {
     constructor() {

@@ -22,7 +22,7 @@ import { Configuration } from "../config";
 import { getConfig, isPullRequestEvent, updateLabels } from "../github";
 import { SemVerType } from "../semver";
 import {
-  validateCommitMessages,
+  validateCommitsInCurrentPR,
   validatePrTitle,
   validatePrTitleBump,
 } from "../validate";
@@ -33,7 +33,7 @@ import {
 async function determineLabels(
   conventionalCommits: ConventionalCommitMessage[]
 ): Promise<string[]> {
-  const highestBumpType = await getVersionBumpType(conventionalCommits);
+  const highestBumpType = getVersionBumpType(conventionalCommits);
 
   if (highestBumpType !== SemVerType.NONE) {
     return [`bump:${SemVerType[highestBumpType].toString().toLowerCase()}`];
@@ -56,7 +56,7 @@ async function run(): Promise<void> {
 
     if (core.getBooleanInput("validate-commits")) {
       // Validate the current PR's commit messages
-      const result = await validateCommitMessages(config);
+      const result = await validateCommitsInCurrentPR(config);
       compliant &&= result.compliant;
       await updateLabels(await determineLabels(result.messages));
     }

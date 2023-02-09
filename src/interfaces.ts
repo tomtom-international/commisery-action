@@ -16,15 +16,16 @@
 
 import { ConventionalCommitMessage } from "./commit";
 import { SemVer, SemVerType } from "./semver";
+import { LlvmError } from "./logging"; // TODO: Move LlvmError to its own file
 
 export interface IVersionBumpTypeAndMessages {
   /* The nearest SemVer tag found in the repository */
   foundVersion: SemVer | null;
   /* The bump required from the messages */
   requiredBump: SemVerType;
-  /* The messages from the provided commitish up to (but not including)
-   * the commit associated with the nearest SemVer tag */
-  messages: ConventionalCommitMessage[];
+  /* The validation results of messages from the provided commitish up to
+   * (but not including) the commit associated with the nearest SemVer tag */
+  processedCommits: IValidationResult[];
 }
 
 export interface IRuleConfigItem {
@@ -60,4 +61,15 @@ export interface ISemVer {
 export interface IGitTag {
   name: string;
   commitSha: string;
+}
+
+export interface ICommit {
+  message: string;
+  sha: string;
+}
+
+export interface IValidationResult {
+  input: ICommit;
+  message?: ConventionalCommitMessage;
+  errors: LlvmError[];
 }

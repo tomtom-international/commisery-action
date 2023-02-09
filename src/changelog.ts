@@ -177,9 +177,11 @@ export async function generateChangelog(
   const config = await getChangelogConfiguration();
   const { owner, repo } = context.repo;
 
-  for (const commit of bump.messages) {
-    const bumpLabel = `bump:${SemVerType[commit.bump].toLowerCase()}`;
-    const typeLabel = `type:${commit.type.toLowerCase()}`;
+  for (const commit of bump.processedCommits) {
+    if (!commit.message) continue;
+
+    const bumpLabel = `bump:${SemVerType[commit.message.bump].toLowerCase()}`;
+    const typeLabel = `type:${commit.message.type.toLowerCase()}`;
 
     // Adds the following items as "virtual" labels for each commit:
     // * The version bump (`bump:<version>`)
@@ -190,8 +192,10 @@ export async function generateChangelog(
     // (with the exception of `bump:<version`) for all commits associated
     // with the PR.
 
-    if (commit.hexsha) {
-      const pullRequests = await getAssociatedPullRequests(commit.hexsha);
+    if (commit.message.hexsha) {
+      const pullRequests = await getAssociatedPullRequests(
+        commit.message.hexsha
+      );
 
       if (pullRequests.length > 0) {
         const pullRequest = pullRequests[0];
@@ -241,7 +245,7 @@ export async function generateChangelog(
       if (!category["messages"]) {
         category["messages"] = [];
       }
-      category["messages"].push(await generateChangelogEntry(commit));
+      category["messages"].push(await generateChangelogEntry(commit.message));
       break;
     }
   }
@@ -256,9 +260,9 @@ export async function generateChangelog(
     }
   }
 
-  const diffRange = `${bump.foundVersion.toString()}...${bump.foundVersion
-    .bump(bump.requiredBump)
-    ?.toString()}`;
+  const diffRange =
+    `${bump.foundVersion.toString()}...` +
+    `${bump.foundVersion.bump(bump.requiredBump)?.toString()}`;
   formattedChangelog += `\n\n*Diff since last release: [${diffRange}](https://github.com/${owner}/${repo}/compare/${diffRange})*`;
 
   return formattedChangelog;

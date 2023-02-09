@@ -19,7 +19,7 @@ import * as fs from "fs";
 import * as github from "@actions/github";
 import * as octokit from "@octokit/plugin-rest-endpoint-methods";
 import { GitHub } from "@actions/github/lib/utils";
-import { IGitTag } from "./interfaces";
+import { ICommit, IGitTag } from "./interfaces";
 
 const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
 
@@ -29,6 +29,21 @@ const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
 function getOctokit(): InstanceType<typeof GitHub> {
   const githubToken = core.getInput("token");
   return github.getOctokit(githubToken);
+}
+
+/**
+ * @param commits[] List of commits as returned by GitHub API `/repos/listCommits`
+ * @return List of ICommit objects representing the input list
+ */
+function githubCommitsAsICommits(
+  commits: octokit.RestEndpointMethodTypes["repos"]["listCommits"]["response"]["data"]
+): ICommit[] {
+  return commits.map((c): ICommit => {
+    return {
+      message: c.commit.message,
+      sha: c.sha,
+    };
+  });
 }
 
 /**
@@ -53,23 +68,21 @@ export async function getPullRequestTitle(): Promise<string> {
 }
 
 /**
- * Retrieves a list of commits associated with the specified Pull Request
- * @param pullRequestId GitHub Pullrequest ID
- * @returns List of commit objects
+ * Retrieves a list of commits associated with the specified pull request
+ * @param pullRequestId GitHub pull request ID
+ * @returns ICommit[] List of ICommit objects
  */
-export async function getCommits(
+export async function getCommitsInPR(
   pullRequestId: number
-): Promise<
-  octokit.RestEndpointMethodTypes["pulls"]["listCommits"]["response"]["data"]
-> {
-  // Retrieve commits from provided Pull Request
+): Promise<ICommit[]> {
+  // Retrieve commits from provided pull request
   const { data: commits } = await getOctokit().rest.pulls.listCommits({
     owner: OWNER,
     repo: REPO,
     pull_number: pullRequestId,
   });
 
-  return commits;
+  return githubCommitsAsICommits(commits);
 }
 
 /**
@@ -159,9 +172,7 @@ export async function getReleaseConfiguration(): Promise<string> {
 export async function getCommitsSince(
   sha: string,
   pageSize: number
-): Promise<
-  octokit.RestEndpointMethodTypes["repos"]["listCommits"]["response"]["data"]
-> {
+): Promise<ICommit[]> {
   const { data: commits } = await getOctokit().rest.repos.listCommits({
     owner: OWNER,
     repo: REPO,
@@ -169,7 +180,7 @@ export async function getCommitsSince(
     per_page: pageSize,
   });
 
-  return commits;
+  return githubCommitsAsICommits(commits);
 }
 
 /**
