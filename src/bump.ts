@@ -148,7 +148,15 @@ export async function getVersionBumpTypeAndMessages(
     commitList.push({ message: commit.message, sha: commit.sha });
   }
 
-  const results = processCommits(commitList, config);
+  // We'll relax certain rules while processing these commits; these are
+  // commits/pull request titles that (ideally) have been validated
+  // _before_ they were merged, and certain GitHub CI settings may append
+  // a reference to the PR number in merge commits.
+  const configCopy = JSON.parse(JSON.stringify(config));
+  configCopy.rules["C014"].enabled = false; // SubjectExceedsLineLengthLimit
+  configCopy.rules["C019"].enabled = false; // SubjectContainsIssueReference
+
+  const results = processCommits(commitList, configCopy);
   const convCommits = results
     .map(r => r.message)
     .filter((r): r is ConventionalCommitMessage => r !== undefined);
