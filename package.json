@@ -45,7 +45,7 @@
     "dedent": "^0.7.0",
     "difflib": "^0.2.4",
     "simple-git": "^3.16.0",
-    "yaml": "^2.1.3"
+    "yaml": "^2.2.1"
   },
   "devDependencies": {
     "@octokit/plugin-rest-endpoint-methods": "^6.7.0",
