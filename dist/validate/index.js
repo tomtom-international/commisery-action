@@ -11457,6 +11457,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.exportedForTesting = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const bump_1 = __nccwpck_require__(1692);
 const config_1 = __nccwpck_require__(6373);
@@ -11511,6 +11512,9 @@ function run() {
     });
 }
 run();
+exports.exportedForTesting = {
+    run,
+};
 
 
 /***/ }),
