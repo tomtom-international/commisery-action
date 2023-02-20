@@ -20,6 +20,7 @@ import * as github from "@actions/github";
 import * as octokit from "@octokit/plugin-rest-endpoint-methods";
 import { GitHub } from "@actions/github/lib/utils";
 import { ICommit, IGitTag } from "./interfaces";
+import { channel } from "diagnostics_channel";
 
 const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
 
@@ -108,11 +109,14 @@ export async function getPullRequest(
  * Creates a GitHub release named `tag_name` on the main branch of the provided repo
  * @param tagName Name of the tag (and release)
  * @param commitish The commitish (ref, sha, ..) the release shall be made from
+ * @param body The release's text description
+ * @param draft Create this release as a 'draft' release
  */
 export async function createRelease(
   tagName: string,
   commitish: string,
-  body: string
+  body: string,
+  draft: boolean
 ): Promise<void> {
   await getOctokit().rest.repos.createRelease({
     owner: OWNER,
@@ -121,9 +125,124 @@ export async function createRelease(
     target_commitish: commitish,
     name: tagName,
     body,
-    draft: false,
-    prerelease: false,
+    draft,
   });
+}
+
+/**
+ * Gets the name and ID of the existing draft release with the
+ * most precedence of which the tag name starts with the provided parameter.
+ *
+ * Returns an object {id, name}, or `undefined` if no tag was found.
+ */
+export async function getDraftRelease(
+  nameStartsWith: string
+): Promise<{ id: number; name: string } | undefined> {
+  const result: {
+    repository: {
+      releases: {
+        nodes: {
+          databaseId: number;
+          isDraft: boolean;
+          tagName: string;
+        }[];
+      };
+    };
+  } = await getOctokit().graphql(`
+    {
+      repository(owner: "${OWNER}", name: "${REPO}") {
+        releases(
+          first: 100
+          orderBy: {field: CREATED_AT, direction: DESC}
+        ) {
+          nodes {
+            tagName
+            isDraft
+            databaseId
+          }
+        }
+      }
+    }
+    `);
+
+  core.debug(`getDraftRelease: GraphQL returned:\n${JSON.stringify(result)}`);
+
+  /**
+   * The GraphQL query has returned with a list the last 100 tags the repo.
+   * This may be problematic in and of itself (TODO: pagination), but one thing
+   * at a time for now.
+   * We need to:
+   *  - only consider draft releases
+   *  - only consider releases starting with the provided parameter
+   *  - _NOT_ rely on the temporal data; the precendence of the existing tags
+   *    shall determined according to a "SemVer-esque prerelease", that is:
+   *      * componentX-1.2.3-9 < componentX-1.2.3-10
+   *    This code is not SemVer-aware, however; instead, it tries to get by with:
+   *      * stripping off the provided `nameStartsWith` value, then
+   *      * taking first number after the _first_ '-' it encounters.
+   *        This means in the example above, `componentX-` ('-' included) must
+   *        be the `nameStartsWith` value for the behavior to work as expected.
+   *  - return the highest-precedence item
+   */
+
+  // Gets the first number after a '-' sign
+  const RE = new RegExp(
+    `^${nameStartsWith}${/\D*-\D*(?<version>\d+)\D*.*/.source}`
+  );
+  const sortedList = result.repository.releases.nodes
+    .filter(r => r.isDraft)
+    .filter(r => r.tagName.startsWith(nameStartsWith))
+    .map(r => ({ id: r.databaseId, name: r.tagName }))
+    .sort((lhs, rhs) => {
+      const l = +(RE.exec(lhs.name)?.groups?.version ?? 0);
+      const r = +(RE.exec(rhs.name)?.groups?.version ?? 0);
+      for (const x of [
+        [l, lhs],
+        [r, rhs],
+      ]) {
+        if (!x[0])
+          core.info(
+            `warning: draft ${x[1]} is not a prerelease; ` +
+              `it will receive lowest precedence`
+          );
+      }
+      const sortResult: number = l === r ? 0 : l < r ? -1 : 1;
+      core.debug(`sort: ${lhs.name} < ${rhs.name} = ${sortResult}`);
+      return sortResult;
+    });
+
+  core.debug(`getDraftRelease: list of drafts:\n${JSON.stringify(sortedList)}`);
+  return sortedList.pop();
+}
+
+/**
+ * Updates a draft release with a new name.
+ *
+ * Returns `true` if successful
+ */
+export async function updateDraftRelease(
+  id: number,
+  newName: string,
+  tagName: string,
+  sha: string,
+  bodyContents: string
+): Promise<boolean> {
+  core.debug(
+    `Update existing draft release with id ${id} to ${newName} (${tagName}) sha: ${sha}, ` +
+      `and body below:\n${bodyContents}`
+  );
+  const result = await getOctokit().rest.repos.updateRelease({
+    owner: OWNER,
+    repo: REPO,
+    release_id: id,
+    target_commitish: sha,
+    draft: true,
+    body: bodyContents,
+    name: newName,
+    tag_name: tagName,
+  });
+
+  return result.status < 400;
 }
 
 /**
@@ -377,6 +496,6 @@ export async function getContent(path: string): Promise<string | undefined> {
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
-    core.debug(error);
+    core.debug((error as Error).message);
   }
 }

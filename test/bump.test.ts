@@ -177,7 +177,8 @@ describe("Bump functionality", () => {
         expect(github.createRelease).toHaveBeenCalledWith(
           expectedVersion,
           HEAD_SHA,
-          CHANGELOG_PLACEHOLDER
+          CHANGELOG_PLACEHOLDER,
+          false
         );
       }
       expect(core.setOutput).toBeCalledWith("current-version", INITIAL_VERSION);
@@ -459,7 +460,8 @@ describe("Initial development", () => {
     expect(github.createRelease).toHaveBeenCalledWith(
       "1.0.0",
       HEAD_SHA,
-      CHANGELOG_PLACEHOLDER
+      CHANGELOG_PLACEHOLDER,
+      false
     );
 
     expect(core.error).not.toHaveBeenCalled();

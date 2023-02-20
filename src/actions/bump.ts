@@ -18,7 +18,7 @@ import * as core from "@actions/core";
 
 import { context } from "@actions/github";
 import { RequestError } from "@octokit/request-error";
-import { getVersionBumpTypeAndMessages } from "../bump";
+import { getVersionBumpTypeAndMessages, bumpDraftRelease } from "../bump";
 import { generateChangelog } from "../changelog";
 import { ConventionalCommitMessage } from "../commit";
 import { Configuration } from "../config";
@@ -197,7 +197,7 @@ async function run(): Promise<void> {
               await createTag(nv, context.sha);
             } else {
               const changelog = await generateChangelog(bumpInfo);
-              await createRelease(nv, context.sha, changelog);
+              await createRelease(nv, context.sha, changelog, false);
             }
           } catch (ex: unknown) {
             // The most likely failure is a preexisting tag, in which case
@@ -238,8 +238,19 @@ async function run(): Promise<void> {
         );
       }
     } else {
-      core.info("ℹ️ No bump necessary");
       core.setOutput("next-version", "");
+
+      if (isBranchAllowedToPublish && !isPullRequestEvent() && release) {
+        // Create/rename draft release
+        // TODO: add input to `if` statement above to toggle this functionality
+        await bumpDraftRelease(
+          bumpInfo.foundVersion,
+          await generateChangelog(bumpInfo),
+          context.sha
+        );
+      } else {
+        core.info("ℹ️ No bump necessary");
+      }
     }
     core.endGroup();
   } catch (ex) {
