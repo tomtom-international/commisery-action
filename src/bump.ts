@@ -18,7 +18,13 @@ import * as core from "@actions/core";
 
 import { Configuration } from "./config";
 
-import { getCommitsSince, getLatestTags } from "./github";
+import {
+  createRelease,
+  getCommitsSince,
+  getLatestTags,
+  getDraftRelease,
+  updateDraftRelease,
+} from "./github";
 import { ConventionalCommitMessage } from "./commit";
 import { SemVer, SemVerType } from "./semver";
 import {
@@ -166,4 +172,79 @@ export async function getVersionBumpTypeAndMessages(
     requiredBump: getVersionBumpType(convCommits),
     processedCommits: results,
   };
+}
+
+/**
+ * Returns the new prerelease version name if update was successful, `undefined` otherwise
+ */
+async function tryUpdateDraftRelease(
+  currentVersion: SemVer,
+  changelog,
+  sha
+): Promise<string | undefined> {
+  const baseNextPrerelease = `${currentVersion.prefix}${currentVersion.major}.${
+    currentVersion.minor
+  }.${currentVersion.patch + 1}${
+    currentVersion.prerelease ? `-${currentVersion.prerelease}` : ""
+  }`;
+  const latestDraftRelease = await getDraftRelease(baseNextPrerelease);
+
+  if (!latestDraftRelease) {
+    return;
+  }
+  const currentDraftVersion = SemVer.fromString(latestDraftRelease.name);
+  if (!currentDraftVersion) {
+    core.info(`Couldn't parse ${latestDraftRelease.name} as SemVer`);
+    return;
+  }
+
+  const match = /(?<pre>\D*)(?<prereleaseVersion>\d+)(?<post>.*)/.exec(
+    currentDraftVersion.prerelease
+  );
+  if (match == null || match.groups == null) {
+    return;
+  }
+  const nextPrereleaseVersion = currentDraftVersion;
+  nextPrereleaseVersion.prerelease = `${match.groups.pre}${
+    +match.groups.prereleaseVersion + 1
+  }${match.groups.post}`;
+  const npv = nextPrereleaseVersion.toString();
+
+  const updateSuccess = await updateDraftRelease(
+    latestDraftRelease.id,
+    npv,
+    npv,
+    sha,
+    changelog
+  );
+  if (!updateSuccess) {
+    core.info(`Error renaming existing draft release.`);
+    return;
+  }
+  return npv;
+}
+
+async function newDraftRelease(
+  currentVersion: SemVer,
+  changelog: string,
+  sha: string
+): Promise<string> {
+  // Either update went wrong or there was nothing to update
+  const nextPrereleaseVersion = currentVersion.nextPatch();
+  nextPrereleaseVersion.build = currentVersion.build;
+  nextPrereleaseVersion.prerelease = "1";
+  await createRelease(nextPrereleaseVersion.toString(), sha, changelog, true);
+  return nextPrereleaseVersion.toString();
+}
+
+export async function bumpDraftRelease(
+  currentVersion: SemVer,
+  changelog: string,
+  sha: string
+): Promise<void> {
+  const result =
+    (await tryUpdateDraftRelease(currentVersion, changelog, sha)) ??
+    (await newDraftRelease(currentVersion, changelog, sha));
+
+  core.info(`ℹ️ Next prerelease: ${result}`);
 }

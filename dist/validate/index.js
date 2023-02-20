@@ -11572,7 +11572,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getVersionBumpTypeAndMessages = exports.getVersionBumpType = void 0;
+exports.bumpDraftRelease = exports.getVersionBumpTypeAndMessages = exports.getVersionBumpType = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const github_1 = __nccwpck_require__(978);
 const semver_1 = __nccwpck_require__(8593);
@@ -11693,6 +11693,54 @@ function getVersionBumpTypeAndMessages(prefix, targetSha, config) {
     });
 }
 exports.getVersionBumpTypeAndMessages = getVersionBumpTypeAndMessages;
+/**
+ * Returns the new prerelease version name if update was successful, `undefined` otherwise
+ */
+function tryUpdateDraftRelease(currentVersion, changelog, sha) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const baseNextPrerelease = `${currentVersion.prefix}${currentVersion.major}.${currentVersion.minor}.${currentVersion.patch + 1}${currentVersion.prerelease ? `-${currentVersion.prerelease}` : ""}`;
+        const latestDraftRelease = yield (0, github_1.getDraftRelease)(baseNextPrerelease);
+        if (!latestDraftRelease) {
+            return;
+        }
+        const currentDraftVersion = semver_1.SemVer.fromString(latestDraftRelease.name);
+        if (!currentDraftVersion) {
+            core.info(`Couldn't parse ${latestDraftRelease.name} as SemVer`);
+            return;
+        }
+        const match = /(?<pre>\D*)(?<prereleaseVersion>\d+)(?<post>.*)/.exec(currentDraftVersion.prerelease);
+        if (match == null || match.groups == null) {
+            return;
+        }
+        const nextPrereleaseVersion = currentDraftVersion;
+        nextPrereleaseVersion.prerelease = `${match.groups.pre}${+match.groups.prereleaseVersion + 1}${match.groups.post}`;
+        const npv = nextPrereleaseVersion.toString();
+        const updateSuccess = yield (0, github_1.updateDraftRelease)(latestDraftRelease.id, npv, npv, sha, changelog);
+        if (!updateSuccess) {
+            core.info(`Error renaming existing draft release.`);
+            return;
+        }
+        return npv;
+    });
+}
+function newDraftRelease(currentVersion, changelog, sha) {
+    return __awaiter(this, void 0, void 0, function* () {
+        // Either update went wrong or there was nothing to update
+        const nextPrereleaseVersion = currentVersion.nextPatch();
+        nextPrereleaseVersion.build = currentVersion.build;
+        nextPrereleaseVersion.prerelease = "1";
+        yield (0, github_1.createRelease)(nextPrereleaseVersion.toString(), sha, changelog, true);
+        return nextPrereleaseVersion.toString();
+    });
+}
+function bumpDraftRelease(currentVersion, changelog, sha) {
+    var _a;
+    return __awaiter(this, void 0, void 0, function* () {
+        const result = (_a = (yield tryUpdateDraftRelease(currentVersion, changelog, sha))) !== null && _a !== void 0 ? _a : (yield newDraftRelease(currentVersion, changelog, sha));
+        core.info(`ℹ️ Next prerelease: ${result}`);
+    });
+}
+exports.bumpDraftRelease = bumpDraftRelease;
 
 
 /***/ }),
@@ -12289,7 +12337,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getContent = exports.updateLabels = exports.getAssociatedPullRequests = exports.getLatestTags = exports.getShaForTag = exports.getCommitsSince = exports.getReleaseConfiguration = exports.getConfig = exports.createTag = exports.createRelease = exports.getPullRequest = exports.getCommitsInPR = exports.getPullRequestTitle = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
+exports.getContent = exports.updateLabels = exports.getAssociatedPullRequests = exports.getLatestTags = exports.getShaForTag = exports.getCommitsSince = exports.getReleaseConfiguration = exports.getConfig = exports.createTag = exports.updateDraftRelease = exports.getDraftRelease = exports.createRelease = exports.getPullRequest = exports.getCommitsInPR = exports.getPullRequestTitle = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const fs = __importStar(__nccwpck_require__(7147));
 const github = __importStar(__nccwpck_require__(5438));
@@ -12373,8 +12421,10 @@ exports.getPullRequest = getPullRequest;
  * Creates a GitHub release named `tag_name` on the main branch of the provided repo
  * @param tagName Name of the tag (and release)
  * @param commitish The commitish (ref, sha, ..) the release shall be made from
+ * @param body The release's text description
+ * @param draft Create this release as a 'draft' release
  */
-function createRelease(tagName, commitish, body) {
+function createRelease(tagName, commitish, body, draft) {
     return __awaiter(this, void 0, void 0, function* () {
         yield getOctokit().rest.repos.createRelease({
             owner: OWNER,
@@ -12383,12 +12433,103 @@ function createRelease(tagName, commitish, body) {
             target_commitish: commitish,
             name: tagName,
             body,
-            draft: false,
-            prerelease: false,
+            draft,
         });
     });
 }
 exports.createRelease = createRelease;
+/**
+ * Gets the name and ID of the existing draft release with the
+ * most precedence of which the tag name starts with the provided parameter.
+ *
+ * Returns an object {id, name}, or `undefined` if no tag was found.
+ */
+function getDraftRelease(nameStartsWith) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const result = yield getOctokit().graphql(`
+    {
+      repository(owner: "${OWNER}", name: "${REPO}") {
+        releases(
+          first: 100
+          orderBy: {field: CREATED_AT, direction: DESC}
+        ) {
+          nodes {
+            tagName
+            isDraft
+            databaseId
+          }
+        }
+      }
+    }
+    `);
+        core.debug(`getDraftRelease: GraphQL returned:\n${JSON.stringify(result)}`);
+        /**
+         * The GraphQL query has returned with a list the last 100 tags the repo.
+         * This may be problematic in and of itself (TODO: pagination), but one thing
+         * at a time for now.
+         * We need to:
+         *  - only consider draft releases
+         *  - only consider releases starting with the provided parameter
+         *  - _NOT_ rely on the temporal data; the precendence of the existing tags
+         *    shall determined according to a "SemVer-esque prerelease", that is:
+         *      * componentX-1.2.3-9 < componentX-1.2.3-10
+         *    This code is not SemVer-aware, however; instead, it tries to get by with:
+         *      * stripping off the provided `nameStartsWith` value, then
+         *      * taking first number after the _first_ '-' it encounters.
+         *        This means in the example above, `componentX-` ('-' included) must
+         *        be the `nameStartsWith` value for the behavior to work as expected.
+         *  - return the highest-precedence item
+         */
+        // Gets the first number after a '-' sign
+        const RE = new RegExp(`^${nameStartsWith}${/\D*-\D*(?<version>\d+)\D*.*/.source}`);
+        const sortedList = result.repository.releases.nodes
+            .filter(r => r.isDraft)
+            .filter(r => r.tagName.startsWith(nameStartsWith))
+            .map(r => ({ id: r.databaseId, name: r.tagName }))
+            .sort((lhs, rhs) => {
+            var _a, _b, _c, _d, _e, _f;
+            const l = +((_c = (_b = (_a = RE.exec(lhs.name)) === null || _a === void 0 ? void 0 : _a.groups) === null || _b === void 0 ? void 0 : _b.version) !== null && _c !== void 0 ? _c : 0);
+            const r = +((_f = (_e = (_d = RE.exec(rhs.name)) === null || _d === void 0 ? void 0 : _d.groups) === null || _e === void 0 ? void 0 : _e.version) !== null && _f !== void 0 ? _f : 0);
+            for (const x of [
+                [l, lhs],
+                [r, rhs],
+            ]) {
+                if (!x[0])
+                    core.info(`warning: draft ${x[1]} is not a prerelease; ` +
+                        `it will receive lowest precedence`);
+            }
+            const sortResult = l === r ? 0 : l < r ? -1 : 1;
+            core.debug(`sort: ${lhs.name} < ${rhs.name} = ${sortResult}`);
+            return sortResult;
+        });
+        core.debug(`getDraftRelease: list of drafts:\n${JSON.stringify(sortedList)}`);
+        return sortedList.pop();
+    });
+}
+exports.getDraftRelease = getDraftRelease;
+/**
+ * Updates a draft release with a new name.
+ *
+ * Returns `true` if successful
+ */
+function updateDraftRelease(id, newName, tagName, sha, bodyContents) {
+    return __awaiter(this, void 0, void 0, function* () {
+        core.debug(`Update existing draft release with id ${id} to ${newName} (${tagName}) sha: ${sha}, ` +
+            `and body below:\n${bodyContents}`);
+        const result = yield getOctokit().rest.repos.updateRelease({
+            owner: OWNER,
+            repo: REPO,
+            release_id: id,
+            target_commitish: sha,
+            draft: true,
+            body: bodyContents,
+            name: newName,
+            tag_name: tagName,
+        });
+        return result.status < 400;
+    });
+}
+exports.updateDraftRelease = updateDraftRelease;
 /**
  * Creates a lightweight tag named `tag_name` on the provided sha
  * @param tagName Name of the tag
@@ -12605,7 +12746,7 @@ function getContent(path) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }
         catch (error) {
-            core.debug(error);
+            core.debug(error.message);
         }
     });
 }

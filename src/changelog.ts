@@ -306,7 +306,10 @@ export async function generateChangelog(
 
   const diffRange =
     `${bump.foundVersion.toString()}...` +
-    `${bump.foundVersion.bump(bump.requiredBump)?.toString()}`;
+    `${
+      bump.foundVersion.bump(bump.requiredBump)?.toString() ??
+      context.sha.substring(0, 8)
+    }`;
   formattedChangelog += `\n\n*Diff since last release: [${diffRange}](https://github.com/${owner}/${repo}/compare/${diffRange})*`;
 
   return formattedChangelog;
