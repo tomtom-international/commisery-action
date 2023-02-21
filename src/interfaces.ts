@@ -73,3 +73,5 @@ export interface IValidationResult {
   message?: ConventionalCommitMessage;
   errors: LlvmError[];
 }
+
+export type ReleaseMode = "none" | "release" | "tag"; // keep values user-friendly
