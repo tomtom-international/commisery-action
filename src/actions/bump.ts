@@ -17,21 +17,18 @@
 import * as core from "@actions/core";
 
 import { context } from "@actions/github";
-import { RequestError } from "@octokit/request-error";
-import { getVersionBumpTypeAndMessages, bumpDraftRelease } from "../bump";
+import {
+  getVersionBumpTypeAndMessages,
+  bumpDraftRelease,
+  printNonCompliance,
+  bumpSemVer,
+} from "../bump";
 import { generateChangelog } from "../changelog";
 import { ConventionalCommitMessage } from "../commit";
 import { Configuration } from "../config";
-import {
-  createRelease,
-  createTag,
-  getConfig,
-  getShaForTag,
-  isPullRequestEvent,
-} from "../github";
-import { IVersionBumpTypeAndMessages } from "../interfaces";
+import { getConfig, isPullRequestEvent } from "../github";
+import { IVersionBumpTypeAndMessages, ReleaseMode } from "../interfaces";
 import { SemVer, SemVerType } from "../semver";
-import { outputCommitListErrors, processCommits } from "../validate";
 
 /**
  * Bump action entrypoint
@@ -48,17 +45,13 @@ async function run(): Promise<void> {
   await getConfig(core.getInput("config"));
   const config = new Configuration(".commisery.yml");
 
-  const allowedBranchesRegEx = config.allowedBranches;
-  const branchName = context.ref.replace("refs/heads/", "");
   let isBranchAllowedToPublish = false;
 
   if (context.ref.startsWith("refs/heads/")) {
+    const branchName = context.ref.replace("refs/heads/", "");
     try {
-      isBranchAllowedToPublish = new RegExp(allowedBranchesRegEx).test(
+      isBranchAllowedToPublish = new RegExp(config.allowedBranches).test(
         branchName
-      );
-      core.info(
-        `Regex ${allowedBranchesRegEx} result on ${branchName}: ${isBranchAllowedToPublish}`
       );
     } catch (e) {
       core.startGroup(
@@ -67,25 +60,33 @@ async function run(): Promise<void> {
       core.setFailed((e as Error).message);
       core.endGroup();
     }
+    if (!isBranchAllowedToPublish) {
+      core.startGroup(`ℹ️ Branch ${branchName} is not allowed to publish`);
+      core.info(
+        `Only branches that match the following ECMA-262 regular expression` +
+          `may publish:\n${config.allowedBranches}`
+      );
+    }
   }
 
   try {
     const prefix = core.getInput("version-prefix");
     const release = core.getBooleanInput("create-release");
-    let tag = core.getBooleanInput("create-tag");
+    const tag = core.getBooleanInput("create-tag");
+    const releaseMode: ReleaseMode = release ? "release" : tag ? "tag" : "none";
 
     if (release && tag) {
       core.warning(
         'Defining both inputs "create-release" and "create-tag" as "true" is not needed; ' +
           'a Git tag is implicitly created when using "create-release".'
       );
-      tag = false;
     }
 
     core.startGroup("🔍 Finding latest topological tag..");
     const bumpInfo: IVersionBumpTypeAndMessages =
       await getVersionBumpTypeAndMessages(prefix, context.sha, config);
 
+    // TODO SdkVer
     if (!bumpInfo.foundVersion) {
       // We haven't found a (matching) SemVer tag in the commit and tag list
       core.setOutput("current-version", "");
@@ -100,42 +101,6 @@ async function run(): Promise<void> {
     }
     core.endGroup();
 
-    const nonCompliantCommits = bumpInfo.processedCommits.filter(
-      c => !c.message
-    );
-    if (nonCompliantCommits.length > 0) {
-      const totalLen = bumpInfo.processedCommits.length;
-      const ncLen = nonCompliantCommits.length;
-
-      core.info(""); // for vertical whitespace
-
-      if (ncLen === totalLen) {
-        const commitsDoNotComply =
-          totalLen === 1
-            ? "The only encountered commit does not comply"
-            : `None of the encountered ${totalLen} commits comply`;
-
-        core.warning(
-          `${commitsDoNotComply} with the Conventional Commits specification, ` +
-            "so the intended bump level could not be determined.\n" +
-            "As a result, no version bump will be performed."
-        );
-      } else {
-        const [pluralDo, pluralBe] =
-          ncLen !== 1 ? ["do", "are"] : ["does", "is"];
-
-        core.warning(
-          `${ncLen} of the encountered ${totalLen} commits ` +
-            `${pluralDo} not comply with the Conventional Commits ` +
-            `specification and ${pluralBe} therefore NOT considered ` +
-            "while determining the bump level."
-        );
-      }
-      const pluralCommit = ncLen === 1 ? "commit" : "commits";
-      core.info(`⚠️ Non-compliant ${pluralCommit}:`);
-      outputCommitListErrors(nonCompliantCommits, false);
-    }
-
     if (bumpInfo.foundVersion.major <= 0) {
       core.info("");
       core.warning(
@@ -145,114 +110,23 @@ async function run(): Promise<void> {
       );
     }
 
+    printNonCompliance(bumpInfo.processedCommits);
+
     core.info("");
     core.startGroup("🔍 Determining bump");
-    const compliantCommits = bumpInfo.processedCommits
-      .filter(c => c.message !== undefined)
-      .map(c => ({
-        msg: c.message as ConventionalCommitMessage,
-        sha: c.input.sha.slice(0, 8),
-      }));
-
-    for (const { msg, sha } of compliantCommits) {
-      const bumpString = msg.bump === 0 ? "No" : SemVerType[msg.bump];
-      core.info(`- ${bumpString} bump for commit (${sha}): ${msg.subject}`);
-    }
-
-    const nextVersion = bumpInfo.foundVersion.bump(
-      bumpInfo.requiredBump,
-      config.initialDevelopment
-    );
-
-    if (nextVersion) {
-      // Assign Build Metadata
-      const buildMetadata = core.getInput("build-metadata");
-      if (buildMetadata) {
-        nextVersion.build = buildMetadata;
-      }
-
-      const nv = nextVersion.toString();
-      core.info(`ℹ️ Next version: ${nv}`);
-      core.setOutput("next-version", nv);
-      core.endGroup();
-      if (release || tag) {
-        const relType = tag ? "tag" : "release";
-        if (!isBranchAllowedToPublish) {
-          core.startGroup(`ℹ️ Branch ${branchName} is not allowed to publish`);
-          core.info(
-            `Only branches that match the following ECMA-262 regular expression may publish:\n${allowedBranchesRegEx}`
-          );
-        } else if (isPullRequestEvent()) {
-          core.startGroup(
-            `ℹ️ Not creating ${relType} on a pull request event.`
-          );
-          core.info(
-            "We cannot create a release or tag in a pull request context, due to " +
-              "potential parallelism (i.e. races) in pull request builds."
-          );
-        } else {
-          core.startGroup(`ℹ️ Creating ${relType} ${nv}..`);
-          try {
-            if (tag) {
-              await createTag(nv, context.sha);
-            } else {
-              const changelog = await generateChangelog(bumpInfo);
-              await createRelease(nv, context.sha, changelog, false);
-            }
-          } catch (ex: unknown) {
-            // The most likely failure is a preexisting tag, in which case
-            // a RequestError with statuscode 422 will be thrown
-            const commit = await getShaForTag(`refs/tags/${nv}`);
-            if (ex instanceof RequestError && ex.status === 422 && commit) {
-              core.setFailed(
-                `Unable to create ${relType}; the tag "${nv}" already exists in the repository, ` +
-                  `it currently points to ${commit}.\n` +
-                  "You can find the branch(es) associated with the tag with:\n" +
-                  `  git fetch -t; git branch --contains ${nv}`
-              );
-            } else if (ex instanceof RequestError) {
-              core.setFailed(
-                `Unable to create ${relType} with the name "${nv}" due to ` +
-                  `HTTP request error (status ${ex.status}):\n${ex.message}`
-              );
-            } else if (ex instanceof Error) {
-              core.setFailed(
-                `Unable to create ${relType} with the name "${nv}":\n${ex.message}`
-              );
-            } else {
-              core.setFailed(`Unknown error during ${relType} creation`);
-              throw ex;
-            }
-            core.endGroup();
-            return;
-          }
-          core.info("Succeeded");
-        }
-      } else {
-        core.startGroup(`ℹ️ Not creating tag or release for ${nv}..`);
-        core.info(
-          "To create a lightweight Git tag or GitHub release when the version is bumped, run this action with:\n" +
-            ' - "create-release" set to "true" to create a GitHub release, or\n' +
-            ' - "create-tag" set to "true" for a lightweight Git tag.\n' +
-            "Note that setting both options is not needed, since a GitHub release implicitly creates a Git tag."
-        );
-      }
-    } else {
-      core.setOutput("next-version", "");
-
-      if (isBranchAllowedToPublish && !isPullRequestEvent() && release) {
+    const bumped = await bumpSemVer(config, bumpInfo, releaseMode, context.sha);
+    if (!bumped) {
+      if (
+        isBranchAllowedToPublish &&
+        !isPullRequestEvent() &&
+        releaseMode === "release"
+      ) {
         // Create/rename draft release
         // TODO: add input to `if` statement above to toggle this functionality
-        await bumpDraftRelease(
-          bumpInfo.foundVersion,
-          await generateChangelog(bumpInfo),
-          context.sha
-        );
+        await bumpDraftRelease(bumpInfo, context.sha);
       } else {
-        core.info("ℹ️ No bump necessary");
       }
     }
-    core.endGroup();
   } catch (ex) {
     core.startGroup("❌ Exception");
     core.setFailed((ex as Error).message);

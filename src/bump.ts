@@ -15,14 +15,18 @@
  */
 
 import * as core from "@actions/core";
+import { RequestError } from "@octokit/request-error";
 
+import { generateChangelog } from "./changelog";
 import { Configuration } from "./config";
-
 import {
   createRelease,
+  createTag,
   getCommitsSince,
   getLatestTags,
   getDraftRelease,
+  getShaForTag,
+  isPullRequestEvent,
   updateDraftRelease,
 } from "./github";
 import { ConventionalCommitMessage } from "./commit";
@@ -33,7 +37,7 @@ import {
   MergeCommitError,
 } from "./errors";
 import { ICommit, IVersionBumpTypeAndMessages } from "./interfaces";
-import { processCommits } from "./validate";
+import { outputCommitListErrors, processCommits } from "./validate";
 
 const PAGE_SIZE = 100;
 
@@ -237,14 +241,150 @@ async function newDraftRelease(
   return nextPrereleaseVersion.toString();
 }
 
-export async function bumpDraftRelease(
-  currentVersion: SemVer,
-  changelog: string,
-  sha: string
-): Promise<void> {
+export async function bumpDraftRelease(bumpInfo, sha: string): Promise<void> {
+  const currentVersion = bumpInfo.foundVersion;
+  const changelog = await generateChangelog(bumpInfo);
   const result =
     (await tryUpdateDraftRelease(currentVersion, changelog, sha)) ??
     (await newDraftRelease(currentVersion, changelog, sha));
 
   core.info(`ℹ️ Next prerelease: ${result}`);
+}
+
+/**
+ * Prints information about any non-compliance found in the provided list
+ */
+export function printNonCompliance(commits): void {
+  const nonCompliantCommits = commits.filter(c => !c.message);
+
+  if (nonCompliantCommits.length > 0) {
+    const totalLen = commits.length;
+    const ncLen = nonCompliantCommits.length;
+
+    core.info(""); // for vertical whitespace
+
+    if (ncLen === totalLen) {
+      const commitsDoNotComply =
+        totalLen === 1
+          ? "The only encountered commit does not comply"
+          : `None of the encountered ${totalLen} commits comply`;
+
+      core.warning(
+        `${commitsDoNotComply} with the Conventional Commits specification, ` +
+          "so the intended bump level could not be determined.\n" +
+          "As a result, no version bump will be performed."
+      );
+    } else {
+      const [pluralDo, pluralBe] = ncLen === 1 ? ["does", "is"] : ["do", "are"];
+
+      core.warning(
+        `${ncLen} of the encountered ${totalLen} commits ` +
+          `${pluralDo} not comply with the Conventional Commits ` +
+          `specification and ${pluralBe} therefore NOT considered ` +
+          "while determining the bump level."
+      );
+    }
+    const pluralS = ncLen === 1 ? "" : "s";
+    core.info(`⚠️ Non-compliant commit${pluralS}:`);
+    outputCommitListErrors(nonCompliantCommits, false);
+  }
+}
+
+export async function bumpSemVer(
+  config,
+  bumpInfo,
+  releaseType,
+  headSha
+): Promise<boolean> {
+  const nextVersion = bumpInfo.foundVersion.bump(
+    bumpInfo.requiredBump,
+    config.initialDevelopment
+  );
+
+  const compliantCommits = bumpInfo.processedCommits
+    .filter(c => c.message !== undefined)
+    .map(c => ({
+      msg: c.message as ConventionalCommitMessage,
+      sha: c.input.sha.slice(0, 8),
+    }));
+
+  for (const { msg, sha } of compliantCommits) {
+    const bumpString = msg.bump === 0 ? "No" : SemVerType[msg.bump];
+    core.info(`- ${bumpString} bump for commit (${sha}): ${msg.subject}`);
+  }
+
+  if (nextVersion) {
+    // Assign Build Metadata
+    const buildMetadata = core.getInput("build-metadata");
+    if (buildMetadata) {
+      nextVersion.build = buildMetadata;
+    }
+
+    const nv = nextVersion.toString();
+    core.info(`ℹ️ Next version: ${nv}`);
+    core.setOutput("next-version", nv);
+    core.endGroup();
+    if (releaseType !== "none") {
+      if (isPullRequestEvent()) {
+        core.startGroup(
+          `ℹ️ Not creating ${releaseType} on a pull request event.`
+        );
+        core.info(
+          "We cannot create a release or tag in a pull request context, due to " +
+            "potential parallelism (i.e. races) in pull request builds."
+        );
+      } else {
+        core.startGroup(`ℹ️ Creating ${releaseType} ${nv}..`);
+        try {
+          if (releaseType === "tag") {
+            await createTag(nv, headSha);
+          } else {
+            const changelog = await generateChangelog(bumpInfo);
+            await createRelease(nv, headSha, changelog, false);
+          }
+        } catch (ex: unknown) {
+          // The most likely failure is a preexisting tag, in which case
+          // a RequestError with statuscode 422 will be thrown
+          const commit = await getShaForTag(`refs/tags/${nv}`);
+          if (ex instanceof RequestError && ex.status === 422 && commit) {
+            core.setFailed(
+              `Unable to create ${releaseType}; the tag "${nv}" already exists in the repository, ` +
+                `it currently points to ${commit}.\n` +
+                "You can find the branch(es) associated with the tag with:\n" +
+                `  git fetch -t; git branch --contains ${nv}`
+            );
+          } else if (ex instanceof RequestError) {
+            core.setFailed(
+              `Unable to create ${releaseType} with the name "${nv}" due to ` +
+                `HTTP request error (status ${ex.status}):\n${ex.message}`
+            );
+          } else if (ex instanceof Error) {
+            core.setFailed(
+              `Unable to create ${releaseType} with the name "${nv}":\n${ex.message}`
+            );
+          } else {
+            core.setFailed(`Unknown error during ${releaseType} creation`);
+            throw ex;
+          }
+          core.endGroup();
+          return false;
+        }
+        core.info("Succeeded");
+      }
+    } else {
+      core.startGroup(`ℹ️ Not creating tag or release for ${nv}..`);
+      core.info(
+        "To create a lightweight Git tag or GitHub release when the version is bumped, run this action with:\n" +
+          ' - "create-release" set to "true" to create a GitHub release, or\n' +
+          ' - "create-tag" set to "true" for a lightweight Git tag.\n' +
+          "Note that setting both options is not needed, since a GitHub release implicitly creates a Git tag."
+      );
+      return false;
+    }
+  } else {
+    core.info("ℹ️ No bump necessary");
+    core.setOutput("next-version", "");
+  }
+  core.endGroup();
+  return nextVersion !== "";
 }

@@ -11572,8 +11572,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.bumpDraftRelease = exports.getVersionBumpTypeAndMessages = exports.getVersionBumpType = void 0;
+exports.bumpSemVer = exports.printNonCompliance = exports.bumpDraftRelease = exports.getVersionBumpTypeAndMessages = exports.getVersionBumpType = void 0;
 const core = __importStar(__nccwpck_require__(2186));
+const request_error_1 = __nccwpck_require__(537);
+const changelog_1 = __nccwpck_require__(8598);
 const github_1 = __nccwpck_require__(978);
 const semver_1 = __nccwpck_require__(8593);
 const validate_1 = __nccwpck_require__(4953);
@@ -11733,14 +11735,372 @@ function newDraftRelease(currentVersion, changelog, sha) {
         return nextPrereleaseVersion.toString();
     });
 }
-function bumpDraftRelease(currentVersion, changelog, sha) {
+function bumpDraftRelease(bumpInfo, sha) {
     var _a;
     return __awaiter(this, void 0, void 0, function* () {
+        const currentVersion = bumpInfo.foundVersion;
+        const changelog = yield (0, changelog_1.generateChangelog)(bumpInfo);
         const result = (_a = (yield tryUpdateDraftRelease(currentVersion, changelog, sha))) !== null && _a !== void 0 ? _a : (yield newDraftRelease(currentVersion, changelog, sha));
         core.info(`ℹ️ Next prerelease: ${result}`);
     });
 }
 exports.bumpDraftRelease = bumpDraftRelease;
+/**
+ * Prints information about any non-compliance found in the provided list
+ */
+function printNonCompliance(commits) {
+    const nonCompliantCommits = commits.filter(c => !c.message);
+    if (nonCompliantCommits.length > 0) {
+        const totalLen = commits.length;
+        const ncLen = nonCompliantCommits.length;
+        core.info(""); // for vertical whitespace
+        if (ncLen === totalLen) {
+            const commitsDoNotComply = totalLen === 1
+                ? "The only encountered commit does not comply"
+                : `None of the encountered ${totalLen} commits comply`;
+            core.warning(`${commitsDoNotComply} with the Conventional Commits specification, ` +
+                "so the intended bump level could not be determined.\n" +
+                "As a result, no version bump will be performed.");
+        }
+        else {
+            const [pluralDo, pluralBe] = ncLen === 1 ? ["does", "is"] : ["do", "are"];
+            core.warning(`${ncLen} of the encountered ${totalLen} commits ` +
+                `${pluralDo} not comply with the Conventional Commits ` +
+                `specification and ${pluralBe} therefore NOT considered ` +
+                "while determining the bump level.");
+        }
+        const pluralS = ncLen === 1 ? "" : "s";
+        core.info(`⚠️ Non-compliant commit${pluralS}:`);
+        (0, validate_1.outputCommitListErrors)(nonCompliantCommits, false);
+    }
+}
+exports.printNonCompliance = printNonCompliance;
+function bumpSemVer(config, bumpInfo, releaseType, headSha) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const nextVersion = bumpInfo.foundVersion.bump(bumpInfo.requiredBump, config.initialDevelopment);
+        const compliantCommits = bumpInfo.processedCommits
+            .filter(c => c.message !== undefined)
+            .map(c => ({
+            msg: c.message,
+            sha: c.input.sha.slice(0, 8),
+        }));
+        for (const { msg, sha } of compliantCommits) {
+            const bumpString = msg.bump === 0 ? "No" : semver_1.SemVerType[msg.bump];
+            core.info(`- ${bumpString} bump for commit (${sha}): ${msg.subject}`);
+        }
+        if (nextVersion) {
+            // Assign Build Metadata
+            const buildMetadata = core.getInput("build-metadata");
+            if (buildMetadata) {
+                nextVersion.build = buildMetadata;
+            }
+            const nv = nextVersion.toString();
+            core.info(`ℹ️ Next version: ${nv}`);
+            core.setOutput("next-version", nv);
+            core.endGroup();
+            if (releaseType !== "none") {
+                if ((0, github_1.isPullRequestEvent)()) {
+                    core.startGroup(`ℹ️ Not creating ${releaseType} on a pull request event.`);
+                    core.info("We cannot create a release or tag in a pull request context, due to " +
+                        "potential parallelism (i.e. races) in pull request builds.");
+                }
+                else {
+                    core.startGroup(`ℹ️ Creating ${releaseType} ${nv}..`);
+                    try {
+                        if (releaseType === "tag") {
+                            yield (0, github_1.createTag)(nv, headSha);
+                        }
+                        else {
+                            const changelog = yield (0, changelog_1.generateChangelog)(bumpInfo);
+                            yield (0, github_1.createRelease)(nv, headSha, changelog, false);
+                        }
+                    }
+                    catch (ex) {
+                        // The most likely failure is a preexisting tag, in which case
+                        // a RequestError with statuscode 422 will be thrown
+                        const commit = yield (0, github_1.getShaForTag)(`refs/tags/${nv}`);
+                        if (ex instanceof request_error_1.RequestError && ex.status === 422 && commit) {
+                            core.setFailed(`Unable to create ${releaseType}; the tag "${nv}" already exists in the repository, ` +
+                                `it currently points to ${commit}.\n` +
+                                "You can find the branch(es) associated with the tag with:\n" +
+                                `  git fetch -t; git branch --contains ${nv}`);
+                        }
+                        else if (ex instanceof request_error_1.RequestError) {
+                            core.setFailed(`Unable to create ${releaseType} with the name "${nv}" due to ` +
+                                `HTTP request error (status ${ex.status}):\n${ex.message}`);
+                        }
+                        else if (ex instanceof Error) {
+                            core.setFailed(`Unable to create ${releaseType} with the name "${nv}":\n${ex.message}`);
+                        }
+                        else {
+                            core.setFailed(`Unknown error during ${releaseType} creation`);
+                            throw ex;
+                        }
+                        core.endGroup();
+                        return false;
+                    }
+                    core.info("Succeeded");
+                }
+            }
+            else {
+                core.startGroup(`ℹ️ Not creating tag or release for ${nv}..`);
+                core.info("To create a lightweight Git tag or GitHub release when the version is bumped, run this action with:\n" +
+                    ' - "create-release" set to "true" to create a GitHub release, or\n' +
+                    ' - "create-tag" set to "true" for a lightweight Git tag.\n' +
+                    "Note that setting both options is not needed, since a GitHub release implicitly creates a Git tag.");
+                return false;
+            }
+        }
+        else {
+            core.info("ℹ️ No bump necessary");
+            core.setOutput("next-version", "");
+        }
+        core.endGroup();
+        return nextVersion !== "";
+    });
+}
+exports.bumpSemVer = bumpSemVer;
+
+
+/***/ }),
+
+/***/ 8598:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+/**
+ * Copyright (C) 2022, TomTom (http://tomtom.com).
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.generateChangelog = exports.getChangelogConfiguration = void 0;
+const github_1 = __nccwpck_require__(5438);
+const github_2 = __nccwpck_require__(978);
+const yaml = __importStar(__nccwpck_require__(4083));
+const semver_1 = __nccwpck_require__(8593);
+/**
+ * Default Release Configuration
+ */
+const DEFAULT_CONFIG = {
+    changelog: {
+        categories: [
+            {
+                title: ":warning: Breaking Changes",
+                labels: ["bump:major"],
+            },
+            {
+                title: ":rocket: New Features",
+                labels: ["bump:minor"],
+            },
+            {
+                title: ":bug: Bug Fixes",
+                labels: ["bump:patch"],
+            },
+            {
+                title: ":construction_worker: Other changes",
+                labels: ["*"],
+            },
+        ],
+    },
+};
+/**
+ * Generates a Pull Request suffix `(#123)` in case this is not yet present
+ * in the commit description.
+ */
+function getPullRequestSuffix(commit) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (commit.hexsha && !commit.description.match(/\s\(#[0-9]+\)$/)) {
+            const pull_requests = yield (0, github_2.getAssociatedPullRequests)(commit.hexsha);
+            const pr_references = [];
+            for (const pull_request of pull_requests) {
+                pr_references.push(`#${pull_request.number}`);
+            }
+            if (pr_references.length > 0) {
+                return ` (${pr_references.join(", ")})`;
+            }
+        }
+        return "";
+    });
+}
+/**
+ * Generates an Issue suffix `(TEST-123, TEST-456)` based on the issue
+ * references in the git trailer
+ */
+function getIssueReferenceSuffix(commit) {
+    const ISSUE_REGEX = new RegExp(/([A-Z]+-[0-9]+|#[0-9]+)/g);
+    const issue_references = [];
+    for (const footer of commit.footers) {
+        const matches = footer.value.matchAll(ISSUE_REGEX);
+        for (const match of matches) {
+            issue_references.push(match[0]);
+        }
+    }
+    if (issue_references.length > 0) {
+        return ` (${issue_references.join(", ")})`;
+    }
+    return "";
+}
+/**
+ * Creates an entry in the Changelog based on the provided
+ * Conventional Commit message.
+ */
+function generateChangelogEntry(commit) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const { owner, repo } = github_1.context.repo;
+        let changelogEntry = `${commit.description
+            .charAt(0)
+            .toUpperCase()}${commit.description.slice(1)}`;
+        changelogEntry += yield getPullRequestSuffix(commit);
+        changelogEntry += getIssueReferenceSuffix(commit);
+        if (commit.hexsha) {
+            const sha_link = `[${commit.hexsha.slice(0, 6)}](https://github.com/${owner}/${repo}/commit/${commit.hexsha})`;
+            changelogEntry += ` [${sha_link}]`;
+        }
+        return changelogEntry;
+    });
+}
+/**
+ * Returns the Changelog configuration;
+ *   - The contents of the .github/release.y[a]ml file
+ *   - Otherwise, the internal default configuration
+ */
+function getChangelogConfiguration() {
+    return __awaiter(this, void 0, void 0, function* () {
+        const githubReleaseConfig = yield (0, github_2.getReleaseConfiguration)();
+        if (githubReleaseConfig.length > 0) {
+            const data = yaml.parse(githubReleaseConfig);
+            if (data["changelog"] !== undefined) {
+                return data;
+            }
+        }
+        return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+    });
+}
+exports.getChangelogConfiguration = getChangelogConfiguration;
+/**
+ * Returns a pretty-formatted Changelog (markdown) based on the
+ * provided Conventional Commit messages.
+ */
+function generateChangelog(bump) {
+    var _a, _b, _c, _d;
+    return __awaiter(this, void 0, void 0, function* () {
+        if (bump.foundVersion === null) {
+            return "";
+        }
+        const config = yield getChangelogConfiguration();
+        const { owner, repo } = github_1.context.repo;
+        for (const commit of bump.processedCommits) {
+            if (!commit.message)
+                continue;
+            const bumpLabel = `bump:${semver_1.SemVerType[commit.message.bump].toLowerCase()}`;
+            const typeLabel = `type:${commit.message.type.toLowerCase()}`;
+            // Adds the following items as "virtual" labels for each commit:
+            // * The version bump (`bump:<version>`)
+            // * The conventional commit type (`type:<type>`)
+            let labels = [bumpLabel, typeLabel];
+            // We will reuse the labels and author associated with a Pull Request
+            // (with the exception of `bump:<version`) for all commits associated
+            // with the PR.
+            if (commit.message.hexsha) {
+                const pullRequests = yield (0, github_2.getAssociatedPullRequests)(commit.message.hexsha);
+                if (pullRequests.length > 0) {
+                    const pullRequest = pullRequests[0];
+                    // Append the labels of the associated Pull Request
+                    // NOTE: we ignore the version bump label on the PR as this is
+                    //       and instead rely on version bump label associated with this
+                    //       commit.
+                    labels = labels.concat(pullRequest.labels
+                        .filter(label => !label.name.startsWith("bump:"))
+                        .map(label => label.name));
+                    // Check if the author of the Pull Request is part of the exclude list
+                    if (pullRequest.user &&
+                        ((_b = (_a = config.changelog.exclude) === null || _a === void 0 ? void 0 : _a.authors) === null || _b === void 0 ? void 0 : _b.includes(pullRequest.user.login))) {
+                        continue;
+                    }
+                }
+            }
+            // Check if any of the labels is part of the global exclusion list
+            if (labels.some(label => { var _a, _b; return (_b = (_a = config.changelog.exclude) === null || _a === void 0 ? void 0 : _a.labels) === null || _b === void 0 ? void 0 : _b.includes(label); })) {
+                continue;
+            }
+            for (const category of config.changelog.categories) {
+                // Apply all exclusion patterns from Pull Request metadata on Category
+                if (labels.some(label => { var _a, _b; return (_b = (_a = category.exclude) === null || _a === void 0 ? void 0 : _a.labels) === null || _b === void 0 ? void 0 : _b.includes(label); })) {
+                    continue;
+                }
+                // Validate whether the commit matches any of the inclusion patterns
+                if (!labels
+                    .concat([bumpLabel, "*"])
+                    .some(label => { var _a; return (_a = category.labels) === null || _a === void 0 ? void 0 : _a.includes(label); })) {
+                    continue;
+                }
+                if (!category["messages"]) {
+                    category["messages"] = [];
+                }
+                category["messages"].push(yield generateChangelogEntry(commit.message));
+                break;
+            }
+        }
+        let formattedChangelog = "## What's changed\n";
+        for (const category of config.changelog.categories) {
+            if (category["messages"] && category["messages"].length > 0) {
+                formattedChangelog += `### ${category.title}\n`;
+                for (const message of category["messages"]) {
+                    formattedChangelog += `* ${message}\n`;
+                }
+            }
+        }
+        const diffRange = `${bump.foundVersion.toString()}...` +
+            `${(_d = (_c = bump.foundVersion.bump(bump.requiredBump)) === null || _c === void 0 ? void 0 : _c.toString()) !== null && _d !== void 0 ? _d : github_1.context.sha.substring(0, 8)}`;
+        formattedChangelog += `\n\n*Diff since last release: [${diffRange}](https://github.com/${owner}/${repo}/compare/${diffRange})*`;
+        return formattedChangelog;
+    });
+}
+exports.generateChangelog = generateChangelog;
 
 
 /***/ }),
