@@ -10704,7 +10704,8 @@ const CONFIG_ITEMS = [
     "allowed-branches",
     "initial-development",
     "version-scheme",
-    "sdkver-release-branch-pattern",
+    "release-branches",
+    "prereleases",
 ];
 const VERSION_SCHEMES = ["semver", "sdkver"];
 /**
@@ -10728,7 +10729,7 @@ class Configuration {
         var _c;
         for (const key in data) {
             if (!CONFIG_ITEMS.includes(key)) {
-                throw new Error(`Unknown configuration item '${key} detected!`);
+                throw new Error(`Unknown configuration item '${key}' detected!`);
             }
             switch (key) {
                 case "enable":
@@ -10847,18 +10848,18 @@ class Configuration {
                         }
                     }
                     else {
-                        throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.sdkVerReleaseBranches}'!`);
+                        throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.versionScheme}'!`);
                     }
                     break;
-                case "sdkver-release-branch-pattern":
+                case "release-branches":
                     /* Example YAML:
-                     *   sdkver-release-branches: "^release/.*\d+\.\d+\.\d+.+$"
+                     *   release-branches: "^release/.*\d+\.\d+\.\d+.+$"
                      */
                     if (typeof data[key] === "string") {
-                        this.sdkVerReleaseBranches = data[key];
+                        this.releaseBranches = data[key];
                     }
                     else {
-                        throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.sdkVerReleaseBranches}'!`);
+                        throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.releaseBranches}'!`);
                     }
                     break;
                 case "initial-development":
@@ -10872,6 +10873,18 @@ class Configuration {
                         throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.initialDevelopment}'!`);
                     }
                     break;
+                case "prereleases":
+                    /* Example YAML
+                     *   prereleases: ""
+                     *   prereleases: "dev"
+                     */
+                    if (typeof data[key] === "string") {
+                        this.prereleasePrefix = data[key];
+                    }
+                    else {
+                        throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.prereleasePrefix}'!`);
+                    }
+                    break;
             }
         }
     }
@@ -10882,8 +10895,9 @@ class Configuration {
         this.allowedBranches = ".*";
         this.initialDevelopment = true;
         this.maxSubjectLength = 80;
-        this.sdkVerReleaseBranches = "^release/.*d+.d+.d+.+$";
+        this.releaseBranches = /^release\/.*\d+\.\d+\.\d+.*$/;
         this.versionScheme = "semver";
+        this.prereleasePrefix = undefined;
         this.tags = DEFAULT_ACCEPTED_TAGS;
         this.rules = new Map();
         for (const rule of rules_1.ALL_RULES) {

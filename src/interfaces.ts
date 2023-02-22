@@ -75,3 +75,4 @@ export interface IValidationResult {
 }
 
 export type ReleaseMode = "none" | "release" | "tag"; // keep values user-friendly
+export type SdkVerBumpType = "dev" | "rc" | "rel";

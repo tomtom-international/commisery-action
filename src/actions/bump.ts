@@ -28,7 +28,11 @@ import { generateChangelog } from "../changelog";
 import { ConventionalCommitMessage } from "../commit";
 import { Configuration } from "../config";
 import { getConfig, isPullRequestEvent } from "../github";
-import { IVersionBumpTypeAndMessages, ReleaseMode } from "../interfaces";
+import {
+  IVersionBumpTypeAndMessages,
+  ReleaseMode,
+  SdkVerBumpType,
+} from "../interfaces";
 import { SemVer, SemVerType } from "../semver";
 
 /**
@@ -97,7 +101,11 @@ async function run(): Promise<void> {
       return;
     } else {
       const currentVersion = bumpInfo.foundVersion.toString();
-      core.info(`ℹ️ Found SemVer tag: ${currentVersion}`); // TODO: remove SemVer
+      core.info(
+        `ℹ️ Found ${
+          config.versionScheme === "semver" ? "SemVer" : "SdkVer"
+        } tag: ${currentVersion}`
+      ); // TODO: remove SemVer
       core.setOutput("current-version", currentVersion);
     }
     core.endGroup();
@@ -123,29 +131,60 @@ async function run(): Promise<void> {
         releaseMode,
         context.sha
       );
-      if (!bumped) {
+      if (!bumped && config.prereleasePrefix !== undefined) {
+        // When configured to create GitHub releases, and the `prereleases`
+        // config item evaluates to `true`, create a draft GitHub release (which
+        // does not create tags).
         if (
           isBranchAllowedToPublish &&
           !isPullRequestEvent() &&
           releaseMode === "release"
         ) {
           // Create/rename draft release
-          // TODO: add input to `if` statement above to toggle this functionality
-          await bumpDraftRelease(bumpInfo, context.sha);
+          const ver = await bumpDraftRelease(
+            bumpInfo,
+            context.sha,
+            config.prereleasePrefix
+          );
+
+          core.info(`ℹ️ Created draft prerelease version ${ver}`);
         } else {
-          // ..ehh ja dan niet XXX
+          const reason =
+            isBranchAllowedToPublish !== true
+              ? `current branch '${branchName}' is not allowed to publish`
+              : isPullRequestEvent()
+              ? "we cannot publish from a pull request event"
+              : releaseMode !== "release"
+              ? `we can only do so when the 'create-release' input is provided to be 'true'`
+              : "";
+          core.info(`ℹ️ While configured to bump prereleases, ${reason}.`);
         }
       }
     } else if (config.versionScheme === "sdkver") {
-      // SdkVer
+      const releaseTypeInput = core.getInput("sdkver-release-type");
+      if (!["rel", "rc", "dev"].includes(releaseTypeInput)) {
+        throw new Error(
+          "The input value 'sdkver-release-type' must be one of: " +
+            "[rel, rc, dev]"
+        );
+      }
+      const releaseType = releaseTypeInput as SdkVerBumpType;
       core.startGroup("🔍 Determining SdkVer bump");
-      const bumped = await bumpSdkVer(
+      // For non-release branches, a flow similar to SemVer can be followed,
+      // but release branches get linear increments.
+      await bumpSdkVer(
         config,
         bumpInfo,
         releaseMode,
+        releaseType,
         context.sha,
         branchName
       );
+      /*
+    } else {
+      core.info("ℹ️ No bump necessary");
+    }
+    */
     } else {
       throw new Error(
         `Unimplemented 'version-scheme': ${config.versionScheme}`
