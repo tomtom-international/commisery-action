@@ -178,6 +178,7 @@ describe("Bump functionality", () => {
           expectedVersion,
           HEAD_SHA,
           CHANGELOG_PLACEHOLDER,
+          false,
           false
         );
       }
@@ -229,14 +230,12 @@ describe("Releases and tags", () => {
       );
       expect(github.createTag).not.toHaveBeenCalled();
       expect(github.createRelease).not.toHaveBeenCalled();
-      expect(changelog.generateChangelog).not.toHaveBeenCalled();
     } else if (!rel && tag) {
       expect(core.startGroup).toHaveBeenCalledWith(
         expect.stringContaining(`Creating tag ${PATCH_BUMPED_VERSION}..`)
       );
       expect(github.createTag).toHaveBeenCalledTimes(1);
       expect(github.createRelease).not.toHaveBeenCalled();
-      expect(changelog.generateChangelog).not.toHaveBeenCalled();
     } else if (rel && !tag) {
       expect(core.startGroup).toHaveBeenCalledWith(
         expect.stringContaining(`Creating release ${PATCH_BUMPED_VERSION}..`)
@@ -461,6 +460,7 @@ describe("Initial development", () => {
       "1.0.0",
       HEAD_SHA,
       CHANGELOG_PLACEHOLDER,
+      false,
       false
     );
 

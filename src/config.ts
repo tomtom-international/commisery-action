@@ -70,7 +70,8 @@ const CONFIG_ITEMS = [
   "allowed-branches",
   "initial-development",
   "version-scheme",
-  "sdkver-release-branch-pattern",
+  "release-branches",
+  "prereleases",
 ];
 
 const VERSION_SCHEMES = ["semver", "sdkver"];
@@ -98,15 +99,16 @@ export class Configuration {
   allowedBranches = ".*";
   initialDevelopment = true;
   maxSubjectLength = 80;
-  sdkVerReleaseBranches = "^release/.*d+.d+.d+.+$";
+  releaseBranches = /^release\/.*\d+\.\d+\.\d+.*$/;
   versionScheme = "semver";
+  prereleasePrefix?: string = undefined;
   tags: IConfigurationRules = DEFAULT_ACCEPTED_TAGS;
   rules: Map<string, IRuleConfigItem> = new Map<string, IRuleConfigItem>();
 
   private loadFromData(data: IConfiguration): void {
     for (const key in data) {
       if (!CONFIG_ITEMS.includes(key)) {
-        throw new Error(`Unknown configuration item '${key} detected!`);
+        throw new Error(`Unknown configuration item '${key}' detected!`);
       }
 
       switch (key) {
@@ -257,21 +259,21 @@ export class Configuration {
             throw new Error(
               `Incorrect type '${typeof data[
                 key
-              ]}' for '${key}', must be '${typeof this.sdkVerReleaseBranches}'!`
+              ]}' for '${key}', must be '${typeof this.versionScheme}'!`
             );
           }
           break;
-        case "sdkver-release-branch-pattern":
+        case "release-branches":
           /* Example YAML:
-           *   sdkver-release-branches: "^release/.*\d+\.\d+\.\d+.+$"
+           *   release-branches: "^release/.*\d+\.\d+\.\d+.+$"
            */
           if (typeof data[key] === "string") {
-            this.sdkVerReleaseBranches = data[key];
+            this.releaseBranches = data[key];
           } else {
             throw new Error(
               `Incorrect type '${typeof data[
                 key
-              ]}' for '${key}', must be '${typeof this.sdkVerReleaseBranches}'!`
+              ]}' for '${key}', must be '${typeof this.releaseBranches}'!`
             );
           }
           break;
@@ -287,6 +289,22 @@ export class Configuration {
               `Incorrect type '${typeof data[
                 key
               ]}' for '${key}', must be '${typeof this.initialDevelopment}'!`
+            );
+          }
+          break;
+
+        case "prereleases":
+          /* Example YAML
+           *   prereleases: ""
+           *   prereleases: "dev"
+           */
+          if (typeof data[key] === "string") {
+            this.prereleasePrefix = data[key];
+          } else {
+            throw new Error(
+              `Incorrect type '${typeof data[
+                key
+              ]}' for '${key}', must be '${typeof this.prereleasePrefix}'!`
             );
           }
           break;

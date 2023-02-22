@@ -116,7 +116,8 @@ export async function createRelease(
   tagName: string,
   commitish: string,
   body: string,
-  draft: boolean
+  draft: boolean,
+  prerelease: boolean
 ): Promise<void> {
   await getOctokit().rest.repos.createRelease({
     owner: OWNER,
@@ -126,6 +127,68 @@ export async function createRelease(
     name: tagName,
     body,
     draft,
+    prerelease,
+  });
+}
+
+/**
+ * Sort function for determining version precedence
+ * 'Full release' > '-rc' > '-*' (every other prerelease)
+ * Lexical sort will be applied for the latter.
+ *
+ * `releaseList` is a list of release objects; we may assume that
+ *               it's all the same major.minor.patch version.
+ *
+ * versionRegEx is the specialized regex to apply
+ */
+function sortVersionPrereleases(
+  releaseList: { id: number; name: string }[],
+  nameStartsWith
+): { id: number; name: string }[] {
+  // Gets the first number after a '-' sign
+  const VERSION_RE = new RegExp(
+    `^${nameStartsWith}${/\D*-\D*(?<preversion>\d+)\D*.*/.source}`
+  );
+
+  return releaseList.sort((lhs, rhs) => {
+    let sortResult: number | undefined = undefined;
+    // Handle all the precedence XORs
+    core.debug(`sort: ${rhs.name} and ${lhs.name}`);
+    if (!lhs.name.includes("-") && rhs.name.includes("-")) {
+      sortResult = 1;
+      core.debug(`sort: ${lhs.name} is rel, ${rhs.name} is not; +1`);
+    } else if (lhs.name.includes("-") && !rhs.name.includes("-")) {
+      sortResult = -1;
+      core.debug(`sort: ${rhs.name} is rel, ${lhs.name} is not: -1`);
+
+      // TODO: Make these '-rc' checks a bit more robust
+    } else if (lhs.name.includes("-rc") && !rhs.name.includes("-rc")) {
+      sortResult = 1;
+      core.debug(`sort: ${lhs.name} is rc, ${rhs.name} is not; +1`);
+    } else if (!lhs.name.includes("-rc") && rhs.name.includes("-rc")) {
+      sortResult = -1;
+      core.debug(`sort: ${rhs.name} is rc, ${lhs.name} is not: -1`);
+    } else {
+      // Either both are releases, rc releases, or "other"
+      const l = +(VERSION_RE.exec(lhs.name)?.groups?.preversion ?? 0);
+      const r = +(VERSION_RE.exec(rhs.name)?.groups?.preversion ?? 0);
+      core.debug(`sort: ${rhs.name} is ${l}, ${lhs.name} is ${l}`);
+      /*
+      for (const x of [
+        [l, lhs],
+        [r, rhs],
+      ]) {
+        if (!x[0])
+          core.info(
+            `warning: draft ${x[1]} is not a prerelease; ` +
+              `it will receive lowest precedence`
+          );
+      }
+      */
+      sortResult = l === r ? 0 : l < r ? -1 : 1;
+    }
+    core.debug(`sort: ${lhs.name} < ${rhs.name} = ${sortResult}`);
+    return sortResult;
   });
 }
 
@@ -135,9 +198,15 @@ export async function createRelease(
  *
  * Returns an object {id, name}, or `undefined` if no tag was found.
  */
-export async function getDraftRelease(
-  nameStartsWith: string
+export async function getRelease(
+  nameStartsWith: string,
+  isDraft: boolean
 ): Promise<{ id: number; name: string } | undefined> {
+  core.info(
+    `getRelease: finding ${
+      isDraft ? "draft " : ""
+    }release starting with: ${nameStartsWith}`
+  );
   const result: {
     repository: {
       releases: {
@@ -165,53 +234,37 @@ export async function getDraftRelease(
     }
     `);
 
-  core.debug(`getDraftRelease: GraphQL returned:\n${JSON.stringify(result)}`);
+  core.debug(`getRelease: GraphQL returned:\n${JSON.stringify(result)}`);
 
   /**
    * The GraphQL query has returned with a list the last 100 tags the repo.
    * This may be problematic in and of itself (TODO: pagination), but one thing
    * at a time for now.
    * We need to:
-   *  - only consider draft releases
-   *  - only consider releases starting with the provided parameter
+   *  - only consider releases starting with the provided `nameStartsWith`
+   *    and `isDraft` parameters
    *  - _NOT_ rely on the temporal data; the precendence of the existing tags
    *    shall determined according to a "SemVer-esque prerelease", that is:
    *      * componentX-1.2.3-9 < componentX-1.2.3-10
    *    This code is not SemVer-aware, however; instead, it tries to get by with:
    *      * stripping off the provided `nameStartsWith` value, then
    *      * taking first number after the _first_ '-' it encounters.
-   *        This means in the example above, `componentX-` ('-' included) must
+   *        This means in the example above, `componentX-1.2.3-` ('-' included) MUST
    *        be the `nameStartsWith` value for the behavior to work as expected.
+   *        If no '-' is encountered, it is assumed to be a full release and will
+   *        have highest precedence.
    *  - return the highest-precedence item
    */
 
-  // Gets the first number after a '-' sign
-  const RE = new RegExp(
-    `^${nameStartsWith}${/\D*-\D*(?<version>\d+)\D*.*/.source}`
-  );
-  const sortedList = result.repository.releases.nodes
-    .filter(r => r.isDraft)
+  const releaseList = result.repository.releases.nodes
+    .filter(r => r.isDraft === isDraft)
     .filter(r => r.tagName.startsWith(nameStartsWith))
-    .map(r => ({ id: r.databaseId, name: r.tagName }))
-    .sort((lhs, rhs) => {
-      const l = +(RE.exec(lhs.name)?.groups?.version ?? 0);
-      const r = +(RE.exec(rhs.name)?.groups?.version ?? 0);
-      for (const x of [
-        [l, lhs],
-        [r, rhs],
-      ]) {
-        if (!x[0])
-          core.info(
-            `warning: draft ${x[1]} is not a prerelease; ` +
-              `it will receive lowest precedence`
-          );
-      }
-      const sortResult: number = l === r ? 0 : l < r ? -1 : 1;
-      core.debug(`sort: ${lhs.name} < ${rhs.name} = ${sortResult}`);
-      return sortResult;
-    });
+    .map(r => ({ id: r.databaseId, name: r.tagName }));
+  const sortedList = sortVersionPrereleases(releaseList, nameStartsWith);
 
-  core.debug(`getDraftRelease: list of drafts:\n${JSON.stringify(sortedList)}`);
+  core.debug(
+    `getRelease: sorted list of releases:\n${JSON.stringify(sortedList)}`
+  );
   return sortedList.pop();
 }
 
@@ -225,7 +278,9 @@ export async function updateDraftRelease(
   newName: string,
   tagName: string,
   sha: string,
-  bodyContents: string
+  bodyContents: string,
+  isDraft = true,
+  isPrerelease = false
 ): Promise<boolean> {
   core.debug(
     `Update existing draft release with id ${id} to ${newName} (${tagName}) sha: ${sha}, ` +
@@ -236,7 +291,8 @@ export async function updateDraftRelease(
     repo: REPO,
     release_id: id,
     target_commitish: sha,
-    draft: true,
+    draft: isDraft,
+    prerelease: isPrerelease,
     body: bodyContents,
     name: newName,
     tag_name: tagName,

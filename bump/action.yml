@@ -51,6 +51,12 @@ inputs:
       One of ["rel", "rc", "dev"] [EXPERIMENTAL]
     default: "dev"
     required: false
+  sdkver-release-type:
+    description: >-
+      The type of version increment to apply for this build when using the SdkVer version scheme. 
+      One of ["rel", "rc", "dev"] [EXPERIMENTAL]
+    default: "dev"
+    required: false
   config:
     description: 'Path to the Commisery configuration file'
     required: false
