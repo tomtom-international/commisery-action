@@ -69,8 +69,11 @@ const CONFIG_ITEMS = [
   "disable",
   "allowed-branches",
   "initial-development",
+  "version-scheme",
+  "sdkver-release-branch-pattern",
 ];
 
+const VERSION_SCHEMES = ["semver", "sdkver"];
 /**
  * This function takes two values and throws when their types don't match.
  */
@@ -95,6 +98,8 @@ export class Configuration {
   allowedBranches = ".*";
   initialDevelopment = true;
   maxSubjectLength = 80;
+  sdkVerReleaseBranches = "^release/.*d+.d+.d+.+$";
+  versionScheme = "semver";
   tags: IConfigurationRules = DEFAULT_ACCEPTED_TAGS;
   rules: Map<string, IRuleConfigItem> = new Map<string, IRuleConfigItem>();
 
@@ -228,6 +233,45 @@ export class Configuration {
               `Incorrect type '${typeof data[
                 key
               ]}' for '${key}', must be '${typeof this.allowedBranches}'!`
+            );
+          }
+          break;
+
+        case "version-scheme":
+          /* Example YAML:
+           *   version-scheme: "semver"
+           */
+          if (typeof data[key] === "string") {
+            if (VERSION_SCHEMES.includes(data[key])) {
+              this.versionScheme = data[key];
+            } else {
+              throw new Error(
+                `Incorrect value '${
+                  data[key]
+                }' for '${key}', must be one of: '${VERSION_SCHEMES.join(
+                  '", "'
+                )}'`
+              );
+            }
+          } else {
+            throw new Error(
+              `Incorrect type '${typeof data[
+                key
+              ]}' for '${key}', must be '${typeof this.sdkVerReleaseBranches}'!`
+            );
+          }
+          break;
+        case "sdkver-release-branch-pattern":
+          /* Example YAML:
+           *   sdkver-release-branches: "^release/.*\d+\.\d+\.\d+.+$"
+           */
+          if (typeof data[key] === "string") {
+            this.sdkVerReleaseBranches = data[key];
+          } else {
+            throw new Error(
+              `Incorrect type '${typeof data[
+                key
+              ]}' for '${key}', must be '${typeof this.sdkVerReleaseBranches}'!`
             );
           }
           break;
