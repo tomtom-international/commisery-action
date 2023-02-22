@@ -10703,7 +10703,10 @@ const CONFIG_ITEMS = [
     "disable",
     "allowed-branches",
     "initial-development",
+    "version-scheme",
+    "sdkver-release-branch-pattern",
 ];
+const VERSION_SCHEMES = ["semver", "sdkver"];
 /**
  * This function takes two values and throws when their types don't match.
  */
@@ -10831,6 +10834,33 @@ class Configuration {
                         throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.allowedBranches}'!`);
                     }
                     break;
+                case "version-scheme":
+                    /* Example YAML:
+                     *   version-scheme: "semver"
+                     */
+                    if (typeof data[key] === "string") {
+                        if (VERSION_SCHEMES.includes(data[key])) {
+                            this.versionScheme = data[key];
+                        }
+                        else {
+                            throw new Error(`Incorrect value '${data[key]}' for '${key}', must be one of: '${VERSION_SCHEMES.join('", "')}'`);
+                        }
+                    }
+                    else {
+                        throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.sdkVerReleaseBranches}'!`);
+                    }
+                    break;
+                case "sdkver-release-branch-pattern":
+                    /* Example YAML:
+                     *   sdkver-release-branches: "^release/.*\d+\.\d+\.\d+.+$"
+                     */
+                    if (typeof data[key] === "string") {
+                        this.sdkVerReleaseBranches = data[key];
+                    }
+                    else {
+                        throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.sdkVerReleaseBranches}'!`);
+                    }
+                    break;
                 case "initial-development":
                     /* Example YAML
                      *   initial-development: true
@@ -10852,6 +10882,8 @@ class Configuration {
         this.allowedBranches = ".*";
         this.initialDevelopment = true;
         this.maxSubjectLength = 80;
+        this.sdkVerReleaseBranches = "^release/.*d+.d+.d+.+$";
+        this.versionScheme = "semver";
         this.tags = DEFAULT_ACCEPTED_TAGS;
         this.rules = new Map();
         for (const rule of rules_1.ALL_RULES) {

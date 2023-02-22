@@ -18,10 +18,11 @@ import * as core from "@actions/core";
 
 import { context } from "@actions/github";
 import {
-  getVersionBumpTypeAndMessages,
   bumpDraftRelease,
-  printNonCompliance,
+  bumpSdkVer,
   bumpSemVer,
+  getVersionBumpTypeAndMessages,
+  printNonCompliance,
 } from "../bump";
 import { generateChangelog } from "../changelog";
 import { ConventionalCommitMessage } from "../commit";
@@ -46,9 +47,9 @@ async function run(): Promise<void> {
   const config = new Configuration(".commisery.yml");
 
   let isBranchAllowedToPublish = false;
+  const branchName = context.ref.replace("refs/heads/", "");
 
   if (context.ref.startsWith("refs/heads/")) {
-    const branchName = context.ref.replace("refs/heads/", "");
     try {
       isBranchAllowedToPublish = new RegExp(config.allowedBranches).test(
         branchName
@@ -96,7 +97,7 @@ async function run(): Promise<void> {
       return;
     } else {
       const currentVersion = bumpInfo.foundVersion.toString();
-      core.info(`ℹ️ Found SemVer tag: ${currentVersion}`);
+      core.info(`ℹ️ Found SemVer tag: ${currentVersion}`); // TODO: remove SemVer
       core.setOutput("current-version", currentVersion);
     }
     core.endGroup();
@@ -113,19 +114,42 @@ async function run(): Promise<void> {
     printNonCompliance(bumpInfo.processedCommits);
 
     core.info("");
-    core.startGroup("🔍 Determining bump");
-    const bumped = await bumpSemVer(config, bumpInfo, releaseMode, context.sha);
-    if (!bumped) {
-      if (
-        isBranchAllowedToPublish &&
-        !isPullRequestEvent() &&
-        releaseMode === "release"
-      ) {
-        // Create/rename draft release
-        // TODO: add input to `if` statement above to toggle this functionality
-        await bumpDraftRelease(bumpInfo, context.sha);
-      } else {
+
+    if (config.versionScheme === "semver") {
+      core.startGroup("🔍 Determining SemVer bump");
+      const bumped = await bumpSemVer(
+        config,
+        bumpInfo,
+        releaseMode,
+        context.sha
+      );
+      if (!bumped) {
+        if (
+          isBranchAllowedToPublish &&
+          !isPullRequestEvent() &&
+          releaseMode === "release"
+        ) {
+          // Create/rename draft release
+          // TODO: add input to `if` statement above to toggle this functionality
+          await bumpDraftRelease(bumpInfo, context.sha);
+        } else {
+          // ..ehh ja dan niet XXX
+        }
       }
+    } else if (config.versionScheme === "sdkver") {
+      // SdkVer
+      core.startGroup("🔍 Determining SdkVer bump");
+      const bumped = await bumpSdkVer(
+        config,
+        bumpInfo,
+        releaseMode,
+        context.sha,
+        branchName
+      );
+    } else {
+      throw new Error(
+        `Unimplemented 'version-scheme': ${config.versionScheme}`
+      );
     }
   } catch (ex) {
     core.startGroup("❌ Exception");

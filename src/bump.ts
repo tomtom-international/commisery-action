@@ -290,10 +290,89 @@ export function printNonCompliance(commits): void {
   }
 }
 
+export async function publishBump(
+  nextVersion,
+  releaseMode,
+  headSha,
+  bumpInfo
+): Promise<boolean> {
+  // TODO: _only_ use bumpInfo for generateChangelog();
+  //       should be decomposed
+
+  // Assign Build Metadata
+  const buildMetadata = core.getInput("build-metadata");
+  if (buildMetadata) {
+    nextVersion.build = buildMetadata;
+  }
+
+  const nv = nextVersion.toString();
+  core.info(`ℹ️ Next version: ${nv}`);
+  core.setOutput("next-version", nv);
+  core.endGroup();
+  if (releaseMode !== "none") {
+    if (isPullRequestEvent()) {
+      core.startGroup(
+        `ℹ️ Not creating ${releaseMode} on a pull request event.`
+      );
+      core.info(
+        "We cannot create a release or tag in a pull request context, due to " +
+          "potential parallelism (i.e. races) in pull request builds."
+      );
+      return false;
+    }
+    core.startGroup(`ℹ️ Creating ${releaseMode} ${nv}..`);
+    try {
+      if (releaseMode === "tag") {
+        await createTag(nv, headSha);
+      } else {
+        const changelog = await generateChangelog(bumpInfo);
+        await createRelease(nv, headSha, changelog, false);
+      }
+    } catch (ex: unknown) {
+      // The most likely failure is a preexisting tag, in which case
+      // a RequestError with statuscode 422 will be thrown
+      const commit = await getShaForTag(`refs/tags/${nv}`);
+      if (ex instanceof RequestError && ex.status === 422 && commit) {
+        core.setFailed(
+          `Unable to create ${releaseMode}; the tag "${nv}" already exists in the repository, ` +
+            `it currently points to ${commit}.\n` +
+            "You can find the branch(es) associated with the tag with:\n" +
+            `  git fetch -t; git branch --contains ${nv}`
+        );
+      } else if (ex instanceof RequestError) {
+        core.setFailed(
+          `Unable to create ${releaseMode} with the name "${nv}" due to ` +
+            `HTTP request error (status ${ex.status}):\n${ex.message}`
+        );
+      } else if (ex instanceof Error) {
+        core.setFailed(
+          `Unable to create ${releaseMode} with the name "${nv}":\n${ex.message}`
+        );
+      } else {
+        core.setFailed(`Unknown error during ${releaseMode} creation`);
+        throw ex;
+      }
+      core.endGroup();
+      return false;
+    }
+    core.info("Succeeded");
+  } else {
+    core.startGroup(`ℹ️ Not creating tag or release for ${nv}..`);
+    core.info(
+      "To create a lightweight Git tag or GitHub release when the version is bumped, run this action with:\n" +
+        ' - "create-release" set to "true" to create a GitHub release, or\n' +
+        ' - "create-tag" set to "true" for a lightweight Git tag.\n' +
+        "Note that setting both options is not needed, since a GitHub release implicitly creates a Git tag."
+    );
+    return false;
+  }
+  return true;
+}
+
 export async function bumpSemVer(
   config,
   bumpInfo,
-  releaseType,
+  releaseMode,
   headSha
 ): Promise<boolean> {
   const nextVersion = bumpInfo.foundVersion.bump(
@@ -313,78 +392,81 @@ export async function bumpSemVer(
     core.info(`- ${bumpString} bump for commit (${sha}): ${msg.subject}`);
   }
 
+  let bumped = false;
   if (nextVersion) {
-    // Assign Build Metadata
-    const buildMetadata = core.getInput("build-metadata");
-    if (buildMetadata) {
-      nextVersion.build = buildMetadata;
-    }
-
-    const nv = nextVersion.toString();
-    core.info(`ℹ️ Next version: ${nv}`);
-    core.setOutput("next-version", nv);
-    core.endGroup();
-    if (releaseType !== "none") {
-      if (isPullRequestEvent()) {
-        core.startGroup(
-          `ℹ️ Not creating ${releaseType} on a pull request event.`
-        );
-        core.info(
-          "We cannot create a release or tag in a pull request context, due to " +
-            "potential parallelism (i.e. races) in pull request builds."
-        );
-      } else {
-        core.startGroup(`ℹ️ Creating ${releaseType} ${nv}..`);
-        try {
-          if (releaseType === "tag") {
-            await createTag(nv, headSha);
-          } else {
-            const changelog = await generateChangelog(bumpInfo);
-            await createRelease(nv, headSha, changelog, false);
-          }
-        } catch (ex: unknown) {
-          // The most likely failure is a preexisting tag, in which case
-          // a RequestError with statuscode 422 will be thrown
-          const commit = await getShaForTag(`refs/tags/${nv}`);
-          if (ex instanceof RequestError && ex.status === 422 && commit) {
-            core.setFailed(
-              `Unable to create ${releaseType}; the tag "${nv}" already exists in the repository, ` +
-                `it currently points to ${commit}.\n` +
-                "You can find the branch(es) associated with the tag with:\n" +
-                `  git fetch -t; git branch --contains ${nv}`
-            );
-          } else if (ex instanceof RequestError) {
-            core.setFailed(
-              `Unable to create ${releaseType} with the name "${nv}" due to ` +
-                `HTTP request error (status ${ex.status}):\n${ex.message}`
-            );
-          } else if (ex instanceof Error) {
-            core.setFailed(
-              `Unable to create ${releaseType} with the name "${nv}":\n${ex.message}`
-            );
-          } else {
-            core.setFailed(`Unknown error during ${releaseType} creation`);
-            throw ex;
-          }
-          core.endGroup();
-          return false;
-        }
-        core.info("Succeeded");
-      }
-    } else {
-      core.startGroup(`ℹ️ Not creating tag or release for ${nv}..`);
-      core.info(
-        "To create a lightweight Git tag or GitHub release when the version is bumped, run this action with:\n" +
-          ' - "create-release" set to "true" to create a GitHub release, or\n' +
-          ' - "create-tag" set to "true" for a lightweight Git tag.\n' +
-          "Note that setting both options is not needed, since a GitHub release implicitly creates a Git tag."
-      );
-      return false;
-    }
+    bumped = await publishBump(nextVersion, releaseMode, headSha, bumpInfo);
   } else {
     core.info("ℹ️ No bump necessary");
     core.setOutput("next-version", "");
   }
   core.endGroup();
   return nextVersion !== "";
+}
+
+export async function bumpSdkVer(
+  config,
+  bumpInfo: IVersionBumpTypeAndMessages,
+  releaseMode,
+  headSha,
+  branchName
+): Promise<boolean> {
+  const isReleaseBranch = branchName.match(config.sdkVerReleaseBranches);
+  const hasBreakingChange = bumpInfo.processedCommits.some(
+    c => c.message?.breakingChange
+  );
+  let sdkVerBumpType: SemVerType = SemVerType.NONE;
+  if (!bumpInfo.foundVersion) return false; // should never happen
+
+  if (isReleaseBranch) {
+    // Bump patch
+    core.info(
+      `The current branch, ${branchName}, is an SdkVer release branch.`
+    );
+    sdkVerBumpType = SemVerType.PATCH;
+
+    if (hasBreakingChange) {
+      core.error(
+        "Breaking changes are not allowed on release branches. Skipping release."
+      );
+      return false;
+    }
+  } else {
+    core.info(
+      `The current branch, ${branchName}, is not an SdkVer release branch.`
+    );
+    if (hasBreakingChange) {
+      sdkVerBumpType = SemVerType.MAJOR;
+      core.info(
+        "The commits contain a breaking change; bumping API version field"
+      );
+    } else {
+      sdkVerBumpType = SemVerType.MINOR;
+      core.info("Bumping release field");
+    }
+  }
+
+  const nextVersion = bumpInfo.foundVersion.bump(
+    sdkVerBumpType,
+    config.initialDevelopment
+  );
+  if (!nextVersion) return false; // should never happen
+
+  const compliantCommits = bumpInfo.processedCommits
+    .filter(c => c.message !== undefined)
+    .map(c => ({
+      msg: c.message as ConventionalCommitMessage,
+      sha: c.input.sha.slice(0, 8),
+    }));
+
+  for (const { msg, sha } of compliantCommits) {
+    const bumpString = msg.bump === 0 ? "No" : SemVerType[msg.bump];
+    core.info(`- ${bumpString} bump for commit (${sha}): ${msg.subject}`);
+  }
+
+  let bumped = false;
+  bumped = await publishBump(nextVersion, releaseMode, headSha, bumpInfo);
+  core.info("ℹ️ No bump necessary");
+  core.setOutput("next-version", nextVersion.toString());
+  core.endGroup();
+  return false;
 }
