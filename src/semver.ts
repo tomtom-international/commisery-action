@@ -65,6 +65,13 @@ export class SemVer {
     this.prefix = prefix;
   }
 
+  static copy(semver): SemVer {
+    return new SemVer({
+      build: semver.build,
+      ...semver,
+    });
+  }
+
   get build(): string {
     return this._build;
   }
@@ -137,6 +144,27 @@ export class SemVer {
       patch: this.patch + 1,
       prefix: this.prefix,
     });
+  }
+
+  /**
+   * Attempts to increment the first number encountered in the
+   * `prerelease` field.
+   * Returns new SemVer object or `null` if unsuccessful.
+   */
+  nextPrerelease(): SemVer | null {
+    const match = /(?<pre>\D*)(?<prereleaseVersion>\d+)(?<post>.*)/.exec(
+      this.prerelease
+    );
+    if (match == null || match.groups == null) {
+      return null;
+    }
+
+    const nv = SemVer.copy(this);
+    nv.prerelease =
+      `${match.groups.pre}` +
+      `${+match.groups.prereleaseVersion + 1}${match.groups.post}`;
+
+    return nv;
   }
 
   /**
