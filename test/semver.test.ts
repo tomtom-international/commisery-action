@@ -15,6 +15,7 @@
  */
 
 import dedent from "dedent";
+import * as core from "@actions/core";
 
 import { SemVer, SemVerType } from "../src/semver";
 
@@ -242,5 +243,15 @@ describe("Build metadata", () => {
         build: "identifier-1..identifier-2",
       });
     }).toThrow(Error);
+  });
+});
+
+describe("Helper functions", () => {
+  test("Copy", () => {
+    const original = SemVer.fromString("prefix1.2.3-prerelease+build");
+    const copy = SemVer.copy(original);
+
+    expect(copy).not.toBe(original);
+    expect(copy).toStrictEqual(original);
   });
 });

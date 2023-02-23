@@ -14208,6 +14208,9 @@ class SemVer {
         this.build = build;
         this.prefix = prefix;
     }
+    static copy(semver) {
+        return new SemVer(Object.assign({ build: semver.build }, semver));
+    }
     get build() {
         return this._build;
     }
@@ -14271,6 +14274,22 @@ class SemVer {
             patch: this.patch + 1,
             prefix: this.prefix,
         });
+    }
+    /**
+     * Attempts to increment the first number encountered in the
+     * `prerelease` field.
+     * Returns new SemVer object or `null` if unsuccessful.
+     */
+    nextPrerelease() {
+        const match = /(?<pre>\D*)(?<prereleaseVersion>\d+)(?<post>.*)/.exec(this.prerelease);
+        if (match == null || match.groups == null) {
+            return null;
+        }
+        const nv = SemVer.copy(this);
+        nv.prerelease =
+            `${match.groups.pre}` +
+                `${+match.groups.prereleaseVersion + 1}${match.groups.post}`;
+        return nv;
     }
     /**
      * Returns a new SemVer object bumped by the provided bump type, or `null` if the
