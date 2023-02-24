@@ -16,12 +16,22 @@
 
 import dedent from "dedent";
 
+import * as github from "../src/github";
+
 import { ConventionalCommitMessage } from "../src/commit";
 import { generateChangelog } from "../src/changelog";
 import { IVersionBumpTypeAndMessages, ICommit } from "../src/interfaces";
 import { SemVer, SemVerType } from "../src/semver";
-const github = require("../src/github");
 const githubActions = require("@actions/github");
+
+// We need to wrap this in a mock to be able to spy on it later
+jest.mock("../src/github", () => {
+  const actualModule = jest.requireActual("../src/github");
+  return {
+    __esModule: true,
+    ...actualModule,
+  };
+});
 
 function createMessages(messages: ICommit[]) {
   return messages.map(c => {
