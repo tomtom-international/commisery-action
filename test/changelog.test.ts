@@ -25,14 +25,7 @@ import { SemVer, SemVerType } from "../src/semver";
 const githubActions = require("@actions/github");
 
 // We need to wrap this in a mock to be able to spy on it later
-jest.mock("../src/github", () => {
-  const actualModule = jest.requireActual("../src/github");
-  return {
-    __esModule: true,
-    ...actualModule,
-  };
-});
-
+jest.mock("../src/github");
 function createMessages(messages: ICommit[]) {
   return messages.map(c => {
     return {
@@ -42,6 +35,10 @@ function createMessages(messages: ICommit[]) {
     };
   });
 }
+
+beforeAll(() => {
+  jest.spyOn(github, "getReleaseConfiguration").mockResolvedValue("");
+});
 
 // Validate Changelog Generation
 //
@@ -60,7 +57,8 @@ describe("Generate Changelog", () => {
 
     jest
       .spyOn(github, "getAssociatedPullRequests")
-      .mockImplementation(() => [{ number: "123", labels: [] }]);
+      // @ts-ignore
+      .mockResolvedValue([{ number: "123", labels: [] }]);
   });
 
   test("All types of changes", async () => {
@@ -190,8 +188,8 @@ describe("Generate Changelog", () => {
       ]),
     };
 
-    jest.spyOn(github, "getReleaseConfiguration").mockImplementation(() => {
-      return JSON.stringify({
+    jest.spyOn(github, "getReleaseConfiguration").mockResolvedValue(
+      JSON.stringify({
         changelog: {
           exclude: {
             labels: ["bump:major"],
@@ -203,8 +201,8 @@ describe("Generate Changelog", () => {
             },
           ],
         },
-      });
-    });
+      })
+    );
 
     const changelog = await generateChangelog(bump);
     expect(changelog).toEqual(
@@ -237,8 +235,8 @@ describe("Generate Changelog", () => {
       ]),
     };
 
-    jest.spyOn(github, "getReleaseConfiguration").mockImplementation(() => {
-      return JSON.stringify({
+    jest.spyOn(github, "getReleaseConfiguration").mockResolvedValue(
+      JSON.stringify({
         changelog: {
           categories: [
             {
@@ -254,8 +252,8 @@ describe("Generate Changelog", () => {
             },
           ],
         },
-      });
-    });
+      })
+    );
 
     const changelog = await generateChangelog(bump);
     expect(changelog).toEqual(
@@ -289,8 +287,8 @@ describe("Generate Changelog", () => {
       ]),
     };
 
-    jest.spyOn(github, "getReleaseConfiguration").mockImplementation(() => {
-      return JSON.stringify({
+    jest.spyOn(github, "getReleaseConfiguration").mockResolvedValue(
+      JSON.stringify({
         changelog: {
           categories: [
             {
@@ -299,8 +297,8 @@ describe("Generate Changelog", () => {
             },
           ],
         },
-      });
-    });
+      })
+    );
 
     const changelog = await generateChangelog(bump);
     expect(changelog).toEqual(
@@ -333,8 +331,8 @@ describe("Generate Changelog", () => {
       ]),
     };
 
-    jest.spyOn(github, "getReleaseConfiguration").mockImplementation(() => {
-      return JSON.stringify({
+    jest.spyOn(github, "getReleaseConfiguration").mockResolvedValue(
+      JSON.stringify({
         changelog: {
           categories: [
             {
@@ -347,8 +345,8 @@ describe("Generate Changelog", () => {
             },
           ],
         },
-      });
-    });
+      })
+    );
 
     const changelog = await generateChangelog(bump);
     expect(changelog).toEqual(
@@ -393,8 +391,8 @@ describe("Generate Changelog", () => {
       ]),
     };
 
-    jest.spyOn(github, "getReleaseConfiguration").mockImplementation(() => {
-      return JSON.stringify({
+    jest.spyOn(github, "getReleaseConfiguration").mockResolvedValue(
+      JSON.stringify({
         changelog: {
           group: "scope",
           categories: [
@@ -408,8 +406,8 @@ describe("Generate Changelog", () => {
             },
           ],
         },
-      });
-    });
+      })
+    );
 
     const changelog = await generateChangelog(bump);
     expect(changelog).toEqual(
