@@ -312,7 +312,7 @@ describe("Generate Changelog", () => {
       processedCommits: createMessages([
         {
           message:
-            "feat!: add pull request reference\n\nThis is the body\n\nImplements: TEST-123",
+            "feat(Search)!: add pull request reference\n\nThis is the body\n\nImplements: TEST-123",
           sha: "17e57c03317",
         },
         {
@@ -328,8 +328,8 @@ describe("Generate Changelog", () => {
         changelog: {
           categories: [
             {
-              title: "Major Changes",
-              labels: ["bump:major"],
+              title: "Search API",
+              labels: ["scope:search"],
             },
             {
               title: "Documentation",
@@ -344,7 +344,7 @@ describe("Generate Changelog", () => {
     expect(changelog).toEqual(
       dedent(
         `## What's changed
-        ### Major Changes
+        ### Search API
         * Add pull request reference (#123) (TEST-123) [[17e57c](https://github.com/tomtom-international/commisery-action/commit/17e57c03317)]
         ### Documentation
         * Do GitHub things (#123) (#42) [[27e57c](https://github.com/tomtom-international/commisery-action/commit/27e57c03317)]
@@ -354,7 +354,7 @@ describe("Generate Changelog", () => {
       )
     );
   });
-
+  
   afterAll(() => {
     jest.restoreAllMocks();
   });

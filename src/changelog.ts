@@ -188,9 +188,15 @@ export async function generateChangelog(
     // * The conventional commit type (`type:<type>`)
     let labels: string[] = [bumpLabel, typeLabel];
 
+    // * The conventional commit scope (`scope:<scope>`)
+    if (commit.message.scope) {
+      const scopeLabel = `scope:${commit.message.scope.toLowerCase()}`;
+      labels.push(scopeLabel);
+    }
+
     // We will reuse the labels and author associated with a Pull Request
-    // (with the exception of `bump:<version`) for all commits associated
-    // with the PR.
+    // (with the exception of `bump:<version>` and `scope:<scope>`) for all
+    // commits associated with the PR.
 
     if (commit.message.hexsha) {
       const pullRequests = await getAssociatedPullRequests(
@@ -201,12 +207,16 @@ export async function generateChangelog(
         const pullRequest = pullRequests[0];
 
         // Append the labels of the associated Pull Request
-        // NOTE: we ignore the version bump label on the PR as this is
+        // NOTE: we ignore the version bump and scope label on the PR as this is
         //       and instead rely on version bump label associated with this
         //       commit.
         labels = labels.concat(
           pullRequest.labels
-            .filter(label => !label.name.startsWith("bump:"))
+            .filter(
+              label =>
+                !label.name.startsWith("bump:") &&
+                !label.name.startsWith("scope:")
+            )
             .map(label => label.name)
         );
 
