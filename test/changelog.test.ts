@@ -354,7 +354,72 @@ describe("Generate Changelog", () => {
       )
     );
   });
-  
+
+  test("Conventional commit group by scope", async () => {
+    const bump: IVersionBumpTypeAndMessages = {
+      foundVersion: new SemVer({ major: 1, minor: 0, patch: 0 }),
+      requiredBump: SemVerType.MINOR,
+      processedCommits: createMessages([
+        {
+          message:
+            "docs: this has no scope\n\nThis is the body\n\nImplements #42",
+          sha: "27e57c03317",
+        },
+        {
+          message:
+            "feat(Search)!: add pull request reference\n\nThis is the body\n\nImplements: TEST-123",
+          sha: "17e57c03317",
+        },
+        {
+          message:
+            "feat(Search)!: remove `doIt(...)` API\n\nThis is the body\n\nImplements: TEST-123",
+          sha: "17e57c03317",
+        },
+        {
+          message:
+            "docs(Search): do GitHub things\n\nThis is the body\n\nImplements #42",
+          sha: "27e57c03317",
+        },
+      ]),
+    };
+
+    jest.spyOn(github, "getReleaseConfiguration").mockImplementation(() => {
+      return JSON.stringify({
+        changelog: {
+          group: "scope",
+          categories: [
+            {
+              title: ":warning: Breaking Changes",
+              labels: ["bump:major"],
+            },
+            {
+              title: "Documentation",
+              labels: ["type:docs"],
+            },
+          ],
+        },
+      });
+    });
+
+    const changelog = await generateChangelog(bump);
+    expect(changelog).toEqual(
+      dedent(
+        `## What's changed
+        ### Search
+        #### :warning: Breaking Changes
+        * Add pull request reference (#123) (TEST-123) [[17e57c](https://github.com/tomtom-international/commisery-action/commit/17e57c03317)]
+        * Remove \`doIt(...)\` API (#123) (TEST-123) [[17e57c](https://github.com/tomtom-international/commisery-action/commit/17e57c03317)]
+        #### Documentation
+        * Do GitHub things (#123) (#42) [[27e57c](https://github.com/tomtom-international/commisery-action/commit/27e57c03317)]
+        ### Documentation
+        * This has no scope (#123) (#42) [[27e57c](https://github.com/tomtom-international/commisery-action/commit/27e57c03317)]
+
+
+        *Diff since last release: [1.0.0...1.1.0](https://github.com/tomtom-international/commisery-action/compare/1.0.0...1.1.0)*`
+      )
+    );
+  });
+
   afterAll(() => {
     jest.restoreAllMocks();
   });
