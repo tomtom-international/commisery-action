@@ -11889,6 +11889,12 @@ const github_2 = __nccwpck_require__(978);
 const yaml = __importStar(__nccwpck_require__(4083));
 const semver_1 = __nccwpck_require__(8593);
 /**
+ * Capitalizes the first character of the provided string
+ */
+function capitalizeFirstLetter(data) {
+    return data.charAt(0).toUpperCase() + data.slice(1).toLowerCase();
+}
+/**
  * Default Release Configuration
  */
 const DEFAULT_CONFIG = {
@@ -11992,27 +11998,25 @@ exports.getChangelogConfiguration = getChangelogConfiguration;
  * provided Conventional Commit messages.
  */
 function generateChangelog(bump) {
-    var _a, _b, _c;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
     return __awaiter(this, void 0, void 0, function* () {
         if (bump.foundVersion === null) {
             return "";
         }
         const config = yield getChangelogConfiguration();
         const { owner, repo } = github_1.context.repo;
+        const changelog = new Map();
         for (const commit of bump.processedCommits) {
             if (!commit.message)
                 continue;
             const bumpLabel = `bump:${semver_1.SemVerType[commit.message.bump].toLowerCase()}`;
             const typeLabel = `type:${commit.message.type.toLowerCase()}`;
+            const scopeLabel = `scope:${((_b = (_a = commit.message) === null || _a === void 0 ? void 0 : _a.scope) === null || _b === void 0 ? void 0 : _b.toLowerCase()) || "*"}`;
             // Adds the following items as "virtual" labels for each commit:
             // * The version bump (`bump:<version>`)
             // * The conventional commit type (`type:<type>`)
-            let labels = [bumpLabel, typeLabel];
             // * The conventional commit scope (`scope:<scope>`)
-            if (commit.message.scope) {
-                const scopeLabel = `scope:${commit.message.scope}`;
-                labels.push(scopeLabel);
-            }
+            let labels = [bumpLabel, typeLabel, scopeLabel];
             // We will reuse the labels and author associated with a Pull Request
             // (with the exception of `bump:<version>` and `scope:<scope>`) for all
             // commits associated with the PR.
@@ -12030,7 +12034,7 @@ function generateChangelog(bump) {
                         .map(label => label.name));
                     // Check if the author of the Pull Request is part of the exclude list
                     if (pullRequest.user &&
-                        ((_b = (_a = config.changelog.exclude) === null || _a === void 0 ? void 0 : _a.authors) === null || _b === void 0 ? void 0 : _b.includes(pullRequest.user.login))) {
+                        ((_d = (_c = config.changelog.exclude) === null || _c === void 0 ? void 0 : _c.authors) === null || _d === void 0 ? void 0 : _d.includes(pullRequest.user.login))) {
                         continue;
                     }
                 }
@@ -12039,6 +12043,12 @@ function generateChangelog(bump) {
             if (labels.some(label => { var _a, _b; return (_b = (_a = config.changelog.exclude) === null || _a === void 0 ? void 0 : _a.labels) === null || _b === void 0 ? void 0 : _b.includes(label); })) {
                 continue;
             }
+            // Either group commits per Conventional Commit scope, or group them all
+            // together (*)
+            const scope = config.changelog.group === "scope"
+                ? ((_f = (_e = commit.message) === null || _e === void 0 ? void 0 : _e.scope) === null || _f === void 0 ? void 0 : _f.toLowerCase()) || "*"
+                : "*";
+            changelog.set(scope, (_g = changelog.get(scope)) !== null && _g !== void 0 ? _g : new Map());
             for (const category of config.changelog.categories) {
                 // Apply all exclusion patterns from Pull Request metadata on Category
                 if (labels.some(label => { var _a, _b; return (_b = (_a = category.exclude) === null || _a === void 0 ? void 0 : _a.labels) === null || _b === void 0 ? void 0 : _b.includes(label); })) {
@@ -12050,24 +12060,36 @@ function generateChangelog(bump) {
                     .some(label => { var _a; return (_a = category.labels) === null || _a === void 0 ? void 0 : _a.includes(label); })) {
                     continue;
                 }
-                if (!category["messages"]) {
-                    category["messages"] = [];
+                if (((_h = changelog.get(scope)) === null || _h === void 0 ? void 0 : _h.get(category.title)) === undefined) {
+                    (_j = changelog.get(scope)) === null || _j === void 0 ? void 0 : _j.set(category.title, []);
                 }
-                category["messages"].push(yield generateChangelogEntry(commit.message));
+                (_l = (_k = changelog
+                    .get(scope)) === null || _k === void 0 ? void 0 : _k.get(category.title)) === null || _l === void 0 ? void 0 : _l.push(yield generateChangelogEntry(commit.message));
                 break;
             }
         }
+        // Sort changelog, with the all (*) scope always as last item
+        const sortedChangelog = [...changelog].sort((a, b) => a[0] === "*" ? 1 : b[0] === "*" ? -1 : a[0].localeCompare(b[0]));
+        // Generate Changelog
         let formattedChangelog = "## What's changed\n";
-        for (const category of config.changelog.categories) {
-            if (category["messages"] && category["messages"].length > 0) {
-                formattedChangelog += `### ${category.title}\n`;
-                for (const message of category["messages"]) {
-                    formattedChangelog += `* ${message}\n`;
+        for (const [scope, categories] of sortedChangelog) {
+            const isGrouped = scope !== "*";
+            if (isGrouped) {
+                formattedChangelog += `### ${capitalizeFirstLetter(scope)}\n`;
+            }
+            for (const [category, messages] of categories) {
+                if (messages.length > 0) {
+                    formattedChangelog += isGrouped
+                        ? `#### ${category}\n`
+                        : `### ${category}\n`;
+                    for (const message of messages) {
+                        formattedChangelog += `* ${message}\n`;
+                    }
                 }
             }
         }
         const diffRange = `${bump.foundVersion.toString()}...` +
-            `${(_c = bump.foundVersion.bump(bump.requiredBump)) === null || _c === void 0 ? void 0 : _c.toString()}`;
+            `${(_m = bump.foundVersion.bump(bump.requiredBump)) === null || _m === void 0 ? void 0 : _m.toString()}`;
         formattedChangelog += `\n\n*Diff since last release: [${diffRange}](https://github.com/${owner}/${repo}/compare/${diffRange})*`;
         return formattedChangelog;
     });

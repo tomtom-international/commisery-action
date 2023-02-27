@@ -17,7 +17,7 @@
 import { context } from "@actions/github";
 import { ConventionalCommitMessage } from "./commit";
 import { getAssociatedPullRequests, getReleaseConfiguration } from "./github";
-import { IVersionBumpTypeAndMessages } from "./interfaces";
+import { IVersionBumpTypeAndMessages, IValidationResult } from "./interfaces";
 import * as yaml from "yaml";
 import { SemVerType } from "./semver";
 
@@ -36,6 +36,7 @@ interface IExcludeConfiguration {
  */
 export interface IReleaseConfiguration {
   changelog: {
+    group?: "scope";
     exclude?: IExcludeConfiguration;
     categories: {
       /* Required. The title of a category of changes in release notes. */
@@ -45,6 +46,15 @@ export interface IReleaseConfiguration {
       exclude?: IExcludeConfiguration;
     }[];
   };
+}
+
+type TChangelog = Map<string, Map<string, string[]>>;
+
+/**
+ * Capitalizes the first character of the provided string
+ */
+function capitalizeFirstLetter(data: string): string {
+  return data.charAt(0).toUpperCase() + data.slice(1).toLowerCase();
 }
 
 /**
@@ -177,22 +187,19 @@ export async function generateChangelog(
   const config = await getChangelogConfiguration();
   const { owner, repo } = context.repo;
 
+  const changelog: TChangelog = new Map();
   for (const commit of bump.processedCommits) {
     if (!commit.message) continue;
 
     const bumpLabel = `bump:${SemVerType[commit.message.bump].toLowerCase()}`;
     const typeLabel = `type:${commit.message.type.toLowerCase()}`;
+    const scopeLabel = `scope:${commit.message?.scope?.toLowerCase() || "*"}`;
 
     // Adds the following items as "virtual" labels for each commit:
     // * The version bump (`bump:<version>`)
     // * The conventional commit type (`type:<type>`)
-    let labels: string[] = [bumpLabel, typeLabel];
-
     // * The conventional commit scope (`scope:<scope>`)
-    if (commit.message.scope) {
-      const scopeLabel = `scope:${commit.message.scope.toLowerCase()}`;
-      labels.push(scopeLabel);
-    }
+    let labels: string[] = [bumpLabel, typeLabel, scopeLabel];
 
     // We will reuse the labels and author associated with a Pull Request
     // (with the exception of `bump:<version>` and `scope:<scope>`) for all
@@ -237,6 +244,14 @@ export async function generateChangelog(
       continue;
     }
 
+    // Either group commits per Conventional Commit scope, or group them all
+    // together (*)
+    const scope =
+      config.changelog.group === "scope"
+        ? commit.message?.scope?.toLowerCase() || "*"
+        : "*";
+
+    changelog.set(scope, changelog.get(scope) ?? new Map<string, string[]>());
     for (const category of config.changelog.categories) {
       // Apply all exclusion patterns from Pull Request metadata on Category
       if (labels.some(label => category.exclude?.labels?.includes(label))) {
@@ -252,20 +267,39 @@ export async function generateChangelog(
         continue;
       }
 
-      if (!category["messages"]) {
-        category["messages"] = [];
+      if (changelog.get(scope)?.get(category.title) === undefined) {
+        changelog.get(scope)?.set(category.title, []);
       }
-      category["messages"].push(await generateChangelogEntry(commit.message));
+
+      changelog
+        .get(scope)
+        ?.get(category.title)
+        ?.push(await generateChangelogEntry(commit.message));
+
       break;
     }
   }
 
+  // Sort changelog, with the all (*) scope always as last item
+  const sortedChangelog = [...changelog].sort((a, b) =>
+    a[0] === "*" ? 1 : b[0] === "*" ? -1 : a[0].localeCompare(b[0])
+  );
+
+  // Generate Changelog
   let formattedChangelog = "## What's changed\n";
-  for (const category of config.changelog.categories) {
-    if (category["messages"] && category["messages"].length > 0) {
-      formattedChangelog += `### ${category.title}\n`;
-      for (const message of category["messages"]) {
-        formattedChangelog += `* ${message}\n`;
+  for (const [scope, categories] of sortedChangelog) {
+    const isGrouped = scope !== "*";
+    if (isGrouped) {
+      formattedChangelog += `### ${capitalizeFirstLetter(scope)}\n`;
+    }
+    for (const [category, messages] of categories) {
+      if (messages.length > 0) {
+        formattedChangelog += isGrouped
+          ? `#### ${category}\n`
+          : `### ${category}\n`;
+        for (const message of messages) {
+          formattedChangelog += `* ${message}\n`;
+        }
       }
     }
   }

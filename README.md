@@ -210,6 +210,7 @@ Commit messages, for example:
 You can configure the content of your Changelog using the `release.y[a]ml` configuration file stored in `.github`, for ex.
 ```yaml
 changelog:
+  group: "scope" # OPTIONAL; allows grouping by Conventional Commit scope
   exclude:
     labels:
       - dependencies
@@ -231,8 +232,7 @@ changelog:
         - "*"
 ```
 
-During generation, each individual conventional commit will associated with the following
-labels:
+During generation, each conventional commit will be associated with the following labels:
 
 | Label | Description |
 | --- | --- |
