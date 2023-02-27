@@ -236,10 +236,11 @@ labels:
 
 | Label | Description |
 | --- | --- |
-| `bump:<version>` | The SemVer version to be bumped by this individual commit |
-| `type:<type>` | Conventional Commit type associated with this commit message |
+| `bump:<version>` | The SemVer version to be bumped by this individual commit     |
+| `type:<type>`    | Conventional Commit type associated with this commit message  |
+| `scope:<scope>`  | Conventional Commit scope associated with this commit message |
 
-> **NOTE**: The `bump:<version>` and `type:<type>` labels set on your Pull Request will be
+> **NOTE**: The `bump:<version>`, `type:<type>` and `scope:<scope>` labels set on your Pull Request will be
 ignored in favor of individual commits
 
 Please refer to the ["Automatically generated release notes"](https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes#configuring-automatically-generated-release-notes) documentation for more details
