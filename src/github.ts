@@ -21,6 +21,7 @@ import * as octokit from "@octokit/plugin-rest-endpoint-methods";
 import { GitHub } from "@actions/github/lib/utils";
 import { ICommit, IGitTag } from "./interfaces";
 import { channel } from "diagnostics_channel";
+import { SemVer } from "./semver";
 
 const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
 
@@ -131,65 +132,11 @@ export async function createRelease(
   });
 }
 
-/**
- * Sort function for determining version precedence
- * 'Full release' > '-rc' > '-*' (every other prerelease)
- * Lexical sort will be applied for the latter.
- *
- * `releaseList` is a list of release objects; we may assume that
- *               it's all the same major.minor.patch version.
- *
- * versionRegEx is the specialized regex to apply
- */
 function sortVersionPrereleases(
   releaseList: { id: number; name: string }[],
   nameStartsWith
 ): { id: number; name: string }[] {
-  // Gets the first number after a '-' sign
-  const VERSION_RE = new RegExp(
-    `^${nameStartsWith}${/\D*-\D*(?<preversion>\d+)\D*.*/.source}`
-  );
-
-  return releaseList.sort((lhs, rhs) => {
-    let sortResult: number | undefined = undefined;
-    // Handle all the precedence XORs
-    core.debug(`sort: ${rhs.name} and ${lhs.name}`);
-    if (!lhs.name.includes("-") && rhs.name.includes("-")) {
-      sortResult = 1;
-      core.debug(`sort: ${lhs.name} is rel, ${rhs.name} is not; +1`);
-    } else if (lhs.name.includes("-") && !rhs.name.includes("-")) {
-      sortResult = -1;
-      core.debug(`sort: ${rhs.name} is rel, ${lhs.name} is not: -1`);
-
-      // TODO: Make these '-rc' checks a bit more robust
-    } else if (lhs.name.includes("-rc") && !rhs.name.includes("-rc")) {
-      sortResult = 1;
-      core.debug(`sort: ${lhs.name} is rc, ${rhs.name} is not; +1`);
-    } else if (!lhs.name.includes("-rc") && rhs.name.includes("-rc")) {
-      sortResult = -1;
-      core.debug(`sort: ${rhs.name} is rc, ${lhs.name} is not: -1`);
-    } else {
-      // Either both are releases, rc releases, or "other"
-      const l = +(VERSION_RE.exec(lhs.name)?.groups?.preversion ?? 0);
-      const r = +(VERSION_RE.exec(rhs.name)?.groups?.preversion ?? 0);
-      core.debug(`sort: ${rhs.name} is ${l}, ${lhs.name} is ${l}`);
-      /*
-      for (const x of [
-        [l, lhs],
-        [r, rhs],
-      ]) {
-        if (!x[0])
-          core.info(
-            `warning: draft ${x[1]} is not a prerelease; ` +
-              `it will receive lowest precedence`
-          );
-      }
-      */
-      sortResult = l === r ? 0 : l < r ? -1 : 1;
-    }
-    core.debug(`sort: ${lhs.name} < ${rhs.name} = ${sortResult}`);
-    return sortResult;
-  });
+  return releaseList.sort((lhs, rhs) => SemVer.sortSemVer(lhs.name, rhs.name));
 }
 
 /**
@@ -246,26 +193,19 @@ export async function getRelease(
    *  - _NOT_ rely on the temporal data; the precendence of the existing tags
    *    shall determined according to a "SemVer-esque prerelease", that is:
    *      * componentX-1.2.3-9 < componentX-1.2.3-10
-   *    This code is not SemVer-aware, however; instead, it tries to get by with:
-   *      * stripping off the provided `nameStartsWith` value, then
-   *      * taking first number after the _first_ '-' it encounters.
-   *        This means in the example above, `componentX-1.2.3-` ('-' included) MUST
-   *        be the `nameStartsWith` value for the behavior to work as expected.
-   *        If no '-' is encountered, it is assumed to be a full release and will
-   *        have highest precedence.
    *  - return the highest-precedence item
    */
 
   const releaseList = result.repository.releases.nodes
     .filter(r => r.isDraft === isDraft)
     .filter(r => r.tagName.startsWith(nameStartsWith))
-    .map(r => ({ id: r.databaseId, name: r.tagName }));
-  const sortedList = sortVersionPrereleases(releaseList, nameStartsWith);
+    .map(r => ({ id: r.databaseId, name: r.tagName }))
+    .sort((lhs, rhs) => SemVer.sortSemVer(lhs.name, rhs.name));
 
   core.debug(
-    `getRelease: sorted list of releases:\n${JSON.stringify(sortedList)}`
+    `getRelease: sorted list of releases:\n${JSON.stringify(releaseList)}`
   );
-  return sortedList.pop();
+  return releaseList.pop();
 }
 
 /**

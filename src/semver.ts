@@ -15,6 +15,7 @@
  */
 
 import { ISemVer } from "./interfaces";
+import * as core from "@actions/core";
 
 const SEMVER_RE = new RegExp(
   [
@@ -202,26 +203,89 @@ export class SemVer {
     }
   }
 
-  lessThan(rhs: SemVer): boolean {
-    if (this.major < rhs.major) return true;
-    if (this.major === rhs.major) {
-      if (this.minor < rhs.minor) {
-        return true;
+  /**
+   * Sort function for determining version precedence
+   * Rules:
+   *  'Full release' > '-rc*' > '-*' (every other prerelease)
+   *  For version that have a prerelease field, the _first number encountered_
+   *  shall be used to determine their precendence.
+   *  If that number is found and is equal, the result shall be according to
+   *  alphabetic comparison.
+   *
+   * returns a > b ? 1 : a < b ? -1 : 0
+   */
+  static sortSemVer(a: string | SemVer, b: string | SemVer): number {
+    const lhs = typeof a === "string" ? SemVer.fromString(a) : a;
+    const rhs = typeof b === "string" ? SemVer.fromString(b) : b;
+
+    if (lhs === null || rhs === null) {
+      return lhs === null && rhs !== null
+        ? -1
+        : rhs === null && lhs !== null
+        ? 1
+        : 0;
+    }
+
+    let allVersionFieldsEqual = false;
+    if (lhs.major < rhs.major) return -1;
+    if (lhs.major === rhs.major) {
+      if (lhs.minor < rhs.minor) {
+        return -1;
       }
-      if (this.minor === rhs.minor) {
-        if (this.patch < rhs.patch) {
-          return true;
+      if (lhs.minor === rhs.minor) {
+        if (lhs.patch < rhs.patch) {
+          return -1;
         }
-        if (this.patch === rhs.patch) {
-          // only prerelease presence is currently evaluated;
-          // TODO: commit distance-prerelease would be nice to have
-          if (this.prerelease !== "" && rhs.prerelease === "") {
-            return true;
-          }
+        if (lhs.patch === rhs.patch) {
+          allVersionFieldsEqual = true;
         }
       }
     }
-    return false;
+    if (!allVersionFieldsEqual) {
+      return 1;
+    }
+    // At this stage, major, minor and patch are equal, so handle
+    // prerelease
+
+    let sortResult: number | undefined = undefined;
+    const firstNum = /\D*(?<preversion>\d+)\D*.*/;
+    const isRc = /^rc\d+\D*.*/;
+
+    core.debug(`sort: ${rhs} and ${lhs}`);
+    // First, handle all the precedence XORs
+    if (!lhs.prerelease && rhs.prerelease) {
+      sortResult = +1;
+      core.debug(`sort: ${lhs} is rel, ${rhs} is not; +1`);
+    } else if (lhs.prerelease && !rhs.prerelease) {
+      sortResult = -1;
+      core.debug(`sort: ${rhs} is rel, ${lhs} is not: -1`);
+    } else if (isRc.test(lhs.prerelease) && !isRc.test(rhs.prerelease)) {
+      sortResult = +1;
+      core.debug(`sort: ${lhs} is rc, ${rhs} is not; +1`);
+    } else if (!isRc.test(lhs.prerelease) && isRc.test(rhs.prerelease)) {
+      sortResult = -1;
+      core.debug(`sort: ${rhs} is rc, ${lhs} is not: -1`);
+    } else {
+      // Either both are releases, rc releases, or "other"
+      if (lhs.prerelease && rhs.prerelease) {
+        const l = +(firstNum.exec(lhs.prerelease)?.groups?.preversion ?? 0);
+        const r = +(firstNum.exec(rhs.prerelease)?.groups?.preversion ?? 0);
+        core.debug(`sort: ${rhs} is subver ${l}, ${lhs} is subver ${l}`);
+        if (l === r) {
+          sortResult = lhs.prerelease.localeCompare(rhs.prerelease);
+        } else {
+          sortResult = l === r ? 0 : l < r ? -1 : 1;
+        }
+      } else {
+        sortResult = 0;
+      }
+    }
+    core.debug(`sort: ${lhs} < ${rhs} = ${sortResult}`);
+    return sortResult;
+  }
+
+  lessThan(rhs: SemVer): boolean {
+    return SemVer.sortSemVer(this, rhs) === -1;
   }
 
   equals(rhs: SemVer): boolean {

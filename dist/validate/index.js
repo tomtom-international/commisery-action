@@ -13097,6 +13097,7 @@ exports.getContent = exports.updateLabels = exports.getAssociatedPullRequests = 
 const core = __importStar(__nccwpck_require__(2186));
 const fs = __importStar(__nccwpck_require__(7147));
 const github = __importStar(__nccwpck_require__(5438));
+const semver_1 = __nccwpck_require__(8593);
 const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
 /**
  * Get Octokit instance
@@ -13195,63 +13196,8 @@ function createRelease(tagName, commitish, body, draft, prerelease) {
     });
 }
 exports.createRelease = createRelease;
-/**
- * Sort function for determining version precedence
- * 'Full release' > '-rc' > '-*' (every other prerelease)
- * Lexical sort will be applied for the latter.
- *
- * `releaseList` is a list of release objects; we may assume that
- *               it's all the same major.minor.patch version.
- *
- * versionRegEx is the specialized regex to apply
- */
 function sortVersionPrereleases(releaseList, nameStartsWith) {
-    // Gets the first number after a '-' sign
-    const VERSION_RE = new RegExp(`^${nameStartsWith}${/\D*-\D*(?<preversion>\d+)\D*.*/.source}`);
-    return releaseList.sort((lhs, rhs) => {
-        var _a, _b, _c, _d, _e, _f;
-        let sortResult = undefined;
-        // Handle all the precedence XORs
-        core.debug(`sort: ${rhs.name} and ${lhs.name}`);
-        if (!lhs.name.includes("-") && rhs.name.includes("-")) {
-            sortResult = 1;
-            core.debug(`sort: ${lhs.name} is rel, ${rhs.name} is not; +1`);
-        }
-        else if (lhs.name.includes("-") && !rhs.name.includes("-")) {
-            sortResult = -1;
-            core.debug(`sort: ${rhs.name} is rel, ${lhs.name} is not: -1`);
-            // TODO: Make these '-rc' checks a bit more robust
-        }
-        else if (lhs.name.includes("-rc") && !rhs.name.includes("-rc")) {
-            sortResult = 1;
-            core.debug(`sort: ${lhs.name} is rc, ${rhs.name} is not; +1`);
-        }
-        else if (!lhs.name.includes("-rc") && rhs.name.includes("-rc")) {
-            sortResult = -1;
-            core.debug(`sort: ${rhs.name} is rc, ${lhs.name} is not: -1`);
-        }
-        else {
-            // Either both are releases, rc releases, or "other"
-            const l = +((_c = (_b = (_a = VERSION_RE.exec(lhs.name)) === null || _a === void 0 ? void 0 : _a.groups) === null || _b === void 0 ? void 0 : _b.preversion) !== null && _c !== void 0 ? _c : 0);
-            const r = +((_f = (_e = (_d = VERSION_RE.exec(rhs.name)) === null || _d === void 0 ? void 0 : _d.groups) === null || _e === void 0 ? void 0 : _e.preversion) !== null && _f !== void 0 ? _f : 0);
-            core.debug(`sort: ${rhs.name} is ${l}, ${lhs.name} is ${l}`);
-            /*
-            for (const x of [
-              [l, lhs],
-              [r, rhs],
-            ]) {
-              if (!x[0])
-                core.info(
-                  `warning: draft ${x[1]} is not a prerelease; ` +
-                    `it will receive lowest precedence`
-                );
-            }
-            */
-            sortResult = l === r ? 0 : l < r ? -1 : 1;
-        }
-        core.debug(`sort: ${lhs.name} < ${rhs.name} = ${sortResult}`);
-        return sortResult;
-    });
+    return releaseList.sort((lhs, rhs) => semver_1.SemVer.sortSemVer(lhs.name, rhs.name));
 }
 /**
  * Gets the name and ID of the existing draft release with the
@@ -13289,22 +13235,15 @@ function getRelease(nameStartsWith, isDraft) {
          *  - _NOT_ rely on the temporal data; the precendence of the existing tags
          *    shall determined according to a "SemVer-esque prerelease", that is:
          *      * componentX-1.2.3-9 < componentX-1.2.3-10
-         *    This code is not SemVer-aware, however; instead, it tries to get by with:
-         *      * stripping off the provided `nameStartsWith` value, then
-         *      * taking first number after the _first_ '-' it encounters.
-         *        This means in the example above, `componentX-1.2.3-` ('-' included) MUST
-         *        be the `nameStartsWith` value for the behavior to work as expected.
-         *        If no '-' is encountered, it is assumed to be a full release and will
-         *        have highest precedence.
          *  - return the highest-precedence item
          */
         const releaseList = result.repository.releases.nodes
             .filter(r => r.isDraft === isDraft)
             .filter(r => r.tagName.startsWith(nameStartsWith))
-            .map(r => ({ id: r.databaseId, name: r.tagName }));
-        const sortedList = sortVersionPrereleases(releaseList, nameStartsWith);
-        core.debug(`getRelease: sorted list of releases:\n${JSON.stringify(sortedList)}`);
-        return sortedList.pop();
+            .map(r => ({ id: r.databaseId, name: r.tagName }))
+            .sort((lhs, rhs) => semver_1.SemVer.sortSemVer(lhs.name, rhs.name));
+        core.debug(`getRelease: sorted list of releases:\n${JSON.stringify(releaseList)}`);
+        return releaseList.pop();
     });
 }
 exports.getRelease = getRelease;
@@ -14407,7 +14346,7 @@ exports.getConventionalCommitRule = getConventionalCommitRule;
 /***/ }),
 
 /***/ 8593:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
@@ -14426,8 +14365,32 @@ exports.getConventionalCommitRule = getConventionalCommitRule;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.SemVer = exports.SemVerType = void 0;
+const core = __importStar(__nccwpck_require__(2186));
 const SEMVER_RE = new RegExp([
     /^(?<prefix>[A-Za-z-]+)?/,
     /(?<major>0|[1-9][0-9]*)/,
@@ -14575,27 +14538,92 @@ class SemVer {
                 return null;
         }
     }
-    lessThan(rhs) {
-        if (this.major < rhs.major)
-            return true;
-        if (this.major === rhs.major) {
-            if (this.minor < rhs.minor) {
-                return true;
+    /**
+     * Sort function for determining version precedence
+     * Rules:
+     *  'Full release' > '-rc*' > '-*' (every other prerelease)
+     *  For version that have a prerelease field, the _first number encountered_
+     *  shall be used to determine their precendence.
+     *  If that number is found and is equal, the result shall be according to
+     *  alphabetic comparison.
+     *
+     * returns a > b ? 1 : a < b ? -1 : 0
+     */
+    static sortSemVer(a, b) {
+        var _a, _b, _c, _d, _e, _f;
+        const lhs = typeof a === "string" ? SemVer.fromString(a) : a;
+        const rhs = typeof b === "string" ? SemVer.fromString(b) : b;
+        if (lhs === null || rhs === null) {
+            return lhs === null && rhs !== null
+                ? -1
+                : rhs === null && lhs !== null
+                    ? 1
+                    : 0;
+        }
+        let allVersionFieldsEqual = false;
+        if (lhs.major < rhs.major)
+            return -1;
+        if (lhs.major === rhs.major) {
+            if (lhs.minor < rhs.minor) {
+                return -1;
             }
-            if (this.minor === rhs.minor) {
-                if (this.patch < rhs.patch) {
-                    return true;
+            if (lhs.minor === rhs.minor) {
+                if (lhs.patch < rhs.patch) {
+                    return -1;
                 }
-                if (this.patch === rhs.patch) {
-                    // only prerelease presence is currently evaluated;
-                    // TODO: commit distance-prerelease would be nice to have
-                    if (this.prerelease !== "" && rhs.prerelease === "") {
-                        return true;
-                    }
+                if (lhs.patch === rhs.patch) {
+                    allVersionFieldsEqual = true;
                 }
             }
         }
-        return false;
+        if (!allVersionFieldsEqual) {
+            return 1;
+        }
+        // At this stage, major, minor and patch are equal, so handle
+        // prerelease
+        let sortResult = undefined;
+        const firstNum = /\D*(?<preversion>\d+)\D*.*/;
+        const isRc = /^rc\d+\D*.*/;
+        core.debug(`sort: ${rhs} and ${lhs}`);
+        // First, handle all the precedence XORs
+        if (!lhs.prerelease && rhs.prerelease) {
+            sortResult = +1;
+            core.debug(`sort: ${lhs} is rel, ${rhs} is not; +1`);
+        }
+        else if (lhs.prerelease && !rhs.prerelease) {
+            sortResult = -1;
+            core.debug(`sort: ${rhs} is rel, ${lhs} is not: -1`);
+        }
+        else if (isRc.test(lhs.prerelease) && !isRc.test(rhs.prerelease)) {
+            sortResult = +1;
+            core.debug(`sort: ${lhs} is rc, ${rhs} is not; +1`);
+        }
+        else if (!isRc.test(lhs.prerelease) && isRc.test(rhs.prerelease)) {
+            sortResult = -1;
+            core.debug(`sort: ${rhs} is rc, ${lhs} is not: -1`);
+        }
+        else {
+            // Either both are releases, rc releases, or "other"
+            if (lhs.prerelease && rhs.prerelease) {
+                const l = +((_c = (_b = (_a = firstNum.exec(lhs.prerelease)) === null || _a === void 0 ? void 0 : _a.groups) === null || _b === void 0 ? void 0 : _b.preversion) !== null && _c !== void 0 ? _c : 0);
+                const r = +((_f = (_e = (_d = firstNum.exec(rhs.prerelease)) === null || _d === void 0 ? void 0 : _d.groups) === null || _e === void 0 ? void 0 : _e.preversion) !== null && _f !== void 0 ? _f : 0);
+                core.debug(`sort: ${rhs} is subver ${l}, ${lhs} is subver ${l}`);
+                if (l === r) {
+                    sortResult = lhs.prerelease.localeCompare(rhs.prerelease);
+                }
+                else {
+                    sortResult = l === r ? 0 : l < r ? -1 : 1;
+                }
+            }
+            else {
+                sortResult = 0;
+            }
+        }
+        core.debug(`sort: ${lhs} < ${rhs} = ${sortResult}`);
+        return sortResult;
+    }
+    lessThan(rhs) {
+        return SemVer.sortSemVer(this, rhs) === -1;
     }
     equals(rhs) {
         return (this.major === rhs.major &&
