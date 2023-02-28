@@ -15,7 +15,6 @@
  */
 
 import dedent from "dedent";
-import * as core from "@actions/core";
 
 import { SemVer, SemVerType } from "../src/semver";
 
@@ -253,5 +252,56 @@ describe("Helper functions", () => {
 
     expect(copy).not.toBe(original);
     expect(copy).toStrictEqual(original);
+  });
+});
+
+jest.mock("@actions/core", () => ({
+  ...jest.requireActual("@actions/core"),
+  debug: jest.fn(),
+}));
+
+describe("Sorting", () => {
+  // prettier-ignore
+  const sortTests = [
+    // Release
+  { high: "2.0.0", low: "1.2.3"},
+  { high: "1.3.0", low: "1.2.3"},
+  { high: "1.2.4", low: "1.2.3"},
+  { high: "1.2.3", low: "1.2.3-pre1"},
+    // Build
+  { high: "1.2.3+5", low: "1.2.3-pre1+6"},
+    // Prerelease
+  { high: "1.2.4-pre1", low: "1.2.3"},
+  { high: "1.2.3-something7", low: "1.2.3-somethingelse6"},
+  { high: "1.2.3-7", low: "1.2.3-pre6"},
+  { high: "1.2.3-11", low: "1.2.3-9"},
+  { high: "1.2.3-beta11", low: "1.2.3-alpha11"},
+  { high: "1.2.3-beta11", low: "1.2.3-alpha11"},
+    // One number > no number in prerelease
+  { high: "1.2.3-a1", low: "1.2.3-b"},
+    // No number in prerelease -> alphabetical sort
+  { high: "1.2.3-b", low: "1.2.3-a" },
+  { high: "1.2.3-X", low: "1.2.3-x" },
+  { high: "1.2.3-X", low: "1.2.3-w" },
+  { high: "1.2.3-y", low: "1.2.3-X" },
+    // SemVer > non-SemVer
+  { high: "1.2.3-dev1", low: "asdf"},
+  { high: "1.2.3", low: "asdf0123"},
+  { high: "1.2.3-rc1", low: "asdf-rc2"},
+];
+  test.each(sortTests)("$high > $low", async ({ high, low }) => {
+    expect(SemVer.sortSemVer(high, low)).toBe(1);
+    expect(SemVer.sortSemVer(low, high)).toBe(-1);
+  });
+
+  const equivalenceTests = [
+    { a: "1.2.3+123", b: "1.2.3+123" },
+    { a: "1.2.3+123", b: "1.2.3+456" },
+    { a: "1.2.3+5", b: "1.2.3+6" },
+    { a: "1.2.3-a123", b: "1.2.3-a123" },
+  ];
+  test.each(equivalenceTests)("$a == $b", async ({ a, b }) => {
+    expect(SemVer.sortSemVer(a, b)).toBe(0);
+    expect(SemVer.sortSemVer(b, a)).toBe(0);
   });
 });
