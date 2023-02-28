@@ -158,6 +158,30 @@ export async function getVersionBumpTypeAndMessages(
     for (const tag of tags) {
       semVer = getSemVerIfMatches(prefix, tag.name, tag.commitSha, commit.sha);
       if (semVer) {
+        // We've found a tag that matches to this commit. Now, we need to
+        // make sure that we return the _highest_ version tag_ associated with
+        // this commit
+        core.debug("Matching tag found, checking other tags..");
+        const matchTags = tags.filter(t => t.commitSha === commit.sha);
+        if (matchTags.length > 1) {
+          core.debug(`${matchTags.length} other tags found`);
+          matchTags.sort((lhs, rhs) => SemVer.sortSemVer(lhs.name, rhs.name));
+          semVer = null;
+          while (semVer === null && matchTags.length !== 0) {
+            const t = matchTags.pop();
+            if (!t) break;
+            semVer = getSemVerIfMatches(
+              prefix,
+              t.name,
+              t.commitSha,
+              commit.sha
+            );
+          }
+        } else {
+          core.debug(`No other tags found`);
+          // Just the one tag; carry on.
+        }
+
         break commit_loop;
       }
     }
@@ -314,6 +338,7 @@ export async function publishBump(
   releaseMode: ReleaseMode,
   headSha: string,
   changelog: string,
+  isBranchAllowedToPublish: boolean,
   updateDraftId?: number
 ): Promise<boolean> {
   // Assign Build Metadata
@@ -327,6 +352,9 @@ export async function publishBump(
   core.setOutput("next-version", nv);
   core.endGroup();
   if (releaseMode !== "none") {
+    if (!isBranchAllowedToPublish) {
+      return false;
+    }
     if (isPullRequestEvent()) {
       core.startGroup(
         `ℹ️ Not creating ${releaseMode} on a pull request event.`
@@ -410,12 +438,13 @@ export async function publishBump(
 }
 
 export async function bumpSemVer(
-  config,
-  bumpInfo,
-  releaseMode,
-  headSha
+  config: Configuration,
+  bumpInfo: IVersionBumpTypeAndMessages,
+  releaseMode: ReleaseMode,
+  headSha: string,
+  isBranchAllowedToPublish: boolean
 ): Promise<boolean> {
-  const nextVersion = bumpInfo.foundVersion.bump(
+  const nextVersion = bumpInfo.foundVersion?.bump(
     bumpInfo.requiredBump,
     config.initialDevelopment
   );
@@ -435,7 +464,13 @@ export async function bumpSemVer(
   let bumped = false;
   if (nextVersion) {
     const changelog = await generateChangelog(bumpInfo);
-    bumped = await publishBump(nextVersion, releaseMode, headSha, changelog);
+    bumped = await publishBump(
+      nextVersion,
+      releaseMode,
+      headSha,
+      changelog,
+      isBranchAllowedToPublish
+    );
   } else {
     core.info("ℹ️ No bump necessary");
     core.setOutput("next-version", "");
@@ -645,7 +680,8 @@ export async function bumpSdkVer(
   releaseMode,
   sdkVerBumpType: SdkVerBumpType,
   headSha,
-  branchName
+  branchName,
+  isBranchAllowedToPublish: boolean
 ): Promise<boolean> {
   const isReleaseBranch = branchName.match(config.releaseBranches);
   const hasBreakingChange = bumpInfo.processedCommits.some(
@@ -696,6 +732,7 @@ export async function bumpSdkVer(
     releaseMode,
     headSha,
     changelog,
+    isBranchAllowedToPublish,
     latestDraft?.id
   );
 

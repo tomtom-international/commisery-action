@@ -91,7 +91,6 @@ async function run(): Promise<void> {
     const bumpInfo: IVersionBumpTypeAndMessages =
       await getVersionBumpTypeAndMessages(prefix, context.sha, config);
 
-    // TODO SdkVer
     if (!bumpInfo.foundVersion) {
       // We haven't found a (matching) SemVer tag in the commit and tag list
       core.setOutput("current-version", "");
@@ -105,7 +104,7 @@ async function run(): Promise<void> {
         `ℹ️ Found ${
           config.versionScheme === "semver" ? "SemVer" : "SdkVer"
         } tag: ${currentVersion}`
-      ); // TODO: remove SemVer
+      );
       core.setOutput("current-version", currentVersion);
     }
     core.endGroup();
@@ -125,41 +124,13 @@ async function run(): Promise<void> {
 
     if (config.versionScheme === "semver") {
       core.startGroup("🔍 Determining SemVer bump");
-      const bumped = await bumpSemVer(
+      await bumpSemVer(
         config,
         bumpInfo,
         releaseMode,
-        context.sha
+        context.sha,
+        isBranchAllowedToPublish
       );
-      if (!bumped && config.prereleasePrefix !== undefined) {
-        // When configured to create GitHub releases, and the `prereleases`
-        // config item evaluates to `true`, create a draft GitHub release (which
-        // does not create tags).
-        if (
-          isBranchAllowedToPublish &&
-          !isPullRequestEvent() &&
-          releaseMode === "release"
-        ) {
-          // Create/rename draft release
-          const ver = await bumpDraftRelease(
-            bumpInfo,
-            context.sha,
-            config.prereleasePrefix
-          );
-
-          core.info(`ℹ️ Created draft prerelease version ${ver}`);
-        } else {
-          const reason =
-            isBranchAllowedToPublish !== true
-              ? `current branch '${branchName}' is not allowed to publish`
-              : isPullRequestEvent()
-              ? "we cannot publish from a pull request event"
-              : releaseMode !== "release"
-              ? `we can only do so when the 'create-release' input is provided to be 'true'`
-              : "";
-          core.info(`ℹ️ While configured to bump prereleases, ${reason}.`);
-        }
-      }
     } else if (config.versionScheme === "sdkver") {
       const releaseTypeInput = core.getInput("sdkver-release-type");
       if (!["rel", "rc", "dev"].includes(releaseTypeInput)) {
@@ -178,13 +149,9 @@ async function run(): Promise<void> {
         releaseMode,
         releaseType,
         context.sha,
-        branchName
+        branchName,
+        isBranchAllowedToPublish
       );
-      /*
-    } else {
-      core.info("ℹ️ No bump necessary");
-    }
-    */
     } else {
       throw new Error(
         `Unimplemented 'version-scheme': ${config.versionScheme}`
