@@ -11579,7 +11579,6 @@ function run() {
             }
             core.startGroup("🔍 Finding latest topological tag..");
             const bumpInfo = yield (0, bump_1.getVersionBumpTypeAndMessages)(prefix, github_1.context.sha, config);
-            // TODO SdkVer
             if (!bumpInfo.foundVersion) {
                 // We haven't found a (matching) SemVer tag in the commit and tag list
                 core.setOutput("current-version", "");
@@ -11590,7 +11589,7 @@ function run() {
             }
             else {
                 const currentVersion = bumpInfo.foundVersion.toString();
-                core.info(`ℹ️ Found ${config.versionScheme === "semver" ? "SemVer" : "SdkVer"} tag: ${currentVersion}`); // TODO: remove SemVer
+                core.info(`ℹ️ Found ${config.versionScheme === "semver" ? "SemVer" : "SdkVer"} tag: ${currentVersion}`);
                 core.setOutput("current-version", currentVersion);
             }
             core.endGroup();
@@ -11604,29 +11603,7 @@ function run() {
             core.info("");
             if (config.versionScheme === "semver") {
                 core.startGroup("🔍 Determining SemVer bump");
-                const bumped = yield (0, bump_1.bumpSemVer)(config, bumpInfo, releaseMode, github_1.context.sha);
-                if (!bumped && config.prereleasePrefix !== undefined) {
-                    // When configured to create GitHub releases, and the `prereleases`
-                    // config item evaluates to `true`, create a draft GitHub release (which
-                    // does not create tags).
-                    if (isBranchAllowedToPublish &&
-                        !(0, github_2.isPullRequestEvent)() &&
-                        releaseMode === "release") {
-                        // Create/rename draft release
-                        const ver = yield (0, bump_1.bumpDraftRelease)(bumpInfo, github_1.context.sha, config.prereleasePrefix);
-                        core.info(`ℹ️ Created draft prerelease version ${ver}`);
-                    }
-                    else {
-                        const reason = isBranchAllowedToPublish !== true
-                            ? `current branch '${branchName}' is not allowed to publish`
-                            : (0, github_2.isPullRequestEvent)()
-                                ? "we cannot publish from a pull request event"
-                                : releaseMode !== "release"
-                                    ? `we can only do so when the 'create-release' input is provided to be 'true'`
-                                    : "";
-                        core.info(`ℹ️ While configured to bump prereleases, ${reason}.`);
-                    }
-                }
+                yield (0, bump_1.bumpSemVer)(config, bumpInfo, releaseMode, github_1.context.sha, isBranchAllowedToPublish);
             }
             else if (config.versionScheme === "sdkver") {
                 const releaseTypeInput = core.getInput("sdkver-release-type");
@@ -11638,12 +11615,7 @@ function run() {
                 core.startGroup("🔍 Determining SdkVer bump");
                 // For non-release branches, a flow similar to SemVer can be followed,
                 // but release branches get linear increments.
-                yield (0, bump_1.bumpSdkVer)(config, bumpInfo, releaseMode, releaseType, github_1.context.sha, branchName);
-                /*
-              } else {
-                core.info("ℹ️ No bump necessary");
-              }
-              */
+                yield (0, bump_1.bumpSdkVer)(config, bumpInfo, releaseMode, releaseType, github_1.context.sha, branchName, isBranchAllowedToPublish);
             }
             else {
                 throw new Error(`Unimplemented 'version-scheme': ${config.versionScheme}`);
@@ -11816,6 +11788,26 @@ function getVersionBumpTypeAndMessages(prefix, targetSha, config) {
             for (const tag of tags) {
                 semVer = getSemVerIfMatches(prefix, tag.name, tag.commitSha, commit.sha);
                 if (semVer) {
+                    // We've found a tag that matches to this commit. Now, we need to
+                    // make sure that we return the _highest_ version tag_ associated with
+                    // this commit
+                    core.debug("Matching tag found, checking other tags..");
+                    const matchTags = tags.filter(t => t.commitSha === commit.sha);
+                    if (matchTags.length > 1) {
+                        core.debug(`${matchTags.length} other tags found`);
+                        matchTags.sort((lhs, rhs) => semver_1.SemVer.sortSemVer(lhs.name, rhs.name));
+                        semVer = null;
+                        while (semVer === null && matchTags.length !== 0) {
+                            const t = matchTags.pop();
+                            if (!t)
+                                break;
+                            semVer = getSemVerIfMatches(prefix, t.name, t.commitSha, commit.sha);
+                        }
+                    }
+                    else {
+                        core.debug(`No other tags found`);
+                        // Just the one tag; carry on.
+                    }
                     break commit_loop;
                 }
             }
@@ -11927,7 +11919,7 @@ function printNonCompliance(commits) {
     }
 }
 exports.printNonCompliance = printNonCompliance;
-function publishBump(nextVersion, releaseMode, headSha, changelog, updateDraftId) {
+function publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish, updateDraftId) {
     return __awaiter(this, void 0, void 0, function* () {
         // Assign Build Metadata
         const buildMetadata = core.getInput("build-metadata");
@@ -11939,6 +11931,9 @@ function publishBump(nextVersion, releaseMode, headSha, changelog, updateDraftId
         core.setOutput("next-version", nv);
         core.endGroup();
         if (releaseMode !== "none") {
+            if (!isBranchAllowedToPublish) {
+                return false;
+            }
             if ((0, github_1.isPullRequestEvent)()) {
                 core.startGroup(`ℹ️ Not creating ${releaseMode} on a pull request event.`);
                 core.info("We cannot create a release or tag in a pull request context, due to " +
@@ -12009,9 +12004,10 @@ function publishBump(nextVersion, releaseMode, headSha, changelog, updateDraftId
     });
 }
 exports.publishBump = publishBump;
-function bumpSemVer(config, bumpInfo, releaseMode, headSha) {
+function bumpSemVer(config, bumpInfo, releaseMode, headSha, isBranchAllowedToPublish) {
+    var _a;
     return __awaiter(this, void 0, void 0, function* () {
-        const nextVersion = bumpInfo.foundVersion.bump(bumpInfo.requiredBump, config.initialDevelopment);
+        const nextVersion = (_a = bumpInfo.foundVersion) === null || _a === void 0 ? void 0 : _a.bump(bumpInfo.requiredBump, config.initialDevelopment);
         const compliantCommits = bumpInfo.processedCommits
             .filter(c => c.message !== undefined)
             .map(c => ({
@@ -12025,7 +12021,7 @@ function bumpSemVer(config, bumpInfo, releaseMode, headSha) {
         let bumped = false;
         if (nextVersion) {
             const changelog = yield (0, changelog_1.generateChangelog)(bumpInfo);
-            bumped = yield publishBump(nextVersion, releaseMode, headSha, changelog);
+            bumped = yield publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish);
         }
         else {
             core.info("ℹ️ No bump necessary");
@@ -12212,7 +12208,7 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, hasBreak
 /**
  * Bump and release/tag SDK versions
  */
-function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, branchName) {
+function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, branchName, isBranchAllowedToPublish) {
     var _a, _b, _c;
     return __awaiter(this, void 0, void 0, function* () {
         const isReleaseBranch = branchName.match(config.releaseBranches);
@@ -12244,7 +12240,7 @@ function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, bran
             return false; // should never happen
         let bumped = false;
         const changelog = yield (0, changelog_1.generateChangelog)(bumpInfo);
-        bumped = yield publishBump(nextVersion, releaseMode, headSha, changelog, latestDraft === null || latestDraft === void 0 ? void 0 : latestDraft.id);
+        bumped = yield publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish, latestDraft === null || latestDraft === void 0 ? void 0 : latestDraft.id);
         if (!bumped && !isReleaseBranch) {
             core.info("ℹ️ No bump was performed");
         }
