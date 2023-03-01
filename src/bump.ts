@@ -370,29 +370,29 @@ export async function publishBump(
       if (releaseMode === "tag") {
         await createTag(nv, headSha);
       } else {
-        // TODO, for now: if:
-        //   SemVer is a prerelease, but not an RC, create a draft release
-        //   SemVer is an RC, create a GitHub "pre-release"
+        // If SemVer is a prerelease, but not an RC, create a draft release
+        // If SemVer is an RC, create a GitHub "pre-release"
         const isRc = nextVersion.prerelease.startsWith(RC_PREFIX);
         const isDev = nextVersion.prerelease !== "" && !isRc;
+        let updated = false;
         if (updateDraftId) {
-          const updateSuccess = await updateDraftRelease(
+          updated = await updateDraftRelease(
             updateDraftId,
-            nv.toString(),
-            nv.toString(),
+            nv,
+            nv,
             headSha,
             changelog,
             isDev, // draft
             isRc // prerelease
           );
-          if (!updateSuccess) {
+          if (!updated) {
             core.info(
               `Error renaming existing draft release, ` +
                 `creating new draft release.`
             );
-            await createRelease(nv, headSha, changelog, isDev, isRc);
           }
-        } else {
+        }
+        if (!updated) {
           await createRelease(nv, headSha, changelog, isDev, isRc);
         }
       }
@@ -441,14 +441,10 @@ export async function bumpSemVer(
   config: Configuration,
   bumpInfo: IVersionBumpTypeAndMessages,
   releaseMode: ReleaseMode,
+  branchName: string,
   headSha: string,
   isBranchAllowedToPublish: boolean
 ): Promise<boolean> {
-  const nextVersion = bumpInfo.foundVersion?.bump(
-    bumpInfo.requiredBump,
-    config.initialDevelopment
-  );
-
   const compliantCommits = bumpInfo.processedCommits
     .filter(c => c.message !== undefined)
     .map(c => ({
@@ -460,6 +456,24 @@ export async function bumpSemVer(
     const bumpString = msg.bump === 0 ? "No" : SemVerType[msg.bump];
     core.info(`- ${bumpString} bump for commit (${sha}): ${msg.subject}`);
   }
+
+  // Reject MAJOR and MINOR version bumps if we're on a release branch
+  // (Purposefully do this check _after_ listing the processed commits.)
+  if (
+    branchName.match(config.releaseBranches) &&
+    [SemVerType.MAJOR, SemVerType.MINOR].includes(bumpInfo.requiredBump)
+  ) {
+    core.setFailed(
+      `A ${SemVerType[bumpInfo.requiredBump]} bump is requested, but ` +
+        `we can only create PATCH bumps on a release branch.`
+    );
+    return false;
+  }
+
+  const nextVersion = bumpInfo.foundVersion?.bump(
+    bumpInfo.requiredBump,
+    config.initialDevelopment
+  );
 
   let bumped = false;
   if (nextVersion) {
@@ -526,21 +540,6 @@ function getNextSdkVer(
     return v as SemVer;
   };
 
-  const handleFailedPrereleaseBump = (t: SemVer): void => {
-    // This can only happen if the current version is something
-    // unexpected and invalid, like a prerelease without a number, e.g.:
-    //     1.2.3-rc        1.2.3-dev        1.2.3-testing
-
-    // TODO:discuss: course of action
-    // Option 1, fail
-    /*
-          die(`Failed to increment dev version ${currentVersion.toString()}`);
-     */
-    // Option 2, abandon current RELEASE version and start a new one
-    nextVersion = bumpWithBuildInfo(SemVerType.MINOR);
-    nextVersion.prerelease = `${devPrereleaseText}1`;
-  };
-
   core.info(`Determining SDK bump for version ${currentVersion.toString()}:`);
   core.info(
     ` - current version type: ${
@@ -565,14 +564,20 @@ function getNextSdkVer(
     // Else
     //   error
 
-    if (hasBreakingChange) {
-      die("Breaking changes are not allowed on release branches.");
-    }
     if (!currentIsRc && !currentIsRel) {
       die(
         "Release branches can only contain release candidates or full releases. " +
           `'${currentVersion.toString()}' is neither.`
       );
+    }
+    // Special case: we allow breaking changes on a release branch if that
+    // release branch still contains an RC for the next API version, in which
+    // case, the MINOR and PATCH fields will be 0 (1.2.3 -> 2.0.0-rc1)
+    if (
+      hasBreakingChange &&
+      !(currentIsRc && currentVersion.minor === 0 && currentVersion.patch === 0)
+    ) {
+      die("Breaking changes are not allowed on release branches.");
     }
 
     if (sdkVerBumpType === "rel") {
@@ -592,19 +597,13 @@ function getNextSdkVer(
         // Current version is an rc, so bump that
         nextVersion = currentVersion.nextPrerelease();
         if (!nextVersion) {
-          handleFailedPrereleaseBump(currentVersion);
+          die(
+            `Unable to bump RC version for: ${currentVersion.toString()}; ` +
+              `make sure it contains an index number.`
+          );
         }
       } else {
-        // TODO:discuss: current version is a release, bump != "rel"
-        // Option 1, fail
-        /*
-        die(
-          "A full release in a release branch can only receive " +
-            `further release bumps, while a '${sdkVerBumpType}' ` +
-            "was requested"
-        );
-        */
-        // Option 2, ignore "rc" and "dev" and just bump FIX field silently
+        // Current version is a release, so bump patch
         nextVersion = bumpWithBuildInfo(SemVerType.PATCH);
       }
     }
@@ -612,7 +611,7 @@ function getNextSdkVer(
     // !isReleaseBranch
     //   If current branch HEAD is a release candidate:
     //     !createRel && !createRc = bump dev prerelease for next minor (do nothing here)
-    //     !createRel &&  createRc = create new rc for _next_ version    <--TODO:discuss
+    //     !createRel &&  createRc = create new rc for _next_ version
     //      createRel && !createRc = "promote" to new full release
     //   Else if current branch HEAD is a full release:
     //     !createRel && !createRc = bump dev prerelease for next minor (do nothing here)
@@ -635,8 +634,8 @@ function getNextSdkVer(
       if (currentIsRel || currentIsRc) {
         //                   ^^^^
         // This may be slightly counter-intuitive: RC increments can
-        // only be done on a release branch , so performing an RC bump
-        // on a non-release branch where the HEAD itself is an RCresults
+        // only be done on a release branch, so performing an RC bump
+        // on a non-release branch where the HEAD itself is an RC results
         // in creating an RC for the _next_ version:
         // 1.2.0-rc1 -> 1.3.0-rc1 (not 1.2.0-rc2).
         nextVersion = bumpWithBuildInfo(releaseBump);
@@ -644,20 +643,23 @@ function getNextSdkVer(
         // Current HEAD is a dev prerelease
         nextVersion = SemVer.copy(currentVersion);
       }
-      nextVersion.prerelease = "rc1"; // TODO:discuss: configurable?
+      nextVersion.prerelease = "rc1";
     } else if (sdkVerBumpType === "dev") {
-      if (hasBreakingChange) {
-        // Prerelease the next AP version, corresponding to a
-        // MAJOR increment in SemVer
-        nextVersion = bumpWithBuildInfo(SemVerType.MAJOR);
-        nextVersion.prerelease = `${devPrereleaseText}1`;
-      } else if (currentIsRel || currentIsRc) {
-        nextVersion = bumpWithBuildInfo(SemVerType.MINOR);
+      if (hasBreakingChange || currentIsRel || currentIsRc) {
+        nextVersion = bumpWithBuildInfo(releaseBump);
         nextVersion.prerelease = `${devPrereleaseText}1`;
       } else {
         nextVersion = currentVersion.nextPrerelease();
         if (!nextVersion) {
-          handleFailedPrereleaseBump(currentVersion);
+          // This can only happen if the current version is something
+          // unexpected and invalid, like a prerelease without a number, e.g.:
+          //     1.2.3-rc        1.2.3-dev        1.2.3-testing
+          nextVersion = bumpWithBuildInfo(SemVerType.MINOR);
+          nextVersion.prerelease = `${devPrereleaseText}1`;
+          core.warning(
+            `Failed to bump the prerelease for version ${currentVersion.toString()}` +
+              `; moving to next release version ${nextVersion.toString()}`
+          );
         }
       }
     }
@@ -694,24 +696,24 @@ export async function bumpSdkVer(
     `${cv.prefix}${cv.major}.${cv.minor}.${cv.patch}` +
     `${cv.prerelease ? `-${cv.prerelease.replace(/(.+?)\d.*/, "$1")}` : ""}`;
 
+  // See if we already have a dev (draft) release for the _next_ version.
+  // Don't look at the draft version on a release branch; the current version
+  // should always reflect the version to be bumped (as no dev releases are
+  // allowed on a release branch)
+
   const latestDraft = await getRelease(baseNextPrerelease, true);
   const latestRelease = await getRelease(baseCurrent, false);
-
   core.info(
-    `Current version: ${cv.toString()}, latest draft: ${
+    `Current version: ${cv.toString()}, latest GitHub release draft: ${
       latestDraft?.name ?? "NONE"
-    }, latest release: ${latestRelease?.name ?? "NONE"}`
+    }, latest GitHub release: ${latestRelease?.name ?? "NONE"}`
   );
-  // TODO: consider latestRelease or remove it
+  // `latestRelease` is not used for anything functional at this point
 
-  let draftVersion: SemVer | null = null;
-
-  // See if we already have a dev (draft) release for the _next_ version.
-  // Don't look at the on a release branch; the current version
-  // should always reflect the version to be bumped (as no dev releases are
-  // allowed on a release branch
-  if (latestDraft && !isReleaseBranch) {
-    draftVersion = SemVer.fromString(latestDraft.name);
+  if (!isReleaseBranch && latestDraft) {
+    // If we're not on a release branch and a draft version exists that is
+    // newer than the latest tag, we continue with that
+    const draftVersion = SemVer.fromString(latestDraft.name);
     if (draftVersion && cv.lessThan(draftVersion)) {
       cv = draftVersion;
     }

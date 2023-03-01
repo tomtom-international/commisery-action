@@ -128,6 +128,7 @@ async function run(): Promise<void> {
         config,
         bumpInfo,
         releaseMode,
+        branchName,
         context.sha,
         isBranchAllowedToPublish
       );

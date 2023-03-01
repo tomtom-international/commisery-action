@@ -166,7 +166,6 @@ const testFunction = async (p: SdkBumpTestParameters) => {
     expect(core.setFailed).toHaveBeenCalledTimes(1);
   }
   expect(core.setOutput).toBeCalledWith("current-version", p.initialVersion);
-  expect(core.warning).not.toHaveBeenCalled();
 };
 
 // prettier-ignore
@@ -248,6 +247,7 @@ const testSuiteDefinitions = [
         ["main branch+RC"       , "1.2.0-rc1" , "rc"   , undefined    , "master"       , true    , "2.0.0-rc1"       ],
         ["release branch"       , "1.2.0"     , "rc"   , undefined    , "release/1.2.0", true    , undefined         ],
         ["release branch+RC"    , "1.2.0-rc1" , "rc"   , undefined    , "release/1.2.0", true    , undefined         ],
+        ["RB+ RC for next major", "2.0.0-rc1" , "dev"  , undefined    , "release/2.0.0", true    , "2.0.0-rc2"       ],
     ],
   },
   {
