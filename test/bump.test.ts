@@ -58,9 +58,14 @@ beforeEach(() => {
     },
   ]);
   jest.spyOn(github, "getPullRequestTitle").mockResolvedValue(U.PRTITLE("ci"));
+
+  jest.spyOn(gh, "getOctokit");
   jest
-    .spyOn(github, "getCommitsSince")
-    .mockResolvedValue(U.DEFAULT_COMMIT_LIST);
+    .spyOn(github, "matchTagsToCommits")
+    .mockResolvedValue([
+      SemVer.fromString(U.INITIAL_VERSION),
+      U.DEFAULT_COMMIT_LIST,
+    ]);
 
   /*
   jest.spyOn(core, "info").mockImplementation(console.log);
@@ -109,8 +114,11 @@ describe("Bump functionality", () => {
     async ({ messages, prTitle, expectedVersion }) => {
       jest.spyOn(github, "getPullRequestTitle").mockResolvedValue(prTitle);
       jest
-        .spyOn(github, "getCommitsSince")
-        .mockResolvedValue(messages.concat(U.DEFAULT_COMMIT_LIST));
+        .spyOn(github, "matchTagsToCommits")
+        .mockResolvedValue([
+          SemVer.fromString(U.INITIAL_VERSION),
+          messages.concat(U.DEFAULT_COMMIT_LIST),
+        ]);
 
       await bumpaction.exportedForTesting.run();
       expect(core.info).toHaveBeenCalledWith(
@@ -146,10 +154,11 @@ describe("Bump functionality", () => {
 describe("Releases and tags", () => {
   beforeEach(() => {
     jest
-      .spyOn(github, "getCommitsSince")
-      .mockResolvedValue(
-        [U.toICommit("fix: valid message")].concat(U.DEFAULT_COMMIT_LIST)
-      );
+      .spyOn(github, "matchTagsToCommits")
+      .mockResolvedValue([
+        SemVer.fromString(U.INITIAL_VERSION),
+        [U.toICommit("fix: valid message")].concat(U.DEFAULT_COMMIT_LIST),
+      ]);
   });
 
   // prettier-ignore
@@ -214,8 +223,11 @@ describe("Releases and tags", () => {
 describe("Trouble bumping", () => {
   beforeEach(() => {
     jest
-      .spyOn(github, "getCommitsSince")
-      .mockResolvedValue([U.PATCH_MSG].concat(U.DEFAULT_COMMIT_LIST));
+      .spyOn(github, "matchTagsToCommits")
+      .mockResolvedValue([
+        SemVer.fromString(U.INITIAL_VERSION),
+        [U.PATCH_MSG].concat(U.DEFAULT_COMMIT_LIST),
+      ]);
   });
 
   test("no matching tags found", async () => {
@@ -225,6 +237,9 @@ describe("Trouble bumping", () => {
         commitSha: "000",
       },
     ]);
+    jest
+      .spyOn(github, "matchTagsToCommits")
+      .mockResolvedValue([null, [U.PATCH_MSG].concat(U.DEFAULT_COMMIT_LIST)]);
     await bumpaction.exportedForTesting.run();
     expect(core.warning).toHaveBeenCalledTimes(1);
     expect(core.warning).toHaveBeenCalledWith(
@@ -241,10 +256,13 @@ describe("Trouble bumping", () => {
   test("contains non-conventional commits", async () => {
     const invalidMessage = "FEAT: Invalid message.";
     jest
-      .spyOn(github, "getCommitsSince")
-      .mockResolvedValue(
-        [U.toICommit(invalidMessage), U.PATCH_MSG].concat(U.DEFAULT_COMMIT_LIST)
-      );
+      .spyOn(github, "matchTagsToCommits")
+      .mockResolvedValue([
+        SemVer.fromString(U.INITIAL_VERSION),
+        [U.toICommit(invalidMessage), U.PATCH_MSG].concat(
+          U.DEFAULT_COMMIT_LIST
+        ),
+      ]);
 
     await bumpaction.exportedForTesting.run();
     // Warning about compliance, as well as what's wrong with the commit(s)
@@ -362,10 +380,11 @@ describe("Initial development", () => {
   test("initial development does not bump major", async () => {
     jest.spyOn(fs, "readFileSync").mockReturnValue("initial-development: true");
     jest
-      .spyOn(github, "getCommitsSince")
-      .mockResolvedValue(
-        [U.toICommit("chore!: breaking change")].concat(U.DEFAULT_COMMIT_LIST)
-      );
+      .spyOn(github, "matchTagsToCommits")
+      .mockResolvedValue([
+        SemVer.fromString(INITIAL_DEVELOPMENT_VERSION),
+        [U.toICommit("chore!: breaking change")].concat(U.DEFAULT_COMMIT_LIST),
+      ]);
 
     await bumpaction.exportedForTesting.run();
     expect(core.warning).toHaveBeenCalledWith(
@@ -391,8 +410,11 @@ describe("Initial development", () => {
       .spyOn(fs, "readFileSync")
       .mockReturnValue("initial-development: false");
     jest
-      .spyOn(github, "getCommitsSince")
-      .mockResolvedValue(U.DEFAULT_COMMIT_LIST);
+      .spyOn(github, "matchTagsToCommits")
+      .mockResolvedValue([
+        SemVer.fromString(INITIAL_DEVELOPMENT_VERSION),
+        U.DEFAULT_COMMIT_LIST,
+      ]);
 
     await bumpaction.exportedForTesting.run();
     expect(core.warning).toHaveBeenCalledWith(

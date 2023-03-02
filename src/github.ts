@@ -20,7 +20,6 @@ import * as github from "@actions/github";
 import * as octokit from "@octokit/plugin-rest-endpoint-methods";
 import { GitHub } from "@actions/github/lib/utils";
 import { ICommit, IGitTag } from "./interfaces";
-import { channel } from "diagnostics_channel";
 import { SemVer } from "./semver";
 
 const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
@@ -154,39 +153,17 @@ export async function getRelease(
       isDraft ? "draft " : ""
     }release starting with: ${nameStartsWith}`
   );
-  const result: {
-    repository: {
-      releases: {
-        nodes: {
-          databaseId: number;
-          isDraft: boolean;
-          tagName: string;
-        }[];
-      };
-    };
-  } = await getOctokit().graphql(`
-    {
-      repository(owner: "${OWNER}", name: "${REPO}") {
-        releases(
-          first: 100
-          orderBy: {field: CREATED_AT, direction: DESC}
-        ) {
-          nodes {
-            tagName
-            isDraft
-            databaseId
-          }
-        }
-      }
-    }
-    `);
+  const octo = getOctokit();
 
-  core.debug(`getRelease: GraphQL returned:\n${JSON.stringify(result)}`);
+  const result = (
+    await octo.paginate(octo.rest.repos.listReleases, {
+      ...github.context.repo,
+    })
+  ).map(r => ({ isDraft: r.draft, tagName: r.tag_name, id: r.id }));
+
+  core.debug(`getRelease: listReleases returned:\n${JSON.stringify(result)}`);
 
   /**
-   * The GraphQL query has returned with a list the last 100 tags the repo.
-   * This may be problematic in and of itself (TODO: pagination), but one thing
-   * at a time for now.
    * We need to:
    *  - only consider releases starting with the provided `nameStartsWith`
    *    and `isDraft` parameters
@@ -196,10 +173,10 @@ export async function getRelease(
    *  - return the highest-precedence item
    */
 
-  const releaseList = result.repository.releases.nodes
+  const releaseList = result
     .filter(r => r.isDraft === isDraft)
     .filter(r => r.tagName.startsWith(nameStartsWith))
-    .map(r => ({ id: r.databaseId, name: r.tagName }))
+    .map(r => ({ id: r.id, name: r.tagName }))
     .sort((lhs, rhs) => SemVer.sortSemVer(lhs.name, rhs.name));
 
   core.debug(
@@ -282,20 +259,35 @@ export async function getReleaseConfiguration(): Promise<string> {
 }
 
 /**
- * Retrieve `pageSize` commits since specified hash in the current repo
+ * Attempt to match the provided list of git `tags` to the commits in the
+ * current context's repository.
+ * Takes a `matcher` function, and executes it on each commit in the repository.
+ *
+ * When (if) the matcher function returns a SemVer object, this function shall
+ * return that object along with the list of commits encountered up until now.
+ *
+ * Alternatively, if no match could be made, returns `null` along with all
+ * the commits encountered.
  */
-export async function getCommitsSince(
+export async function matchTagsToCommits(
   sha: string,
-  pageSize: number
-): Promise<ICommit[]> {
-  const { data: commits } = await getOctokit().rest.repos.listCommits({
-    owner: OWNER,
-    repo: REPO,
-    sha,
-    per_page: pageSize,
-  });
-
-  return githubCommitsAsICommits(commits);
+  tags: IGitTag[],
+  matcher: (msg: string, sha: string) => SemVer | null
+): Promise<[SemVer | null, ICommit[]]> {
+  const octo = getOctokit();
+  const commitList: ICommit[] = [];
+  let match: SemVer | null = null;
+  for await (const resp of octo.paginate.iterator(octo.rest.repos.listCommits, {
+    ...github.context.repo,
+    sha: sha,
+  })) {
+    for (const commit of resp.data) {
+      match = matcher(commit.commit.message, commit.sha);
+      if (match) return [match, commitList];
+      commitList.push({ message: commit.commit.message, sha: commit.sha });
+    }
+  }
+  return [match, commitList];
 }
 
 /**
