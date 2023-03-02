@@ -77,8 +77,11 @@ beforeEach(() => {
   ]);
   jest.spyOn(github, "getPullRequestTitle").mockResolvedValue(U.PRTITLE("ci"));
   jest
-    .spyOn(github, "getCommitsSince")
-    .mockResolvedValue(U.DEFAULT_COMMIT_LIST);
+    .spyOn(github, "matchTagsToCommits")
+    .mockResolvedValue([
+      SemVer.fromString(U.INITIAL_VERSION),
+      U.DEFAULT_COMMIT_LIST,
+    ]);
 
   const MOCKLOG = 0;
   if (MOCKLOG) {
@@ -91,8 +94,6 @@ beforeEach(() => {
   jest.spyOn(fs, "existsSync").mockReturnValue(true);
   jest.spyOn(fs, "readFileSync").mockReturnValue(CONFIG_SDKVER);
 });
-
-const TEST_MSGS = U.DEFAULT_COMMIT_LIST;
 
 interface SdkBumpTestParameters {
   testDescription: string;
@@ -122,7 +123,9 @@ const generateTests = (paramListList)
 };
 
 const testFunction = async (p: SdkBumpTestParameters) => {
-  const messages = (p.breaking ? [U.MAJOR_MSG] : []).concat(TEST_MSGS);
+  const messages = (p.breaking ? [U.MAJOR_MSG] : []).concat(
+    U.DEFAULT_COMMIT_LIST
+  );
   const prTitle = U.PRTITLE("chore");
   setInputSpyWith({ "sdkver-release-type": p.bumpType });
   jest.spyOn(github, "getLatestTags").mockResolvedValue([
@@ -139,7 +142,9 @@ const testFunction = async (p: SdkBumpTestParameters) => {
   gh.context.ref = `refs/heads/${p.branch}`;
 
   jest.spyOn(github, "getPullRequestTitle").mockResolvedValue(prTitle);
-  jest.spyOn(github, "getCommitsSince").mockResolvedValue(messages);
+  jest
+    .spyOn(github, "matchTagsToCommits")
+    .mockResolvedValue([SemVer.fromString(p.initialVersion), messages]);
 
   await bumpaction.exportedForTesting.run();
   expect(core.info).toHaveBeenCalledWith(

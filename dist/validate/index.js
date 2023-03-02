@@ -11730,25 +11730,22 @@ exports.getVersionBumpType = getVersionBumpType;
  */
 function getVersionBumpTypeAndMessages(prefix, targetSha, config) {
     return __awaiter(this, void 0, void 0, function* () {
-        let semVer = null;
         const nonConventionalCommits = [];
-        core.debug(`Fetching last ${PAGE_SIZE} tags and commits from ${targetSha}..`);
-        const [commits, tags] = yield Promise.all([
-            (0, github_1.getCommitsSince)(targetSha, PAGE_SIZE),
-            (0, github_1.getLatestTags)(PAGE_SIZE),
-        ]);
+        core.debug(`Fetching last ${PAGE_SIZE} tags from ${targetSha}..`);
+        const tags = yield (0, github_1.getLatestTags)(PAGE_SIZE);
         core.debug("Fetch complete");
-        const commitList = [];
-        commit_loop: for (const commit of commits) {
-            // Try and match this commit's hash to a tag
+        const tagMatcher = (commitMessage, commitSha) => {
+            // Try and match this commit's hash to one of the tags in `tags`
             for (const tag of tags) {
-                semVer = getSemVerIfMatches(prefix, tag.name, tag.commitSha, commit.sha);
+                let semVer = null;
+                core.debug(`Considering tag ${tag.name} (${tag.commitSha}) on ${commitSha}`);
+                semVer = getSemVerIfMatches(prefix, tag.name, tag.commitSha, commitSha);
                 if (semVer) {
                     // We've found a tag that matches to this commit. Now, we need to
                     // make sure that we return the _highest_ version tag_ associated with
                     // this commit
-                    core.debug("Matching tag found, checking other tags..");
-                    const matchTags = tags.filter(t => t.commitSha === commit.sha);
+                    core.debug(`Matching tag found (${tag.name}), checking other tags for commit ${commitSha}..`);
+                    const matchTags = tags.filter(t => t.commitSha === commitSha);
                     if (matchTags.length > 1) {
                         core.debug(`${matchTags.length} other tags found`);
                         matchTags.sort((lhs, rhs) => semver_1.SemVer.sortSemVer(lhs.name, rhs.name));
@@ -11757,19 +11754,20 @@ function getVersionBumpTypeAndMessages(prefix, targetSha, config) {
                             const t = matchTags.pop();
                             if (!t)
                                 break;
-                            semVer = getSemVerIfMatches(prefix, t.name, t.commitSha, commit.sha);
+                            semVer = getSemVerIfMatches(prefix, t.name, t.commitSha, commitSha);
                         }
                     }
                     else {
                         core.debug(`No other tags found`);
                         // Just the one tag; carry on.
                     }
-                    break commit_loop;
+                    return semVer;
                 }
             }
-            core.debug(`Commit ${commit.sha.slice(0, 6)} is not associated with a tag`);
-            commitList.push({ message: commit.message, sha: commit.sha });
-        }
+            core.debug(`Commit ${commitSha.slice(0, 6)} is not associated with a tag`);
+            return null;
+        };
+        const [version, commitList] = yield (0, github_1.matchTagsToCommits)(targetSha, tags, tagMatcher);
         // We'll relax certain rules while processing these commits; these are
         // commits/pull request titles that (ideally) have been validated
         // _before_ they were merged, and certain GitHub CI settings may append
@@ -11782,7 +11780,7 @@ function getVersionBumpTypeAndMessages(prefix, targetSha, config) {
             .map(r => r.message)
             .filter((r) => r !== undefined);
         return {
-            foundVersion: semVer,
+            foundVersion: version,
             requiredBump: getVersionBumpType(convCommits),
             processedCommits: results,
         };
@@ -13107,8 +13105,15 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __asyncValues = (this && this.__asyncValues) || function (o) {
+    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
+    var m = o[Symbol.asyncIterator], i;
+    return m ? m.call(o) : (o = typeof __values === "function" ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i);
+    function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
+    function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getContent = exports.updateLabels = exports.getAssociatedPullRequests = exports.getLatestTags = exports.getShaForTag = exports.getCommitsSince = exports.getReleaseConfiguration = exports.getConfig = exports.createTag = exports.updateDraftRelease = exports.getRelease = exports.createRelease = exports.getPullRequest = exports.getCommitsInPR = exports.getPullRequestTitle = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
+exports.getContent = exports.updateLabels = exports.getAssociatedPullRequests = exports.getLatestTags = exports.getShaForTag = exports.matchTagsToCommits = exports.getReleaseConfiguration = exports.getConfig = exports.createTag = exports.updateDraftRelease = exports.getRelease = exports.createRelease = exports.getPullRequest = exports.getCommitsInPR = exports.getPullRequestTitle = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const fs = __importStar(__nccwpck_require__(7147));
 const github = __importStar(__nccwpck_require__(5438));
@@ -13223,27 +13228,10 @@ function sortVersionPrereleases(releaseList, nameStartsWith) {
 function getRelease(nameStartsWith, isDraft) {
     return __awaiter(this, void 0, void 0, function* () {
         core.info(`getRelease: finding ${isDraft ? "draft " : ""}release starting with: ${nameStartsWith}`);
-        const result = yield getOctokit().graphql(`
-    {
-      repository(owner: "${OWNER}", name: "${REPO}") {
-        releases(
-          first: 100
-          orderBy: {field: CREATED_AT, direction: DESC}
-        ) {
-          nodes {
-            tagName
-            isDraft
-            databaseId
-          }
-        }
-      }
-    }
-    `);
-        core.debug(`getRelease: GraphQL returned:\n${JSON.stringify(result)}`);
+        const octo = getOctokit();
+        const result = (yield octo.paginate(octo.rest.repos.listReleases, Object.assign({}, github.context.repo))).map(r => ({ isDraft: r.draft, tagName: r.tag_name, id: r.id }));
+        core.debug(`getRelease: listReleases returned:\n${JSON.stringify(result)}`);
         /**
-         * The GraphQL query has returned with a list the last 100 tags the repo.
-         * This may be problematic in and of itself (TODO: pagination), but one thing
-         * at a time for now.
          * We need to:
          *  - only consider releases starting with the provided `nameStartsWith`
          *    and `isDraft` parameters
@@ -13252,10 +13240,10 @@ function getRelease(nameStartsWith, isDraft) {
          *      * componentX-1.2.3-9 < componentX-1.2.3-10
          *  - return the highest-precedence item
          */
-        const releaseList = result.repository.releases.nodes
+        const releaseList = result
             .filter(r => r.isDraft === isDraft)
             .filter(r => r.tagName.startsWith(nameStartsWith))
-            .map(r => ({ id: r.databaseId, name: r.tagName }))
+            .map(r => ({ id: r.id, name: r.tagName }))
             .sort((lhs, rhs) => semver_1.SemVer.sortSemVer(lhs.name, rhs.name));
         core.debug(`getRelease: sorted list of releases:\n${JSON.stringify(releaseList)}`);
         return releaseList.pop();
@@ -13332,20 +13320,51 @@ function getReleaseConfiguration() {
 }
 exports.getReleaseConfiguration = getReleaseConfiguration;
 /**
- * Retrieve `pageSize` commits since specified hash in the current repo
+ * Attempt to match the provided list of git `tags` to the commits in the
+ * current context's repository.
+ * Takes a `matcher` function, and executes it on each commit in the repository.
+ *
+ * When (if) the matcher function returns a SemVer object, this function shall
+ * return that object along with the list of commits encountered up until now.
+ *
+ * Alternatively, if no match could be made, returns `null` along with all
+ * the commits encountered.
  */
-function getCommitsSince(sha, pageSize) {
+function matchTagsToCommits(sha, tags, matcher) {
+    var _a, e_1, _b, _c;
     return __awaiter(this, void 0, void 0, function* () {
-        const { data: commits } = yield getOctokit().rest.repos.listCommits({
-            owner: OWNER,
-            repo: REPO,
-            sha,
-            per_page: pageSize,
-        });
-        return githubCommitsAsICommits(commits);
+        const octo = getOctokit();
+        const commitList = [];
+        let match = null;
+        try {
+            for (var _d = true, _e = __asyncValues(octo.paginate.iterator(octo.rest.repos.listCommits, Object.assign(Object.assign({}, github.context.repo), { sha: sha }))), _f; _f = yield _e.next(), _a = _f.done, !_a;) {
+                _c = _f.value;
+                _d = false;
+                try {
+                    const resp = _c;
+                    for (const commit of resp.data) {
+                        match = matcher(commit.commit.message, commit.sha);
+                        if (match)
+                            return [match, commitList];
+                        commitList.push({ message: commit.commit.message, sha: commit.sha });
+                    }
+                }
+                finally {
+                    _d = true;
+                }
+            }
+        }
+        catch (e_1_1) { e_1 = { error: e_1_1 }; }
+        finally {
+            try {
+                if (!_d && !_a && (_b = _e.return)) yield _b.call(_e);
+            }
+            finally { if (e_1) throw e_1.error; }
+        }
+        return [match, commitList];
     });
 }
-exports.getCommitsSince = getCommitsSince;
+exports.matchTagsToCommits = matchTagsToCommits;
 /**
  * Get the commit sha associated with the provided tag, or `undefined` if
  * the tag doesn't exist.
