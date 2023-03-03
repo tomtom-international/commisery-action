@@ -121,8 +121,14 @@ async function run(): Promise<void> {
     printNonCompliance(bumpInfo.processedCommits);
 
     core.info("");
+    const releaseTypeInput = core.getInput("release-type");
 
     if (config.versionScheme === "semver") {
+      if (releaseTypeInput !== "") {
+        core.warning(
+          "The input value 'release-type' has no effect when using SemVer as the version scheme."
+        );
+      }
       core.startGroup("🔍 Determining SemVer bump");
       await bumpSemVer(
         config,
@@ -133,14 +139,14 @@ async function run(): Promise<void> {
         isBranchAllowedToPublish
       );
     } else if (config.versionScheme === "sdkver") {
-      const releaseTypeInput = core.getInput("sdkver-release-type");
-      if (!["rel", "rc", "dev"].includes(releaseTypeInput)) {
+      if (!["rel", "rc", "dev", ""].includes(releaseTypeInput)) {
         throw new Error(
-          "The input value 'sdkver-release-type' must be one of: " +
-            "[rel, rc, dev]"
+          "The input value 'release-type' must be one of: [rel, rc, dev]"
         );
       }
-      const releaseType = releaseTypeInput as SdkVerBumpType;
+      const releaseType = (
+        releaseTypeInput !== "" ? releaseTypeInput : "dev"
+      ) as SdkVerBumpType;
       core.startGroup("🔍 Determining SdkVer bump");
       // For non-release branches, a flow similar to SemVer can be followed,
       // but release branches get linear increments.

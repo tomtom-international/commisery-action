@@ -42,20 +42,15 @@ inputs:
     default: false
     required: false
   version-prefix:
-    description: 'Optional SemVer prefix (eg. "", "v", "componentX-"). If set, only tags with this exact prefix shall be considered. "*" is a special value, meaning the closest SemVer is used, regardless of prefix".'
+    description: 'Optional version prefix (eg. "", "v", "componentX-"). If set, only tags with this exact prefix shall be considered. "*" is a special value, meaning the closest version is used, regardless of prefix".'
     default: '*'
     required: false
-  sdkver-release-type:
+  release-type:
     description: >-
       The type of version increment to apply for this build when using the SdkVer version scheme. 
+      This has no effect when using the SemVer version scheme. 
       One of ["rel", "rc", "dev"] [EXPERIMENTAL]
-    default: "dev"
-    required: false
-  sdkver-release-type:
-    description: >-
-      The type of version increment to apply for this build when using the SdkVer version scheme. 
-      One of ["rel", "rc", "dev"] [EXPERIMENTAL]
-    default: "dev"
+    default: ""
     required: false
   config:
     description: 'Path to the Commisery configuration file'
