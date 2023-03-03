@@ -62,7 +62,7 @@ beforeEach(() => {
   jest.spyOn(github, "createTag").mockResolvedValue();
   jest.spyOn(github, "createRelease").mockResolvedValue();
 
-  const releaseTypeInput = core.getInput("sdkver-release-type");
+  const releaseTypeInput = core.getInput("release-type");
   jest.spyOn(core, "getBooleanInput").mockImplementation(U.mockGetBooleanInput);
 
   jest
@@ -127,7 +127,7 @@ const testFunction = async (p: SdkBumpTestParameters) => {
     U.DEFAULT_COMMIT_LIST
   );
   const prTitle = U.PRTITLE("chore");
-  setInputSpyWith({ "sdkver-release-type": p.bumpType });
+  setInputSpyWith({ "release-type": p.bumpType });
   jest.spyOn(github, "getLatestTags").mockResolvedValue([
     {
       name: p.initialVersion,

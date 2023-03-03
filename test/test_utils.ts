@@ -58,6 +58,8 @@ export const mockGetInput = (setting, options?) => {
       return ".commisery.yml";
     case "build-metadata":
       return "";
+    case "release-type":
+      return "";
   }
   throw new Error(`getInput("${setting}") not mocked`);
 };
