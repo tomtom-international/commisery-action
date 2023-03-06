@@ -11799,10 +11799,16 @@ exports.getVersionBumpTypeAndMessages = getVersionBumpTypeAndMessages;
  * Returns the new prerelease version name if update was successful,
  * `undefined` otherwise.
  */
-function tryUpdateDraftRelease(currentVersion, changelog, sha) {
+function tryUpdateDraftRelease(cv, changelog, sha) {
+    var _a;
     return __awaiter(this, void 0, void 0, function* () {
-        const baseNextPrerelease = `${currentVersion.prefix}${currentVersion.major}.${currentVersion.minor}.${currentVersion.patch + 1}${currentVersion.prerelease ? `-${currentVersion.prerelease}` : ""}`;
-        const latestDraftRelease = yield (0, github_1.getRelease)(baseNextPrerelease, true);
+        const preStem = cv.prerelease
+            ? `-${cv.prerelease.replace(/(.+?)\d.*/, "$1")}`
+            : "";
+        const baseCurrent = `${cv.prefix}${cv.major}.${cv.minor}.${cv.patch}${preStem}`;
+        const nextMajor = `${cv.nextMajor().toString()}${preStem}`;
+        const nextMinor = `${cv.nextMinor().toString()}${preStem}`;
+        const latestDraftRelease = (_a = (yield (0, github_1.getRelease)(nextMajor, true))) !== null && _a !== void 0 ? _a : (yield (0, github_1.getRelease)(nextMinor, true));
         if (!latestDraftRelease)
             return;
         const currentDraftVersion = semver_1.SemVer.fromString(latestDraftRelease.name);
@@ -11900,8 +11906,8 @@ function publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllow
                     yield (0, github_1.createTag)(nv, headSha);
                 }
                 else {
-                    // If SemVer is a prerelease, but not an RC, create a draft release
-                    // If SemVer is an RC, create a GitHub "pre-release"
+                    // If version is a prerelease, but not an RC, create a draft release
+                    // If version is an RC, create a GitHub "pre-release"
                     const isRc = nextVersion.prerelease.startsWith(RC_PREFIX);
                     const isDev = nextVersion.prerelease !== "" && !isRc;
                     let updated = false;
@@ -12160,14 +12166,15 @@ function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, bran
         if (!bumpInfo.foundVersion)
             return false; // should never happen
         let cv = semver_1.SemVer.copy(bumpInfo.foundVersion);
-        const baseNextPrerelease = cv.nextMinor().toString();
         const baseCurrent = `${cv.prefix}${cv.major}.${cv.minor}.${cv.patch}` +
             `${cv.prerelease ? `-${cv.prerelease.replace(/(.+?)\d.*/, "$1")}` : ""}`;
         // See if we already have a dev (draft) release for the _next_ version.
         // Don't look at the draft version on a release branch; the current version
         // should always reflect the version to be bumped (as no dev releases are
         // allowed on a release branch)
-        const latestDraft = yield (0, github_1.getRelease)(baseNextPrerelease, true);
+        const latestNextMinorDraft = yield (0, github_1.getRelease)(cv.nextMinor().toString(), true);
+        const latestNextMajorDraft = yield (0, github_1.getRelease)(cv.nextMajor().toString(), true);
+        const latestDraft = latestNextMajorDraft !== null && latestNextMajorDraft !== void 0 ? latestNextMajorDraft : latestNextMinorDraft;
         const latestRelease = yield (0, github_1.getRelease)(baseCurrent, false);
         core.info(`Current version: ${cv.toString()}, latest GitHub release draft: ${(_a = latestDraft === null || latestDraft === void 0 ? void 0 : latestDraft.name) !== null && _a !== void 0 ? _a : "NONE"}, latest GitHub release: ${(_b = latestRelease === null || latestRelease === void 0 ? void 0 : latestRelease.name) !== null && _b !== void 0 ? _b : "NONE"}`);
         // `latestRelease` is not used for anything functional at this point

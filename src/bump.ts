@@ -222,16 +222,18 @@ export async function getVersionBumpTypeAndMessages(
  * `undefined` otherwise.
  */
 async function tryUpdateDraftRelease(
-  currentVersion: SemVer,
+  cv: SemVer,
   changelog,
   sha
 ): Promise<string | undefined> {
-  const baseNextPrerelease = `${currentVersion.prefix}${currentVersion.major}.${
-    currentVersion.minor
-  }.${currentVersion.patch + 1}${
-    currentVersion.prerelease ? `-${currentVersion.prerelease}` : ""
-  }`;
-  const latestDraftRelease = await getRelease(baseNextPrerelease, true);
+  const preStem = cv.prerelease
+    ? `-${cv.prerelease.replace(/(.+?)\d.*/, "$1")}`
+    : "";
+  const baseCurrent = `${cv.prefix}${cv.major}.${cv.minor}.${cv.patch}${preStem}`;
+  const nextMajor = `${cv.nextMajor().toString()}${preStem}`;
+  const nextMinor = `${cv.nextMinor().toString()}${preStem}`;
+  const latestDraftRelease =
+    (await getRelease(nextMajor, true)) ?? (await getRelease(nextMinor, true));
   if (!latestDraftRelease) return;
 
   const currentDraftVersion = SemVer.fromString(latestDraftRelease.name);
@@ -370,8 +372,8 @@ export async function publishBump(
       if (releaseMode === "tag") {
         await createTag(nv, headSha);
       } else {
-        // If SemVer is a prerelease, but not an RC, create a draft release
-        // If SemVer is an RC, create a GitHub "pre-release"
+        // If version is a prerelease, but not an RC, create a draft release
+        // If version is an RC, create a GitHub "pre-release"
         const isRc = nextVersion.prerelease.startsWith(RC_PREFIX);
         const isDev = nextVersion.prerelease !== "" && !isRc;
         let updated = false;
@@ -691,7 +693,6 @@ export async function bumpSdkVer(
   );
   if (!bumpInfo.foundVersion) return false; // should never happen
   let cv = SemVer.copy(bumpInfo.foundVersion);
-  const baseNextPrerelease = cv.nextMinor().toString();
   const baseCurrent =
     `${cv.prefix}${cv.major}.${cv.minor}.${cv.patch}` +
     `${cv.prerelease ? `-${cv.prerelease.replace(/(.+?)\d.*/, "$1")}` : ""}`;
@@ -701,7 +702,15 @@ export async function bumpSdkVer(
   // should always reflect the version to be bumped (as no dev releases are
   // allowed on a release branch)
 
-  const latestDraft = await getRelease(baseNextPrerelease, true);
+  const latestNextMinorDraft = await getRelease(
+    cv.nextMinor().toString(),
+    true
+  );
+  const latestNextMajorDraft = await getRelease(
+    cv.nextMajor().toString(),
+    true
+  );
+  const latestDraft = latestNextMajorDraft ?? latestNextMinorDraft;
   const latestRelease = await getRelease(baseCurrent, false);
   core.info(
     `Current version: ${cv.toString()}, latest GitHub release draft: ${
