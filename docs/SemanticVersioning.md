@@ -64,7 +64,7 @@ gitGraph
   commit id: "fix: (#1)" tag: "0.1.1"
   commit id: "fix: (#2)" tag: "0.1.2"
   commit id: "fix: (#3)" tag: "0.1.3"
-  branch release/0.1.3
+  branch release/0.1
   commit id: " " type: HIGHLIGHT
   checkout main
   commit id: "feat: (#2)" tag: "0.2.0"
@@ -76,7 +76,7 @@ gitGraph
 gitGraph
   commit id: "feat: (#1)" tag: "0.1.0"
   commit id: "fix: (#1)" tag: "0.1.1"
-  branch release/0.1.3
+  branch release/0.1
   commit id: " " type: REVERSE
   checkout main
   commit id: "fix: (#2)" tag: "0.1.2"

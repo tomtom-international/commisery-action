@@ -89,7 +89,7 @@ A Release Candidate is initiated on the `main` development branch;
 | `0.1.0`         | Release Candidate   | `0.2.0-rc1`  |
 | `0.1.0-rc1`     | Release Candidate   | `0.2.0-rc1`  |
 
-Stabilizing a Release Candidate is handled on a release branch (i.e. `release/0.1.0`);
+Stabilizing a Release Candidate is handled on a release branch (i.e. `release/0.1`);
 
 | Current Version | Increment Type      | Next Version |
 | --------------- | ------------------- | ------------ |
@@ -117,7 +117,7 @@ or the `release` branch:
 | `0.1.0-rc2`     | Release             | `0.1.0`      |
 | `0.1.0`         | Release             | `0.1.1`      |
 
-Additionally, you can introduce additional fixes on a release by adding commits on a release branch (i.e. `release/0.1.0`);
+Additionally, you can introduce additional fixes on a release by adding commits on a release branch (i.e. `release/0.1`);
 
 | Current Version | Increment Type      | Next Version |
 | --------------- | ------------------- | ------------ |
@@ -135,33 +135,33 @@ gitGraph
   commit id: "0.1.0-dev2" tag: "0.1.0"
   commit id: "0.2.0-dev1"
   commit id: "0.2.0-dev2" tag: "0.2.0-rc1"
-  branch release/v0.2.0
+  branch release/v0.2
   checkout main
   commit id: "0.3.0-dev1"
-  checkout release/v0.2.0
+  checkout release/v0.2
   cherry-pick id: "0.3.0-dev1" tag: "0.2.0-rc2 + 0.2.0"
   checkout main
   commit id: "0.3.0-dev2"
   commit id: "0.3.0-dev3"
-  checkout release/v0.2.0
+  checkout release/v0.2
   cherry-pick id: "0.3.0-dev3" tag: "0.2.1"
   checkout main
   commit id: "1.0.0-dev1" type: REVERSE
   commit id: "1.0.0-dev2" tag: "1.0.0-rc1"
-  branch release/v1.0.0
+  branch release/v1.0
   checkout main
   commit id: "1.1.0-dev1"
   commit id: "1.1.0-dev2"
-  checkout release/v1.0.0
+  checkout release/v1.0
   cherry-pick id: "1.1.0-dev2" tag: "1.0.0-rc2"
   checkout main
   commit id: "1.1.0-dev3"
   commit id: "1.1.0-dev4"
-  checkout release/v1.0.0
+  checkout release/v1.0
   cherry-pick id: "1.1.0-dev4" tag: "1.0.0-rc3 + 1.0.0"
   checkout main
   commit id: "1.1.0-dev5"
-  checkout release/v1.0.0
+  checkout release/v1.0
   commit id: "1.0.1" tag: "1.0.1"
 ```
 
@@ -431,7 +431,7 @@ In order to harden a Release Candidate, one needs to:
 - Either cherry pick a single commit, or rebase multiple changes
 
 ```sh
-$ git checkout -b release/v0.1.0
+$ git checkout -b release/v0.1
 $ git cherry-pick 0.2.0-dev2 # NOTE: This should be the SHA of 0.2.0-dev2
 ```
 
@@ -441,11 +441,11 @@ gitGraph
   commit id: "0.1.0-dev2"
   commit id: "0.1.0-dev3"
   commit id: "0.1.0-dev4" tag: "v0.1.0-rc1"
-  branch release/v0.1.0
+  branch release/v0.1
   checkout main
   commit id: "0.2.0-dev1"
   commit id: "0.2.0-dev2"
-  checkout release/v0.1.0
+  checkout release/v0.1
   cherry-pick id: "0.2.0-dev2" tag: "v0.1.0-rc2"
   checkout main
   commit id: "0.2.0-dev3"
@@ -472,11 +472,11 @@ gitGraph
   commit id: "0.1.0-dev2"
   commit id: "0.1.0-dev3"
   commit id: "0.1.0-dev4" tag: "v0.1.0-rc1"
-  branch release/v0.1.0
+  branch release/v0.1
   checkout main
   commit id: "0.2.0-dev1"
   commit id: "0.2.0-dev2"
-  checkout release/v0.1.0
+  checkout release/v0.1
   cherry-pick id: "0.2.0-dev2" tag: "v0.1.0-rc2"
   checkout main
   commit id: "0.2.0-dev3"
@@ -487,7 +487,7 @@ Running the release workflow on the release branch...
 
 ```sh
 # Ensure that we run the workflow from the release-branch
-$ gh workflow run sdkver.yml --ref release/v0.1.0 --field releaseType=rel
+$ gh workflow run sdkver.yml --ref release/v0.1 --field releaseType=rel
 ```
 
 ...will result in a promotion towards a release:
@@ -498,11 +498,11 @@ gitGraph
   commit id: "0.1.0-dev2"
   commit id: "0.1.0-dev3"
   commit id: "0.1.0-dev4" tag: "v0.1.0-rc1"
-  branch release/v0.1.0
+  branch release/v0.1
   checkout main
   commit id: "0.2.0-dev1"
   commit id: "0.2.0-dev2"
-  checkout release/v0.1.0
+  checkout release/v0.1
   cherry-pick id: "0.2.0-dev2" tag: "v0.1.0"
   checkout main
   commit id: "0.2.0-dev3"
@@ -536,11 +536,11 @@ gitGraph
   commit id: "0.1.0-dev2"
   commit id: "0.1.0-dev3"
   commit id: "0.1.0-dev4" tag: "v0.1.0-rc1"
-  branch release/v0.1.0
+  branch release/v0.1
   checkout main
   commit id: "0.2.0-dev1"
   commit id: "0.2.0-dev2"
-  checkout release/v0.1.0
+  checkout release/v0.1
   cherry-pick id: "0.2.0-dev2" tag: "v0.1.0"
   checkout main
   commit id: "0.2.0-dev3"
@@ -563,23 +563,23 @@ v0.1.0-rc1      Pre-release   v0.1.0-rc1    about 23 minutes ago
 You can harden the `v0.1.0` release by introducing additional fixes on the associated branch. This will result in the next Release version:
 
 ```sh
-$ git checkout release/v0.1.0
+$ git checkout release/v0.1
 $ git cherry-pick 0.2.0-dev3 # NOTE: This should be the SHA of 0.2.0-dev3
 ```
 
 ```mermaid
 gitGraph
   commit id: "0.1.0-dev4" tag: "v0.1.0-rc1"
-  branch release/v0.1.0
+  branch release/v0.1
   checkout main
   commit id: "0.2.0-dev1"
   commit id: "0.2.0-dev2"
-  checkout release/v0.1.0
+  checkout release/v0.1
   cherry-pick id: "0.2.0-dev2" tag: "v0.1.0"
   checkout main
   commit id: "0.2.0-dev3"
   commit id: "0.2.0-dev4" tag: "v0.2.0"
-  checkout release/v0.1.0
+  checkout release/v0.1
   cherry-pick id: "0.2.0-dev3" tag: "v0.1.1"
 ```
 
