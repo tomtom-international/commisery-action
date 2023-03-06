@@ -2,6 +2,31 @@
 
 > :warning: THIS IS AN EXPERIMENTAL FEATURE :warning:
 
+SDK Versioning has been created to simplify the release workflow, allowing for hardening software
+while employing trunk-based development;
+
+- Semantic Versioning cannot reliably be used in environments where commitments are managed using pre-planned increments (i.e. Product Increments in Scrum), whereas SDK Versioning allows you to define
+fixed (API-) releases, usable in public communication.
+
+- Using Semantic Versioning on `main`, removes the ability to create pre-releases (hardening) based
+on `HEAD`.
+  
+  *i.e. it is difficult to predict the upcoming version, required for applying the `pre-release`
+  version without defining non-documented rules (i.e. `<MAJOR>.<MINOR>.<PATCH+1>-<PRERELEASE>`)*
+
+- Typically, complex branching models are required for managing pre-releases using Semantic
+Versioning (i.e. [A successful Git branching model](https://nvie.com/posts/a-successful-git-branching-model/)), requiring maintenance of multiple branches (`develop`, `release`, `hotfix`, ...).
+
+  With SDK Versioning, we simplify the semantics behind the `MINOR` (`RELEASE`) and `PATCH` (`FIX`)
+  version, as used in Semantic Versioning, allowing management of pre-releases on a maximum of
+  **two** branches: `main` and `release`.
+
+- Conventional Commits will **only** apply to commits with `BREAKING CHANGES`.
+
+It is important to define requirements for your product releases before selecting a versioning 
+strategy. Applying either Semantic- or SDK- versioning without thinking, will lead to unexpected
+complications.
+
 ## Version Schema
 SDK Versioning (SdkVer) is compatible with SemVer, but not following the full SemVer specification;
 
