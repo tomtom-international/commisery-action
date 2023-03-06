@@ -10853,7 +10853,7 @@ class Configuration {
                     break;
                 case "release-branches":
                     /* Example YAML:
-                     *   release-branches: "^release/.*\d+\.\d+\.\d+.+$"
+                     *   release-branches: "^release/.*\d+\.\d+.*$"
                      */
                     if (typeof data[key] === "string") {
                         this.releaseBranches = data[key];
@@ -10895,7 +10895,7 @@ class Configuration {
         this.allowedBranches = ".*";
         this.initialDevelopment = true;
         this.maxSubjectLength = 80;
-        this.releaseBranches = /^release\/.*\d+\.\d+\.\d+.*$/;
+        this.releaseBranches = /^release\/.*\d+\.\d+\.*$/;
         this.versionScheme = "semver";
         this.prereleasePrefix = undefined;
         this.tags = DEFAULT_ACCEPTED_TAGS;

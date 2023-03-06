@@ -99,7 +99,7 @@ export class Configuration {
   allowedBranches = ".*";
   initialDevelopment = true;
   maxSubjectLength = 80;
-  releaseBranches = /^release\/.*\d+\.\d+\.\d+.*$/;
+  releaseBranches = /^release\/.*\d+\.\d+\.*$/;
   versionScheme = "semver";
   prereleasePrefix?: string = undefined;
   tags: IConfigurationRules = DEFAULT_ACCEPTED_TAGS;
@@ -265,7 +265,7 @@ export class Configuration {
           break;
         case "release-branches":
           /* Example YAML:
-           *   release-branches: "^release/.*\d+\.\d+\.\d+.+$"
+           *   release-branches: "^release/.*\d+\.\d+.*$"
            */
           if (typeof data[key] === "string") {
             this.releaseBranches = data[key];
