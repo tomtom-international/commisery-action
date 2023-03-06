@@ -135,6 +135,9 @@ const testFunction = async (p: SdkBumpTestParameters) => {
     },
   ]);
   jest
+    .spyOn(github, "currentHeadMatchesTag")
+    .mockResolvedValue(p.testDescription.includes("HEADisTag"));
+  jest
     .spyOn(github, "getRelease")
     .mockResolvedValue(
       p.latestDraftRelease ? { id: 1, name: p.latestDraftRelease } : undefined
@@ -218,7 +221,8 @@ const testSuiteDefinitions = [
     tests: [
      // [ test description      , version     ,  bump  , latest draft , branch         , breaking?, expected version ]
         ["from dev"             , "1.1.0"     , "rel"  , "1.2.0-dev1" , "master"       , false    , "1.2.0"          ],
-        ["from rc"              , "1.2.0-rc1" , "rel"  , "1.2.0-dev1" , "master"       , false    , "1.2.0"          ],
+        ["from rc + HEADisTag"  , "1.2.0-rc1" , "rel"  , "1.2.0-dev1" , "master"       , false    , "1.2.0"          ], // note that "HEADisTag" triggers specialized behavior
+        ["from rc + HEADisnoTag", "1.2.0-rc1" , "rel"  , "1.2.0-dev1" , "master"       , false    , "1.3.0"          ],
         ["from release"         , "1.2.0"     , "rel"  , "1.2.0-dev1" , "master"       , false    , "1.3.0"          ],
     ],
   },

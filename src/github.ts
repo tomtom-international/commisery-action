@@ -487,3 +487,10 @@ export async function getContent(path: string): Promise<string | undefined> {
     core.debug((error as Error).message);
   }
 }
+
+/**
+ * Returns `true` if `context.sha` matches the sha of the tag `tagName`.
+ */
+export async function currentHeadMatchesTag(tagName: string): Promise<boolean> {
+  return (await getShaForTag(tagName)) === github.context.sha;
+}
