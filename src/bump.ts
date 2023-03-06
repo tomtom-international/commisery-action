@@ -22,11 +22,12 @@ import { Configuration } from "./config";
 import {
   createRelease,
   createTag,
-  getCommitsSince,
+  currentHeadMatchesTag,
   getLatestTags,
   getRelease,
   getShaForTag,
   isPullRequestEvent,
+  matchTagsToCommits,
   updateDraftRelease,
 } from "./github";
 import { ConventionalCommitMessage } from "./commit";
@@ -141,28 +142,23 @@ export async function getVersionBumpTypeAndMessages(
   targetSha: string,
   config: Configuration
 ): Promise<IVersionBumpTypeAndMessages> {
-  let semVer: SemVer | null = null;
   const nonConventionalCommits: string[] = [];
 
-  core.debug(`Fetching last ${PAGE_SIZE} tags and commits from ${targetSha}..`);
-  const [commits, tags] = await Promise.all([
-    getCommitsSince(targetSha, PAGE_SIZE),
-    getLatestTags(PAGE_SIZE),
-  ]);
+  core.debug(`Fetching last ${PAGE_SIZE} tags from ${targetSha}..`);
+  const tags = await getLatestTags(PAGE_SIZE);
   core.debug("Fetch complete");
-
-  const commitList: ICommit[] = [];
-
-  commit_loop: for (const commit of commits) {
-    // Try and match this commit's hash to a tag
+  const tagMatcher = (commitMessage, commitSha): SemVer | null => {
+    // Try and match this commit's hash to one of the tags in `tags`
     for (const tag of tags) {
-      semVer = getSemVerIfMatches(prefix, tag.name, tag.commitSha, commit.sha);
+      let semVer: SemVer | null = null;
+      core.debug(`Considering tag ${tag.name} (${tag.commitSha}) on ${commitSha}`);
+      semVer = getSemVerIfMatches(prefix, tag.name, tag.commitSha, commitSha);
       if (semVer) {
         // We've found a tag that matches to this commit. Now, we need to
         // make sure that we return the _highest_ version tag_ associated with
         // this commit
-        core.debug("Matching tag found, checking other tags..");
-        const matchTags = tags.filter(t => t.commitSha === commit.sha);
+        core.debug(`Matching tag found (${tag.name}), checking other tags for commit ${commitSha}..`);
+        const matchTags = tags.filter(t => t.commitSha === commitSha);
         if (matchTags.length > 1) {
           core.debug(`${matchTags.length} other tags found`);
           matchTags.sort((lhs, rhs) => SemVer.sortSemVer(lhs.name, rhs.name));
@@ -170,24 +166,21 @@ export async function getVersionBumpTypeAndMessages(
           while (semVer === null && matchTags.length !== 0) {
             const t = matchTags.pop();
             if (!t) break;
-            semVer = getSemVerIfMatches(
-              prefix,
-              t.name,
-              t.commitSha,
-              commit.sha
-            );
+            semVer = getSemVerIfMatches(prefix, t.name, t.commitSha, commitSha);
           }
         } else {
           core.debug(`No other tags found`);
           // Just the one tag; carry on.
         }
 
-        break commit_loop;
+        return semVer;
       }
     }
-    core.debug(`Commit ${commit.sha.slice(0, 6)} is not associated with a tag`);
-    commitList.push({ message: commit.message, sha: commit.sha });
-  }
+    core.debug(`Commit ${commitSha.slice(0, 6)} is not associated with a tag`);
+    return null;
+  };
+
+  const [version, commitList] = await matchTagsToCommits(targetSha, tags, tagMatcher);
 
   // We'll relax certain rules while processing these commits; these are
   // commits/pull request titles that (ideally) have been validated
@@ -203,7 +196,7 @@ export async function getVersionBumpTypeAndMessages(
     .filter((r): r is ConventionalCommitMessage => r !== undefined);
 
   return {
-    foundVersion: semVer,
+    foundVersion: version,
     requiredBump: getVersionBumpType(convCommits),
     processedCommits: results,
   };
@@ -497,6 +490,7 @@ export async function bumpSemVer(
     // When configured to create GitHub releases, and the `bump-prereleases` config item
     // evaluates to `true`.
     if (
+      isBranchAllowedToPublish &&
       !isPullRequestEvent() &&
       releaseMode === "release"
     ) {
@@ -510,7 +504,9 @@ export async function bumpSemVer(
       core.info(`ℹ️ Created draft prerelease version ${ver}`);
     } else {
       const reason =
-          isPullRequestEvent()
+        isBranchAllowedToPublish !== true
+          ? `the current branch is not allowed to publish`
+          : isPullRequestEvent()
           ? "we cannot publish from a pull request event"
           : releaseMode !== "release"
           ? `we can only do so when the 'create-release' input is provided to be 'true'`
@@ -525,8 +521,10 @@ function getNextSdkVer(
   currentVersion: SemVer,
   sdkVerBumpType: SdkVerBumpType,
   isReleaseBranch: boolean,
+  headMatchesTag: boolean,
   hasBreakingChange: boolean,
-  devPrereleaseText: string
+  devPrereleaseText: string,
+  isInitialDevelopment: boolean
 ): SemVer {
   const currentIsRc = currentVersion.prerelease.startsWith(RC_PREFIX);
   const currentIsRel = currentVersion.prerelease === "";
@@ -536,7 +534,7 @@ function getNextSdkVer(
     throw new Error(msg);
   };
   const bumpWithBuildInfo = (t: SemVerType): SemVer => {
-    const v = currentVersion.bump(t);
+    const v = currentVersion.bump(t, isInitialDevelopment);
     if (!v) die(`Bump ${t.toString()} for ${currentVersion} failed`);
     else v.build = currentBuildInfo;
     return v as SemVer;
@@ -612,9 +610,10 @@ function getNextSdkVer(
   } else {
     // !isReleaseBranch
     //   If current branch HEAD is a release candidate:
-    //     !createRel && !createRc = bump dev prerelease for next minor (do nothing here)
-    //     !createRel &&  createRc = create new rc for _next_ version
-    //      createRel && !createRc = "promote" to new full release
+    //     dev bump                   = bump dev prerelease for next minor (do nothing here)
+    //     rc bump                    = create new rc for _next_ version
+    //     rel && rc_sha == head_sha  = "promote" to new full release
+    //     rel && rc_sha != head_sha  = create full release for _next_ major
     //   Else if current branch HEAD is a full release:
     //     !createRel && !createRc = bump dev prerelease for next minor (do nothing here)
     //     !createRel &&  createRc = create new rc for _next_ version
@@ -625,8 +624,14 @@ function getNextSdkVer(
     //      createRel && !createRc = create new full release
     const releaseBump = hasBreakingChange ? SemVerType.MAJOR : SemVerType.MINOR;
     if (sdkVerBumpType === "rel") {
-      if (currentIsRel) {
+      // Special case for release bumps if the current version is an RC:
+      // only promote (i.e. strip prerelease) if HEAD matches that RC's SHA.
+      // If not, get the next major/minor.
+      if (currentIsRel || (currentIsRc && !headMatchesTag)) {
         nextVersion = bumpWithBuildInfo(releaseBump);
+      } else if (currentIsRc && headMatchesTag) {
+        nextVersion = SemVer.copy(currentVersion);
+        nextVersion.prerelease = "";
       } else {
         // Behavior for rc and dev is the same
         nextVersion = SemVer.copy(currentVersion);
@@ -685,7 +690,7 @@ export async function bumpSdkVer(
   sdkVerBumpType: SdkVerBumpType,
   headSha,
   branchName,
-  isBranchAllowedToPublish: boolean
+  isBranchAllowedToPublish
 ): Promise<boolean> {
   const isReleaseBranch = branchName.match(config.releaseBranches);
   const hasBreakingChange = bumpInfo.processedCommits.some(
@@ -727,12 +732,17 @@ export async function bumpSdkVer(
       cv = draftVersion;
     }
   }
+  // TODO: This is wasteful, as this info has already been available before
+  const headMatchesTag = await currentHeadMatchesTag(cv.toString());
+
   const nextVersion = getNextSdkVer(
     cv,
     sdkVerBumpType,
     isReleaseBranch,
+    headMatchesTag,
     hasBreakingChange,
-    config.prereleasePrefix ?? "dev" // SdkVer dictates dev versions
+    config.prereleasePrefix ?? "dev", // SdkVer dictates dev versions
+    config.initialDevelopment
   );
   if (!nextVersion) return false; // should never happen
 
