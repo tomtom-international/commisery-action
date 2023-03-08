@@ -15,6 +15,15 @@ It is possible to apply the following version scheme(s):
 These are minimal examples; see the actions' [respective documentation](docs/github-action.md)
 for more options and details.
 
+### Configuration
+
+The `commisery-action` supports a configuration file, allowing you to:
+- Change which rules should be enabled for commit message validation
+- Add additional [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/) types
+- Change the versioning strategy
+
+Please refer to the [documentation](docs/configuration.md) for more details
+
 ### Conventional Commit message validation
 The following example workflow will trigger on pull request creation/modification and verify
 all associated commit messages.
