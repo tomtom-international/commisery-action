@@ -101,16 +101,12 @@ This document does not prescribe which model you should apply for your product.
 
 # Work Instructions
 
-This chapter contains a full walkthrough of the development- and release- workflows
-which are supported, including:
-
-- (Initial) Development
-- Hardening
+This chapter contains a full walkthrough of a development flow based on Semantic Versioning.
 
 > **NOTE**
 > 
 > This chapter provides a _simplified way_ of creating branches, commits, pull requests, etc. 
->The goal is **not** to specify the way-of-working, rather explain how the SdkVer works.
+>The goal is **not** to specify the way-of-working, rather explain how SemVer is applied.
 
 ## Preparing your environment
 
