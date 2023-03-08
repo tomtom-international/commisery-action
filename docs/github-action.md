@@ -60,9 +60,9 @@ See [permissions](#permissions) for more details on the required GitHub token pe
 | Item | Mandatory | Description |
 | --- | --- | --- |
 | `token` | YES | GitHub Token provided by GitHub, see [Authenticating with the GITHUB_TOKEN] |
-| `validate-pull-request` | NO | Includes the Pull Request title and description as part of the Conventional Commit validation (DEFAULT: `true`) |
+| `validate-pull-request` | NO | Includes the Pull Request title and description as part of the [Conventional Commit] validation (DEFAULT: `true`) |
 | `validate-pull-request-title-bump` | NO | Ensures that the Pull Request title's version bump level matches that of its commits (implies `validate-pull-request`) (DEFAULT: `true`) |
-| `validate-commits` | NO | Includes commits associated with the current Pull Request as part of the Conventional Commit validation (DEFAULT: `true`) |
+| `validate-commits` | NO | Includes commits associated with the current Pull Request as part of the [Conventional Commit] validation (DEFAULT: `true`) |
 | `config` | NO | Location of the Commisery configuration file (default: `.commisery.yml`)
 
 > **NOTE**: This action will only function as part of the `pull_request` trigger for workflows.
@@ -110,7 +110,7 @@ Commit messages, for example:
 
 ![changelog](../resources/changelog.png)
 
-You can configure the content of your Changelog using the `release.y[a]ml` configuration file stored in `.github`, for ex.
+You can configure the contents of your changelog using the `release.y[a]ml` configuration file stored in the `.github/` folder. For example:
 ```yaml
 changelog:
   group: "scope" # OPTIONAL; allows grouping by Conventional Commit scope
@@ -135,13 +135,13 @@ changelog:
         - "*"
 ```
 
-During generation, each conventional commit will be associated with the following labels:
+During generation, each [Conventional Commit] will be associated with the following labels:
 
 | Label | Description |
 | --- | --- |
 | `bump:<version>` | The SemVer version to be bumped by this individual commit     |
-| `type:<type>`    | Conventional Commit type associated with this commit message  |
-| `scope:<scope>`  | Conventional Commit scope associated with this commit message |
+| `type:<type>`    | [Conventional Commit] type associated with this commit message  |
+| `scope:<scope>`  | [Conventional Commit] scope associated with this commit message |
 
 > **NOTE**: The `bump:<version>`, `type:<type>` and `scope:<scope>` labels set on your Pull Request will be
 ignored in favor of individual commits
@@ -198,7 +198,10 @@ release implicitly creates a Git tag.
 | Output | Description |
 | --- | --- |
 | `current-version` | The Semantic Version associated with the latest tag in the repository, stripped of any and all prefixes, or an empty string if the latest tag could not be parsed as a SemVer.
-| `next-version` | The next version (including the optionally provided version-prefix) as determined from the Conventional Commits, or empty string if a version bump was not performed
+| `next-version` | The next version (including the optionally provided version-prefix) as determined from the [Conventional Commits], or empty string if a version bump was not performed
 
 [Authenticating with the GITHUB_TOKEN]: https://help.github.com/en/actions/automating-your-workflow-with-github-actions/authenticating-with-the-github_token
 [GitHub context]: https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#github-context
+
+[Conventional Commits]: https://www.conventionalcommits.org/en/v1.0.0/
+[Conventional Commit]: https://www.conventionalcommits.org/en/v1.0.0/

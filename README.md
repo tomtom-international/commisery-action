@@ -10,10 +10,62 @@ It is possible to apply the following version scheme(s):
 - [Semantic Versioning](docs/semantic-versioning.md)
 - [SDK Versioning](docs/sdk-versioning.md)
 
-## GitHub Actions integration
-Please refer to [this documentation](docs/github-action.md) for more 
-information about how the integrate the `commisery-action` in your GitHub
-Actions workflows.
+
+## Usage
+These are minimal examples; see the actions' [respective documentation](docs/github-action.md)
+for more options and details.
+
+### Conventional Commit message validation
+The following example workflow will trigger on pull request creation/modification and verify
+all associated commit messages.
+
+```yaml
+name: Commisery
+on:
+  pull_request:
+
+jobs:
+  commit-message:
+    name: Conventional Commit compliance
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check for Conventional Commit compliance
+        uses: tomtom-international/commisery-action@v2
+        with:
+          token: ${{ github.token }}
+```
+See [the documentation](docs/github-action.md) for more information and all possible options
+for commit message validation.
+
+### Bump
+The following bumps the version according to the Conventional Commits between HEAD and the
+latest SemVer tag (granted one is present).
+
+```yaml
+name: Bump version
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  bump-version:
+    name: Bump version and release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Release version
+        id: release-version
+        uses: tomtom-international/commisery-action/bump@v2
+        with:
+          token: ${{ github.token }}
+          create-release: true              # OPTIONAL, default: `false`
+          create-release: false             # OPTIONAL, default: `false`
+      - run: echo "Current version is ${{steps.release-version.outputs.current-version}}"
+      - if: steps.release-version.outputs.next-version != ""
+        run: echo "Version bumped to ${{steps.release-version.outputs.next-version}}
+```
+More info on the bump action and the available options [here](docs/github-action.md)
 
 ## Command-line Interface
 You can find more information on how to use the CLI on the [dedicated page](docs/cli.md)

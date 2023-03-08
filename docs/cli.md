@@ -1,11 +1,25 @@
 # Command Line Interface
 
-A stand-alone CLI tool is provided as part of the `commisery-action` package. We currently support
-the following architectures:
+A stand-alone CLI tool is provided as part of the `commisery-action` package.
 
-- MacOS x86
-- MacOS ARM64
-- Linux x86
+## Installation
+
+You can download the latest version directly from GitHub.
+We currently support the following architectures:
+
+- [MacOS x86](https://github.com/tomtom-international/commisery-action/releases/latest/download/commisery-macos-x64)
+- [MacOS ARM64](https://github.com/tomtom-international/commisery-action/releases/latest/download/commisery-macos-arm64)
+- [Linux x86](https://github.com/tomtom-international/commisery-action/releases/latest/download/commisery-linux-x64)
+
+We recommend renaming the binary to `commisery`...
+```sh
+$ mv commisery-[linux-x64|macos-x64|macos-arm64] commisery
+```
+
+...and ensure that you provide execution rights;
+```sh
+$ chmod +x commisery
+```
 
 ## Compliance Check
 

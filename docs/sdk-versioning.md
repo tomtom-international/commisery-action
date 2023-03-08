@@ -5,8 +5,9 @@
 SDK Versioning has been created to simplify the release workflow, allowing for hardening software
 while employing trunk-based development;
 
-- Semantic Versioning cannot reliably be used in environments where commitments are managed using pre-planned increments (i.e. Product Increments in Scrum), whereas SDK Versioning allows you to define
-fixed (API-) releases, usable in public communication.
+- Semantic Versioning cannot reliably be used in environments where commitments are managed using
+pre-planned increments (e.g. Product Increments in Scrum), whereas SDK Versioning allows you to
+define a roadmap of (API-) releases, usable in public communication.
 
 - Using Semantic Versioning on `main`, removes the ability to create pre-releases (hardening) based
 on `HEAD`.
@@ -15,7 +16,8 @@ on `HEAD`.
   version without defining non-documented rules (i.e. `<MAJOR>.<MINOR>.<PATCH+1>-<PRERELEASE>`)*
 
 - Typically, complex branching models are required for managing pre-releases using Semantic
-Versioning (i.e. [A successful Git branching model](https://nvie.com/posts/a-successful-git-branching-model/)), requiring maintenance of multiple branches (`develop`, `release`, `hotfix`, ...).
+Versioning (e.g. ["A successful Git branching model"](https://nvie.com/posts/a-successful-git-branching-model/)),
+requiring maintenance of multiple branches (`develop`, `release`, `hotfix`, ...).
 
   With SDK Versioning, we simplify the semantics behind the `MINOR` (`RELEASE`) and `PATCH` (`FIX`)
   version, as used in Semantic Versioning, allowing management of pre-releases on a maximum of
@@ -24,11 +26,11 @@ Versioning (i.e. [A successful Git branching model](https://nvie.com/posts/a-suc
 - Conventional Commits will **only** apply to commits with `BREAKING CHANGES`.
 
 It is important to define requirements for your product releases before selecting a versioning 
-strategy. Applying either Semantic- or SDK- versioning without thinking, will lead to unexpected
-complications.
+strategy. Applying either Semantic or SDK Versioning without careful consideration might lead
+to unexpected complications.
 
 ## Version Schema
-SDK Versioning (SdkVer) is compatible with SemVer, but not following the full SemVer specification;
+SDK Versioning (SdkVer) is resembles SemVer in form and precedence rules, but does not follow its semantics;
 
 ```js
 <API>.<RELEASE>.<FIX>(-<PRERELEASE>)
@@ -117,7 +119,8 @@ or the `release` branch:
 | `0.1.0-rc2`     | Release             | `0.1.0`      |
 | `0.1.0`         | Release             | `0.1.1`      |
 
-Additionally, you can introduce additional fixes on a release by adding commits on a release branch (i.e. `release/0.1`);
+Additionally, you can introduce additional fixes on a release by adding commits on a release branch
+(i.e. `release/0.1`);
 
 | Current Version | Increment Type      | Next Version |
 | --------------- | ------------------- | ------------ |
@@ -167,7 +170,8 @@ gitGraph
 
 :warning: **Warning** :warning::
 
-Creating a new release branch before the stabilization of a Release has been completed, has a risk of unwillingly introducing breaking changes too early.
+Creating a new release branch before the stabilization of a Release has been completed, has a risk of
+unwillingly introducing breaking changes too early.
 
 Instead, we propose to either:
 - Create a new release branch just before the breaking changes got introduced in the `main` branch
@@ -560,7 +564,8 @@ v0.1.0-rc1      Pre-release   v0.1.0-rc1    about 23 minutes ago
 
 ### Hardening a Release
 
-You can harden the `v0.1.0` release by introducing additional fixes on the associated branch. This will result in the next Release version:
+You can harden the `v0.1.0` release by introducing additional fixes on the associated branch. This will result
+in the next Release version:
 
 ```sh
 $ git checkout release/v0.1

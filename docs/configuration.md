@@ -1,6 +1,6 @@
 # Configuration
 
-You can configure `commisery-action` using a YAML-based configuration file, i.e.
+You can configure `commisery-action` using a YAML-based configuration file:
 
 ```yaml
 max-subject-length: 120
