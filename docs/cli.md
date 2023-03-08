@@ -23,7 +23,7 @@ $ chmod +x commisery
 
 ## Compliance Check
 
-You can use the `check` command to validate your commit messages for compliance with Conventional Commits:
+You can use the `check` command to validate your commit messages for compliance with [Conventional Commits]:
 
 ```sh
 Usage: commisery check [options] [TARGET...]
@@ -58,10 +58,13 @@ overview of your configuration file;
 ```sh
 Usage: commisery overview [options]
 
-Lists the accepted Conventional Commit types and Rules (including description)
+Lists the accepted [Conventional Commit] types and rules (including description)
 
 Options:
   -h, --help  display help for command
 ```
 
 Please refer to the [Configuration parameters](./configuration.md) for more details.
+
+[Conventional Commits]: https://www.conventionalcommits.org/en/v1.0.0/
+[Conventional Commit]: https://www.conventionalcommits.org/en/v1.0.0/

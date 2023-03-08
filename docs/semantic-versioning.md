@@ -24,8 +24,9 @@ We support the standard Conventional Commit behavior for incrementing SemVer:
 
 ### Breaking Changes
 
-By default, your product will be in [Initial Development](https://semver.org/#spec-item-4).
-During this phase, all `MAJOR` changes will result in incrementing the `MINOR` version.
+By default, your product is considered to be in the [initial development](https://semver.org/#spec-item-4)
+state if your current `MAJOR` version is `0`. During this phase, all `MAJOR` changes will
+result in incrementing the `MINOR` version.
 
 Once your API is considered "stable", we will move to a regular development flow in which
 you can flag your commit as `BREAKING CHANGE`, incrementing `MAJOR`, by either:
@@ -94,8 +95,9 @@ In addition, we **prohibit** any version bump other than **PATCH** on `release`-
 
 > **NOTE**
 >
-> There are many different ways to manage hardening on released versions (i.e. [A successful Git branching model](https://nvie.com/posts/a-successful-git-branching-model/)). This document does
-not prescribe which model you should apply for your product.
+> There are many different ways to manage hardening on released versions
+(e.g. ["A successful Git branching model"](https://nvie.com/posts/a-successful-git-branching-model/)).
+This document does not prescribe which model you should apply for your product.
 
 # Work Instructions
 
@@ -143,10 +145,10 @@ which are supported, including:
           with:
             token: ${{ github.token }}
             version-prefix: v                               # Adds the prefix `v` to the version (i.e. `v0.1.0`)
-            create-release: true                            # Create a GitHub Release
+            create-release: true                            # Create a GitHub release
   ```
 
-> **NOTE**: This chapter **assumes** that `main` is your Development Branch.
+> **NOTE**: This chapter **assumes** that `main` is your main branch.
 
 ## Development flow
 
@@ -201,7 +203,7 @@ gitGraph
   commit id: "feat: (#2)" type: HIGHLIGHT
 ```
 
-In the mean time, the `main` branch might have already advanced with additional changes;
+In the meantime, the `main` branch might have already advanced with additional changes;
 
 ```mermaid
 gitGraph

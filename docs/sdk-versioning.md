@@ -58,7 +58,7 @@ There are three types of Releases supported by SdkVer:
 
 A Development Release reflects the current state of the `main` development branch.
 The representation of a Development Release is by the availability of a single
-"draft" GitHub Release, which is updated with every single commit on `main`.
+"draft" GitHub release, which is updated with every single commit on `main`.
 
 This automatically implies that **no** git tags will be created for each Development Release.
 
@@ -80,7 +80,7 @@ in case:
 - Development on the `main` branch continued with changes not desired in the release
 
 Each Release Candidate is represented by:
-- a GitHub Release (pre-release state), and
+- a GitHub release (pre-release state), and
 - an associated git tag on the specified commit.
 
 A Release Candidate is initiated on the `main` development branch;
@@ -101,7 +101,7 @@ Stabilizing a Release Candidate is handled on a release branch (i.e. `release/0.
 ### Releases
 
 Each Release is represented by:
-- a GitHub Release (pre-release state), and
+- a GitHub release (pre-release state), and
 - an associated git tag on the specified commit.
 
 You can release both Development Releases and Release Candidates from either the `main` branch;
@@ -247,13 +247,13 @@ which are supported by the SdkVer, including:
             token: ${{ github.token }}
             version-prefix: v                               # Adds the prefix `v` to the version (i.e. `v0.1.0`)
             release-type: ${{ steps.release.outputs.type}}  # Release Type
-            create-release: true                            # Create a GitHub Release
+            create-release: true                            # Create a GitHub release
   ```
 
 
 - Finally, install the [GitHub CLI](https://cli.github.com) for interacting with GitHub.
 
-> **NOTE**: This chapter **assumes** that `main` is your Development Branch.
+> **NOTE**: This chapter **assumes** that `main` is your main branch.
 
 ## Development flow
 
@@ -310,7 +310,7 @@ gitGraph
   commit id: "commit-2" type: HIGHLIGHT
 ```
 
-In the mean time, the `main` branch might have already advanced with additional changes;
+In the meantime, the `main` branch might have already advanced with additional changes;
 
 ```mermaid
 gitGraph
@@ -391,7 +391,7 @@ running the created worklow:
 $ gh workflow run sdkver.yml --field releaseType=rc
 ```
 
-This will create a new *tagged* GitHub Release with the `pre-release` flag enabled:
+This will create a new *tagged* GitHub release with the `pre-release` flag enabled:
 
 ```mermaid
 gitGraph

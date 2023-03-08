@@ -6,8 +6,8 @@ The following permissions are needed for full support of `commisery-action`:
 
 | Permission | Level | Notes |
 | --- | --- | --- |
-| `pull-requests` | `write` | Needed for Pull Request validation and (optionally) when creating a GitHub Release |
-| `contents` | `write`| Required in order to create tags and/or GitHub Releases |
+| `pull-requests` | `write` | Needed for Pull Request validation and (optionally) when creating a GitHub release |
+| `contents` | `write`| Required in order to create tags and/or GitHub releases |
 | `issues` | `write` | Required to add labels to the associated Pull Request and/or issue |
 
 > :bulb: You can lower the permissions (`pull-requests: read` and `issues: none`) in case you do not
