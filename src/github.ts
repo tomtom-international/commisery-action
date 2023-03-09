@@ -21,7 +21,7 @@ import * as octokit from "@octokit/plugin-rest-endpoint-methods";
 import { GitHub } from "@actions/github/lib/utils";
 import { ICommit, IGitTag } from "./interfaces";
 import { SemVer } from "./semver";
-import { Label } from "./label";
+import * as Label from "./label";
 
 const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
 
@@ -432,7 +432,7 @@ export async function updateLabels(labels: string[]): Promise<void> {
   try {
     // Remove all bump, type and initial development labels
     for (const label of pullRequestLabels) {
-      if (Label.isVisible(label.name)) {
+      if (Label.isManaged(label.name)) {
         // Check if the label should remain, if not, remove the label from the Pull Request
         if (labels.includes(label.name)) {
           labels = labels.filter(l => l !== label.name);

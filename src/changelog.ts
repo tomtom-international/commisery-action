@@ -20,7 +20,7 @@ import { getAssociatedPullRequests, getReleaseConfiguration } from "./github";
 import { IVersionBumpTypeAndMessages } from "./interfaces";
 import * as yaml from "yaml";
 import { SemVerType } from "./semver";
-import { Label } from "./label";
+import * as Label from "./label";
 
 /**
  * Exclude pattern, part of the Release Configuration

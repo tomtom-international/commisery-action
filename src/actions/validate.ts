@@ -20,7 +20,7 @@ import { ConventionalCommitMessage } from "../commit";
 
 import { Configuration } from "../config";
 import { getConfig, isPullRequestEvent, updateLabels } from "../github";
-import { Label } from "../label";
+import * as Label from "../label";
 import { SemVerType } from "../semver";
 import {
   validateCommitsInCurrentPR,

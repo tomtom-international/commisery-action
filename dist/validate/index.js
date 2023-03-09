@@ -11462,7 +11462,7 @@ const core = __importStar(__nccwpck_require__(2186));
 const bump_1 = __nccwpck_require__(1692);
 const config_1 = __nccwpck_require__(6373);
 const github_1 = __nccwpck_require__(978);
-const label_1 = __nccwpck_require__(2008);
+const Label = __importStar(__nccwpck_require__(2008));
 const semver_1 = __nccwpck_require__(8593);
 const validate_1 = __nccwpck_require__(4953);
 /**
@@ -11476,9 +11476,9 @@ function determineLabels(conventionalCommits, config) {
         }
         const labels = [];
         if (config.initialDevelopment) {
-            labels.push(label_1.Label.create("initial development"));
+            labels.push(Label.create("initial development"));
         }
-        labels.push(label_1.Label.create("bump", semver_1.SemVerType[highestBumpType]));
+        labels.push(Label.create("bump", semver_1.SemVerType[highestBumpType]));
         return labels;
     });
 }
@@ -12210,7 +12210,7 @@ const github_1 = __nccwpck_require__(5438);
 const github_2 = __nccwpck_require__(978);
 const yaml = __importStar(__nccwpck_require__(4083));
 const semver_1 = __nccwpck_require__(8593);
-const label_1 = __nccwpck_require__(2008);
+const Label = __importStar(__nccwpck_require__(2008));
 /**
  * Capitalizes the first character of the provided string
  */
@@ -12225,15 +12225,15 @@ const DEFAULT_CONFIG = {
         categories: [
             {
                 title: ":warning: Breaking Changes",
-                labels: [label_1.Label.create("bump", "major")],
+                labels: [Label.create("bump", "major")],
             },
             {
                 title: ":rocket: New Features",
-                labels: [label_1.Label.create("bump", "minor")],
+                labels: [Label.create("bump", "minor")],
             },
             {
                 title: ":bug: Bug Fixes",
-                labels: [label_1.Label.create("bump", "patch")],
+                labels: [Label.create("bump", "patch")],
             },
             {
                 title: ":construction_worker: Other changes",
@@ -12332,9 +12332,9 @@ function generateChangelog(bump) {
         for (const commit of bump.processedCommits) {
             if (!commit.message)
                 continue;
-            const bumpLabel = label_1.Label.create("bump", semver_1.SemVerType[commit.message.bump]);
-            const typeLabel = label_1.Label.create("type", commit.message.type);
-            const scopeLabel = label_1.Label.create("scope", ((_b = (_a = commit.message) === null || _a === void 0 ? void 0 : _a.scope) === null || _b === void 0 ? void 0 : _b.toLowerCase()) || "*");
+            const bumpLabel = Label.create("bump", semver_1.SemVerType[commit.message.bump]);
+            const typeLabel = Label.create("type", commit.message.type);
+            const scopeLabel = Label.create("scope", ((_b = (_a = commit.message) === null || _a === void 0 ? void 0 : _a.scope) === null || _b === void 0 ? void 0 : _b.toLowerCase()) || "*");
             // Adds the following items as "virtual" labels for each commit:
             // * The version bump (`bump:<version>`)
             // * The conventional commit type (`type:<type>`)
@@ -12352,8 +12352,8 @@ function generateChangelog(bump) {
                     //       and instead rely on version bump label associated with this
                     //       commit.
                     labels = labels.concat(pullRequest.labels
-                        .filter(label => !label_1.Label.isCategory(label.name, "bump") &&
-                        !label_1.Label.isCategory(label.name, "scope"))
+                        .filter(label => !Label.isCategory(label.name, "bump") &&
+                        !Label.isCategory(label.name, "scope"))
                         .map(label => label.name));
                     // Check if the author of the Pull Request is part of the exclude list
                     if (pullRequest.user &&
@@ -13078,7 +13078,7 @@ const core = __importStar(__nccwpck_require__(2186));
 const fs = __importStar(__nccwpck_require__(7147));
 const github = __importStar(__nccwpck_require__(5438));
 const semver_1 = __nccwpck_require__(8593);
-const label_1 = __nccwpck_require__(2008);
+const Label = __importStar(__nccwpck_require__(2008));
 const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
 /**
  * Get Octokit instance
@@ -13429,7 +13429,7 @@ function updateLabels(labels) {
         try {
             // Remove all bump, type and initial development labels
             for (const label of pullRequestLabels) {
-                if (label_1.Label.isVisible(label.name)) {
+                if (Label.isManaged(label.name)) {
                     // Check if the label should remain, if not, remove the label from the Pull Request
                     if (labels.includes(label.name)) {
                         labels = labels.filter(l => l !== label.name);
@@ -13521,29 +13521,29 @@ exports.currentHeadMatchesTag = currentHeadMatchesTag;
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.Label = void 0;
-// eslint-disable-next-line @typescript-eslint/no-extraneous-class
-class Label {
-    static getCategory(value) {
-        return value.split(":")[0];
-    }
-    static isCategory(value, category) {
-        return Label.getCategory(value) === category;
-    }
-    static isVisible(value) {
-        return ["bump", "type", "initial development"].includes(Label.getCategory(value));
-    }
-    static create(category, value) {
-        if (category !== "initial development" && value === undefined) {
-            throw new Error(`Label category '${category}' needs to have a value`);
-        }
-        if (value) {
-            return `${category}:${value}`.toLowerCase();
-        }
-        return category;
-    }
+exports.create = exports.isManaged = exports.isCategory = exports.getCategory = void 0;
+function getCategory(value) {
+    return value.split(":")[0];
 }
-exports.Label = Label;
+exports.getCategory = getCategory;
+function isCategory(value, category) {
+    return getCategory(value) === category;
+}
+exports.isCategory = isCategory;
+function isManaged(value) {
+    return ["bump", "type", "initial development"].includes(getCategory(value));
+}
+exports.isManaged = isManaged;
+function create(category, value) {
+    if (category !== "initial development" && value === undefined) {
+        throw new Error(`Label category '${category}' needs to have a value`);
+    }
+    if (value) {
+        return `${category}:${value}`.toLowerCase();
+    }
+    return category;
+}
+exports.create = create;
 
 
 /***/ }),
