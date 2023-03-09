@@ -10724,6 +10724,12 @@ typeItShouldBe) {
  * Configuration (from file)
  */
 class Configuration {
+    set initialDevelopment(initialDevelopment) {
+        this._initialDevelopment = initialDevelopment;
+    }
+    get initialDevelopment() {
+        return this._initialDevelopment;
+    }
     loadFromData(data) {
         var _a, _b;
         var _c;
@@ -10892,8 +10898,8 @@ class Configuration {
      * Constructs a Configuration parameters from file
      */
     constructor(configPath = DEFAULT_CONFIGURATION_FILE) {
+        this._initialDevelopment = true;
         this.allowedBranches = ".*";
-        this.initialDevelopment = true;
         this.maxSubjectLength = 80;
         this.releaseBranches = /^release\/.*\d+\.\d+\.*$/;
         this.versionScheme = "semver";

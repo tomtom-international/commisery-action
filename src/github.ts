@@ -21,6 +21,7 @@ import * as octokit from "@octokit/plugin-rest-endpoint-methods";
 import { GitHub } from "@actions/github/lib/utils";
 import { ICommit, IGitTag } from "./interfaces";
 import { SemVer } from "./semver";
+import { Label } from "./label";
 
 const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
 
@@ -279,7 +280,7 @@ export async function matchTagsToCommits(
   let match: SemVer | null = null;
   for await (const resp of octo.paginate.iterator(octo.rest.repos.listCommits, {
     ...github.context.repo,
-    sha: sha,
+    sha,
   })) {
     for (const commit of resp.data) {
       match = matcher(commit.commit.message, commit.sha);
@@ -429,9 +430,9 @@ export async function updateLabels(labels: string[]): Promise<void> {
     });
 
   try {
-    // Remove all labels prefixed with "bump:" and "type:"
+    // Remove all bump, type and initial development labels
     for (const label of pullRequestLabels) {
-      if (label.name.startsWith("bump:") || label.name.startsWith("type:")) {
+      if (Label.isVisible(label.name)) {
         // Check if the label should remain, if not, remove the label from the Pull Request
         if (labels.includes(label.name)) {
           labels = labels.filter(l => l !== label.name);

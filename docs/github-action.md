@@ -53,6 +53,8 @@ version which will be bumped by its [release workflow](#create-github-releases-b
 > :warning: the action will replace *all* labels prefixed with `bump:` upon
 running the validation step.
 
+The label `initial development` is added to your Pull Request in case your project is still under [Initial Development](#initial-development)
+
 See [permissions](#permissions) for more details on the required GitHub token permissions.
 
 ### Inputs

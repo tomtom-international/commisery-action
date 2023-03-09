@@ -20,6 +20,7 @@ jest.mock("../src/github");
 import * as core from "@actions/core";
 jest.mock("@actions/core");
 
+import { Configuration } from "../src/config";
 import * as validate from "../src/actions/validate";
 
 beforeEach(() => {
@@ -195,29 +196,42 @@ describe("Update labels", () => {
       messages: [PATCH_MSG, NONE_MSG, PATCH_MSG, NONE_MSG],
       expectedLabel: "patch",
       prTitle: PATCH_MSG.message,
+      initialDevelopment: false,
     },
     {
       messages: [PATCH_MSG, MINOR_MSG, PATCH_MSG, NONE_MSG],
       expectedLabel: "minor",
       prTitle: MINOR_MSG.message,
+      initialDevelopment: true,
     },
     {
       messages: [PATCH_MSG, MINOR_MSG, MAJOR_MSG, NONE_MSG],
       prTitle: MAJOR_MSG.message,
       expectedLabel: "major",
+      initialDevelopment: false,
+    },
+    {
+      messages: [PATCH_MSG, MINOR_MSG, MAJOR_MSG, NONE_MSG],
+      prTitle: MAJOR_MSG.message,
+      expectedLabel: "major",
+      initialDevelopment: true,
     },
     {
       messages: [NONE_MSG, NONE_MSG, NONE_MSG],
       prTitle: NONE_MSG.message,
       expectedLabel: null,
+      initialDevelopment: false,
     },
   ];
   test.each(labelTests)(
     "Bump $expectedLabel",
-    ({ messages, prTitle, expectedLabel }) => {
+    ({ messages, prTitle, expectedLabel, initialDevelopment }) => {
       jest.spyOn(github, "getCommitsInPR").mockResolvedValue(messages);
       jest.spyOn(github, "getPullRequestTitle").mockResolvedValue(prTitle);
       jest.spyOn(github, "updateLabels");
+      jest
+        .spyOn(Configuration.prototype, "initialDevelopment", "get")
+        .mockReturnValue(initialDevelopment);
 
       validate.exportedForTesting.run().then(() => {
         expect(core.info).toHaveBeenCalled();
@@ -225,8 +239,12 @@ describe("Update labels", () => {
         expect(core.warning).not.toHaveBeenCalled();
 
         expect(github.updateLabels).toHaveBeenCalledTimes(1);
+        let expectedLabels = [`bump:${expectedLabel}`];
+        if (initialDevelopment) {
+          expectedLabels = ["initial development"].concat(expectedLabels);
+        }
         expect(github.updateLabels).toHaveBeenCalledWith(
-          expectedLabel ? [`bump:${expectedLabel}`] : []
+          expectedLabel ? expectedLabels : []
         );
       });
     }
