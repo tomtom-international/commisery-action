@@ -146,13 +146,13 @@ function sortVersionPrereleases(
  * Returns an object {id, name}, or `undefined` if no tag was found.
  */
 export async function getRelease(
-  nameStartsWith: string,
+  prefixMustMatch: string,
   isDraft: boolean
 ): Promise<{ id: number; name: string } | undefined> {
   core.info(
     `getRelease: finding ${
       isDraft ? "draft " : ""
-    }release starting with: ${nameStartsWith}`
+    }release with the prefix: ${prefixMustMatch}`
   );
   const octo = getOctokit();
 
@@ -176,7 +176,7 @@ export async function getRelease(
 
   const releaseList = result
     .filter(r => r.isDraft === isDraft)
-    .filter(r => r.tagName.startsWith(nameStartsWith))
+    .filter(r => SemVer.fromString(r.tagName)?.prefix === prefixMustMatch)
     .map(r => ({ id: r.id, name: r.tagName }))
     .sort((lhs, rhs) => SemVer.sortSemVer(lhs.name, rhs.name));
 
@@ -273,7 +273,7 @@ export async function getReleaseConfiguration(): Promise<string> {
 export async function matchTagsToCommits(
   sha: string,
   tags: IGitTag[],
-  matcher: (msg: string, sha: string) => SemVer | null
+  matcher: (msg: string, hash: string) => SemVer | null
 ): Promise<[SemVer | null, ICommit[]]> {
   const octo = getOctokit();
   const commitList: ICommit[] = [];

@@ -11733,7 +11733,6 @@ exports.getVersionBumpTypeAndMessages = getVersionBumpTypeAndMessages;
  * `undefined` otherwise.
  */
 function tryUpdateDraftRelease(cv, changelog, sha) {
-    var _a;
     return __awaiter(this, void 0, void 0, function* () {
         const preStem = cv.prerelease
             ? `-${cv.prerelease.replace(/(.+?)\d.*/, "$1")}`
@@ -11741,7 +11740,7 @@ function tryUpdateDraftRelease(cv, changelog, sha) {
         const baseCurrent = `${cv.prefix}${cv.major}.${cv.minor}.${cv.patch}${preStem}`;
         const nextMajor = `${cv.nextMajor().toString()}${preStem}`;
         const nextMinor = `${cv.nextMinor().toString()}${preStem}`;
-        const latestDraftRelease = (_a = (yield (0, github_1.getRelease)(nextMajor, true))) !== null && _a !== void 0 ? _a : (yield (0, github_1.getRelease)(nextMinor, true));
+        const latestDraftRelease = yield (0, github_1.getRelease)(cv.prefix, true);
         if (!latestDraftRelease)
             return;
         const currentDraftVersion = semver_1.SemVer.fromString(latestDraftRelease.name);
@@ -12112,14 +12111,12 @@ function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, bran
         let cv = semver_1.SemVer.copy(bumpInfo.foundVersion);
         const baseCurrent = `${cv.prefix}${cv.major}.${cv.minor}.${cv.patch}` +
             `${cv.prerelease ? `-${cv.prerelease.replace(/(.+?)\d.*/, "$1")}` : ""}`;
-        // See if we already have a dev (draft) release for the _next_ version.
+        // Get the latest draft release matching our current version's prefix.
         // Don't look at the draft version on a release branch; the current version
         // should always reflect the version to be bumped (as no dev releases are
         // allowed on a release branch)
-        const latestNextMinorDraft = yield (0, github_1.getRelease)(cv.nextMinor().toString(), true);
-        const latestNextMajorDraft = yield (0, github_1.getRelease)(cv.nextMajor().toString(), true);
-        const latestDraft = latestNextMajorDraft !== null && latestNextMajorDraft !== void 0 ? latestNextMajorDraft : latestNextMinorDraft;
-        const latestRelease = yield (0, github_1.getRelease)(baseCurrent, false);
+        const latestDraft = yield (0, github_1.getRelease)(cv.prefix, true);
+        const latestRelease = yield (0, github_1.getRelease)(cv.prefix, false);
         core.info(`Current version: ${cv.toString()}, latest GitHub release draft: ${(_a = latestDraft === null || latestDraft === void 0 ? void 0 : latestDraft.name) !== null && _a !== void 0 ? _a : "NONE"}, latest GitHub release: ${(_b = latestRelease === null || latestRelease === void 0 ? void 0 : latestRelease.name) !== null && _b !== void 0 ? _b : "NONE"}`);
         // `latestRelease` is not used for anything functional at this point
         if (!isReleaseBranch && latestDraft) {
@@ -13186,9 +13183,9 @@ function sortVersionPrereleases(releaseList, nameStartsWith) {
  *
  * Returns an object {id, name}, or `undefined` if no tag was found.
  */
-function getRelease(nameStartsWith, isDraft) {
+function getRelease(prefixMustMatch, isDraft) {
     return __awaiter(this, void 0, void 0, function* () {
-        core.info(`getRelease: finding ${isDraft ? "draft " : ""}release starting with: ${nameStartsWith}`);
+        core.info(`getRelease: finding ${isDraft ? "draft " : ""}release with the prefix: ${prefixMustMatch}`);
         const octo = getOctokit();
         const result = (yield octo.paginate(octo.rest.repos.listReleases, Object.assign({}, github.context.repo))).map(r => ({ isDraft: r.draft, tagName: r.tag_name, id: r.id }));
         core.debug(`getRelease: listReleases returned:\n${JSON.stringify(result)}`);
@@ -13203,7 +13200,7 @@ function getRelease(nameStartsWith, isDraft) {
          */
         const releaseList = result
             .filter(r => r.isDraft === isDraft)
-            .filter(r => r.tagName.startsWith(nameStartsWith))
+            .filter(r => { var _a; return ((_a = semver_1.SemVer.fromString(r.tagName)) === null || _a === void 0 ? void 0 : _a.prefix) === prefixMustMatch; })
             .map(r => ({ id: r.id, name: r.tagName }))
             .sort((lhs, rhs) => semver_1.SemVer.sortSemVer(lhs.name, rhs.name));
         core.debug(`getRelease: sorted list of releases:\n${JSON.stringify(releaseList)}`);

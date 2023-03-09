@@ -233,8 +233,7 @@ async function tryUpdateDraftRelease(
   const baseCurrent = `${cv.prefix}${cv.major}.${cv.minor}.${cv.patch}${preStem}`;
   const nextMajor = `${cv.nextMajor().toString()}${preStem}`;
   const nextMinor = `${cv.nextMinor().toString()}${preStem}`;
-  const latestDraftRelease =
-    (await getRelease(nextMajor, true)) ?? (await getRelease(nextMinor, true));
+  const latestDraftRelease = await getRelease(cv.prefix, true);
   if (!latestDraftRelease) return;
 
   const currentDraftVersion = SemVer.fromString(latestDraftRelease.name);
@@ -710,21 +709,12 @@ export async function bumpSdkVer(
     `${cv.prefix}${cv.major}.${cv.minor}.${cv.patch}` +
     `${cv.prerelease ? `-${cv.prerelease.replace(/(.+?)\d.*/, "$1")}` : ""}`;
 
-  // See if we already have a dev (draft) release for the _next_ version.
+  // Get the latest draft release matching our current version's prefix.
   // Don't look at the draft version on a release branch; the current version
   // should always reflect the version to be bumped (as no dev releases are
   // allowed on a release branch)
-
-  const latestNextMinorDraft = await getRelease(
-    cv.nextMinor().toString(),
-    true
-  );
-  const latestNextMajorDraft = await getRelease(
-    cv.nextMajor().toString(),
-    true
-  );
-  const latestDraft = latestNextMajorDraft ?? latestNextMinorDraft;
-  const latestRelease = await getRelease(baseCurrent, false);
+  const latestDraft = await getRelease(cv.prefix, true);
+  const latestRelease = await getRelease(cv.prefix, false);
   core.info(
     `Current version: ${cv.toString()}, latest GitHub release draft: ${
       latestDraft?.name ?? "NONE"
