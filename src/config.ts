@@ -96,14 +96,23 @@ function verifyTypeMatches(
  * Configuration (from file)
  */
 export class Configuration {
+  private _initialDevelopment = true;
+
   allowedBranches = ".*";
-  initialDevelopment = true;
   maxSubjectLength = 80;
   releaseBranches = /^release\/.*\d+\.\d+\.*$/;
   versionScheme = "semver";
   prereleasePrefix?: string = undefined;
   tags: IConfigurationRules = DEFAULT_ACCEPTED_TAGS;
   rules: Map<string, IRuleConfigItem> = new Map<string, IRuleConfigItem>();
+
+  set initialDevelopment(initialDevelopment: boolean) {
+    this._initialDevelopment = initialDevelopment;
+  }
+
+  get initialDevelopment(): boolean {
+    return this._initialDevelopment;
+  }
 
   private loadFromData(data: IConfiguration): void {
     for (const key in data) {

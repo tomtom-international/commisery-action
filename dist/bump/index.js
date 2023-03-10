@@ -12250,6 +12250,7 @@ const github_1 = __nccwpck_require__(5438);
 const github_2 = __nccwpck_require__(978);
 const yaml = __importStar(__nccwpck_require__(4083));
 const semver_1 = __nccwpck_require__(8593);
+const Label = __importStar(__nccwpck_require__(2008));
 /**
  * Capitalizes the first character of the provided string
  */
@@ -12264,15 +12265,15 @@ const DEFAULT_CONFIG = {
         categories: [
             {
                 title: ":warning: Breaking Changes",
-                labels: ["bump:major"],
+                labels: [Label.create("bump", "major")],
             },
             {
                 title: ":rocket: New Features",
-                labels: ["bump:minor"],
+                labels: [Label.create("bump", "minor")],
             },
             {
                 title: ":bug: Bug Fixes",
-                labels: ["bump:patch"],
+                labels: [Label.create("bump", "patch")],
             },
             {
                 title: ":construction_worker: Other changes",
@@ -12371,9 +12372,9 @@ function generateChangelog(bump) {
         for (const commit of bump.processedCommits) {
             if (!commit.message)
                 continue;
-            const bumpLabel = `bump:${semver_1.SemVerType[commit.message.bump].toLowerCase()}`;
-            const typeLabel = `type:${commit.message.type.toLowerCase()}`;
-            const scopeLabel = `scope:${((_b = (_a = commit.message) === null || _a === void 0 ? void 0 : _a.scope) === null || _b === void 0 ? void 0 : _b.toLowerCase()) || "*"}`;
+            const bumpLabel = Label.create("bump", semver_1.SemVerType[commit.message.bump]);
+            const typeLabel = Label.create("type", commit.message.type);
+            const scopeLabel = Label.create("scope", ((_b = (_a = commit.message) === null || _a === void 0 ? void 0 : _a.scope) === null || _b === void 0 ? void 0 : _b.toLowerCase()) || "*");
             // Adds the following items as "virtual" labels for each commit:
             // * The version bump (`bump:<version>`)
             // * The conventional commit type (`type:<type>`)
@@ -12391,8 +12392,8 @@ function generateChangelog(bump) {
                     //       and instead rely on version bump label associated with this
                     //       commit.
                     labels = labels.concat(pullRequest.labels
-                        .filter(label => !label.name.startsWith("bump:") &&
-                        !label.name.startsWith("scope:"))
+                        .filter(label => !Label.isCategory(label.name, "bump") &&
+                        !Label.isCategory(label.name, "scope"))
                         .map(label => label.name));
                     // Check if the author of the Pull Request is part of the exclude list
                     if (pullRequest.user &&
@@ -12796,6 +12797,12 @@ typeItShouldBe) {
  * Configuration (from file)
  */
 class Configuration {
+    set initialDevelopment(initialDevelopment) {
+        this._initialDevelopment = initialDevelopment;
+    }
+    get initialDevelopment() {
+        return this._initialDevelopment;
+    }
     loadFromData(data) {
         var _a, _b;
         var _c;
@@ -12964,8 +12971,8 @@ class Configuration {
      * Constructs a Configuration parameters from file
      */
     constructor(configPath = DEFAULT_CONFIGURATION_FILE) {
+        this._initialDevelopment = true;
         this.allowedBranches = ".*";
-        this.initialDevelopment = true;
         this.maxSubjectLength = 80;
         this.releaseBranches = /^release\/.*\d+\.\d+\.*$/;
         this.versionScheme = "semver";
@@ -13111,6 +13118,7 @@ const core = __importStar(__nccwpck_require__(2186));
 const fs = __importStar(__nccwpck_require__(7147));
 const github = __importStar(__nccwpck_require__(5438));
 const semver_1 = __nccwpck_require__(8593);
+const Label = __importStar(__nccwpck_require__(2008));
 const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
 /**
  * Get Octokit instance
@@ -13330,7 +13338,7 @@ function matchTagsToCommits(sha, tags, matcher) {
         const commitList = [];
         let match = null;
         try {
-            for (var _d = true, _e = __asyncValues(octo.paginate.iterator(octo.rest.repos.listCommits, Object.assign(Object.assign({}, github.context.repo), { sha: sha }))), _f; _f = yield _e.next(), _a = _f.done, !_a;) {
+            for (var _d = true, _e = __asyncValues(octo.paginate.iterator(octo.rest.repos.listCommits, Object.assign(Object.assign({}, github.context.repo), { sha }))), _f; _f = yield _e.next(), _a = _f.done, !_a;) {
                 _c = _f.value;
                 _d = false;
                 try {
@@ -13459,9 +13467,9 @@ function updateLabels(labels) {
             issue_number: issueId,
         });
         try {
-            // Remove all labels prefixed with "bump:" and "type:"
+            // Remove all bump, type and initial development labels
             for (const label of pullRequestLabels) {
-                if (label.name.startsWith("bump:") || label.name.startsWith("type:")) {
+                if (Label.isManaged(label.name)) {
                     // Check if the label should remain, if not, remove the label from the Pull Request
                     if (labels.includes(label.name)) {
                         labels = labels.filter(l => l !== label.name);
@@ -13528,6 +13536,54 @@ function currentHeadMatchesTag(tagName) {
     });
 }
 exports.currentHeadMatchesTag = currentHeadMatchesTag;
+
+
+/***/ }),
+
+/***/ 2008:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/**
+ * Copyright (C) 2023, TomTom (http://tomtom.com).
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.create = exports.isManaged = exports.isCategory = exports.getCategory = void 0;
+function getCategory(value) {
+    return value.split(":")[0];
+}
+exports.getCategory = getCategory;
+function isCategory(value, category) {
+    return getCategory(value) === category;
+}
+exports.isCategory = isCategory;
+function isManaged(value) {
+    return ["bump", "type", "initial development"].includes(getCategory(value));
+}
+exports.isManaged = isManaged;
+function create(category, value) {
+    if (category !== "initial development" && value === undefined) {
+        throw new Error(`Label category '${category}' needs to have a value`);
+    }
+    if (value) {
+        return `${category}:${value}`.toLowerCase();
+    }
+    return category;
+}
+exports.create = create;
 
 
 /***/ }),

@@ -17,9 +17,10 @@
 import { context } from "@actions/github";
 import { ConventionalCommitMessage } from "./commit";
 import { getAssociatedPullRequests, getReleaseConfiguration } from "./github";
-import { IVersionBumpTypeAndMessages, IValidationResult } from "./interfaces";
+import { IVersionBumpTypeAndMessages } from "./interfaces";
 import * as yaml from "yaml";
 import { SemVerType } from "./semver";
+import * as Label from "./label";
 
 /**
  * Exclude pattern, part of the Release Configuration
@@ -65,15 +66,15 @@ const DEFAULT_CONFIG: IReleaseConfiguration = {
     categories: [
       {
         title: ":warning: Breaking Changes",
-        labels: ["bump:major"],
+        labels: [Label.create("bump", "major")],
       },
       {
         title: ":rocket: New Features",
-        labels: ["bump:minor"],
+        labels: [Label.create("bump", "minor")],
       },
       {
         title: ":bug: Bug Fixes",
-        labels: ["bump:patch"],
+        labels: [Label.create("bump", "patch")],
       },
       {
         title: ":construction_worker: Other changes",
@@ -191,9 +192,12 @@ export async function generateChangelog(
   for (const commit of bump.processedCommits) {
     if (!commit.message) continue;
 
-    const bumpLabel = `bump:${SemVerType[commit.message.bump].toLowerCase()}`;
-    const typeLabel = `type:${commit.message.type.toLowerCase()}`;
-    const scopeLabel = `scope:${commit.message?.scope?.toLowerCase() || "*"}`;
+    const bumpLabel = Label.create("bump", SemVerType[commit.message.bump]);
+    const typeLabel = Label.create("type", commit.message.type);
+    const scopeLabel = Label.create(
+      "scope",
+      commit.message?.scope?.toLowerCase() || "*"
+    );
 
     // Adds the following items as "virtual" labels for each commit:
     // * The version bump (`bump:<version>`)
@@ -221,8 +225,8 @@ export async function generateChangelog(
           pullRequest.labels
             .filter(
               label =>
-                !label.name.startsWith("bump:") &&
-                !label.name.startsWith("scope:")
+                !Label.isCategory(label.name, "bump") &&
+                !Label.isCategory(label.name, "scope")
             )
             .map(label => label.name)
         );

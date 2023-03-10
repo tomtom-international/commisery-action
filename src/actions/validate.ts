@@ -20,6 +20,7 @@ import { ConventionalCommitMessage } from "../commit";
 
 import { Configuration } from "../config";
 import { getConfig, isPullRequestEvent, updateLabels } from "../github";
+import * as Label from "../label";
 import { SemVerType } from "../semver";
 import {
   validateCommitsInCurrentPR,
@@ -31,15 +32,23 @@ import {
  * Determine labels to add based on the provided conventional commits
  */
 async function determineLabels(
-  conventionalCommits: ConventionalCommitMessage[]
+  conventionalCommits: ConventionalCommitMessage[],
+  config: Configuration
 ): Promise<string[]> {
   const highestBumpType = getVersionBumpType(conventionalCommits);
 
-  if (highestBumpType !== SemVerType.NONE) {
-    return [`bump:${SemVerType[highestBumpType].toString().toLowerCase()}`];
+  if (highestBumpType === SemVerType.NONE) {
+    return [];
   }
 
-  return [];
+  const labels: string[] = [];
+  if (config.initialDevelopment) {
+    labels.push(Label.create("initial development"));
+  }
+
+  labels.push(Label.create("bump", SemVerType[highestBumpType]));
+
+  return labels;
 }
 
 async function run(): Promise<void> {
@@ -58,7 +67,7 @@ async function run(): Promise<void> {
       // Validate the current PR's commit messages
       const result = await validateCommitsInCurrentPR(config);
       compliant &&= result.compliant;
-      await updateLabels(await determineLabels(result.messages));
+      await updateLabels(await determineLabels(result.messages, config));
     }
 
     if (core.getBooleanInput("validate-pull-request-title-bump")) {

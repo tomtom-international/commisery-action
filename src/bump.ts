@@ -151,13 +151,17 @@ export async function getVersionBumpTypeAndMessages(
     // Try and match this commit's hash to one of the tags in `tags`
     for (const tag of tags) {
       let semVer: SemVer | null = null;
-      core.debug(`Considering tag ${tag.name} (${tag.commitSha}) on ${commitSha}`);
+      core.debug(
+        `Considering tag ${tag.name} (${tag.commitSha}) on ${commitSha}`
+      );
       semVer = getSemVerIfMatches(prefix, tag.name, tag.commitSha, commitSha);
       if (semVer) {
         // We've found a tag that matches to this commit. Now, we need to
         // make sure that we return the _highest_ version tag_ associated with
         // this commit
-        core.debug(`Matching tag found (${tag.name}), checking other tags for commit ${commitSha}..`);
+        core.debug(
+          `Matching tag found (${tag.name}), checking other tags for commit ${commitSha}..`
+        );
         const matchTags = tags.filter(t => t.commitSha === commitSha);
         if (matchTags.length > 1) {
           core.debug(`${matchTags.length} other tags found`);
@@ -180,7 +184,11 @@ export async function getVersionBumpTypeAndMessages(
     return null;
   };
 
-  const [version, commitList] = await matchTagsToCommits(targetSha, tags, tagMatcher);
+  const [version, commitList] = await matchTagsToCommits(
+    targetSha,
+    tags,
+    tagMatcher
+  );
 
   // We'll relax certain rules while processing these commits; these are
   // commits/pull request titles that (ideally) have been validated
