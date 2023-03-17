@@ -12175,7 +12175,10 @@ function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, bran
             return false; // should never happen
         let bumped = false;
         const changelog = yield (0, changelog_1.generateChangelog)(bumpInfo);
-        bumped = yield publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish, latestDraft === null || latestDraft === void 0 ? void 0 : latestDraft.id);
+        bumped = yield publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish, 
+        // Re-use the latest draft release only when not running on a release branch,
+        // otherwise we might randomly reset a `dev-N` number chain.
+        !isReleaseBranch ? latestDraft === null || latestDraft === void 0 ? void 0 : latestDraft.id : undefined);
         if (!bumped && !isReleaseBranch) {
             core.info("ℹ️ No bump was performed");
         }
