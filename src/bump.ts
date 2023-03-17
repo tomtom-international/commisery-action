@@ -752,7 +752,9 @@ export async function bumpSdkVer(
     headSha,
     changelog,
     isBranchAllowedToPublish,
-    latestDraft?.id
+    // Re-use the latest draft release only when not running on a release branch,
+    // otherwise we might randomly reset a `dev-N` number chain.
+    !isReleaseBranch ? latestDraft?.id : undefined
   );
 
   if (!bumped && !isReleaseBranch) {
