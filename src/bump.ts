@@ -657,7 +657,7 @@ function getNextSdkVer(
         // Current HEAD is a dev prerelease
         nextVersion = SemVer.copy(currentVersion);
       }
-      nextVersion.prerelease = "rc1";
+      nextVersion.prerelease = `${RC_PREFIX}1`;
     } else if (sdkVerBumpType === "dev") {
       // TODO: decide on how best to handle hasBreakingChange in this case
       if (currentIsRel || currentIsRc) {
