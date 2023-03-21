@@ -170,8 +170,13 @@ const testFunction = async (p: SdkBumpTestParameters) => {
     expect(core.error).not.toHaveBeenCalled();
     expect(core.setFailed).not.toHaveBeenCalled();
   } else {
-    // Expect error
-    expect(core.setFailed).toHaveBeenCalledTimes(1);
+    if (!p.testDescription.includes("HEADisTag")) {
+      // Expect error
+      expect(core.setFailed).toHaveBeenCalledTimes(1);
+    } else {
+      expect(core.setFailed).not.toHaveBeenCalled();
+      expect(github.createRelease).not.toHaveBeenCalled();
+    }
   }
   expect(core.setOutput).toBeCalledWith("current-version", p.initialVersion);
 };
@@ -196,6 +201,7 @@ const testSuiteDefinitions = [
         ["from dev"             , "1.1.0"     , "dev"  , "1.2.0-dev1" , "release/1.2.0", false    , "1.1.1"          ], // <-- note that the branch name
         ["from rc"              , "1.2.0-rc1" , "dev"  , "1.2.0-dev1" , "release/1.2.0", false    , "1.2.0-rc2"      ], //     is not considered as any
         ["from release"         , "1.2.0"     , "dev"  , undefined    , "release/1.2.0", false    , "1.2.1"          ], //     sort of versioning input
+        ["from rel + HEADisTag" , "1.2.0"     , "dev"  , undefined    , "release/1.2.0", false    , undefined        ],
     ],
   },
   {
@@ -213,6 +219,7 @@ const testSuiteDefinitions = [
      // [ test description      , version     ,  bump  , latest draft , branch         , breaking?, expected version ]
         ["from dev"             , "1.1.0"     , "rc"   , "1.2.0-dev1" , "release/1.2.0", false    , "1.1.1"          ],
         ["from rc"              , "1.2.0-rc1" , "rc"   , "1.2.0-dev1" , "release/1.2.0", false    , "1.2.0-rc2"      ],
+        ["from rc + HEADisTag"  , "1.2.0-rc1" , "rc"   , "1.2.0-dev1" , "release/1.2.0", false    , undefined        ],
         ["from release"         , "1.2.0"     , "rc"   , "1.2.0-dev1" , "release/1.2.0", false    , "1.2.1"          ],
     ],
   },
@@ -233,6 +240,7 @@ const testSuiteDefinitions = [
         ["from dev"             , "1.1.0"     , "rel"  , "1.2.0-dev1" , "release/1.2.0", false    , "1.1.1"          ],
         ["from rc"              , "1.2.0-rc1" , "rel"  , "1.2.0-dev1" , "release/1.2.0", false    , "1.2.0"          ],
         ["from release"         , "1.2.0"     , "rel"  , "1.2.0-dev1" , "release/1.2.0", false    , "1.2.1"          ],
+        ["from rel + HEADisTag" , "1.2.0"     , "rel"  , undefined    , "release/1.2.0", false    , undefined        ],
     ],
   },
   // BREAKING CHANGES

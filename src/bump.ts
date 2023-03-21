@@ -547,12 +547,17 @@ function getNextSdkVer(
     return v as SemVer;
   };
 
-  core.info(`Determining SDK bump for version ${currentVersion.toString()}:`);
+  const currentVersionType = currentIsRel
+    ? "release"
+    : currentIsRc
+    ? "release candidate"
+    : "dev";
   core.info(
-    ` - current version type: ${
-      currentIsRel ? "release" : currentIsRc ? "release candidate" : "dev"
-    }`
+    `Determining SDK bump for version ${currentVersion.toString()}${
+      headMatchesTag ? " (HEAD)" : ""
+    }:`
   );
+  core.info(` - current version type: ${currentVersionType}`);
   core.info(` - bump type: ${sdkVerBumpType}`);
   core.info(` - branch type: ${isReleaseBranch ? "" : "not "}release`);
   core.info(` - breaking changes: ${hasBreakingChange ? "yes" : "no"}`);
@@ -587,7 +592,12 @@ function getNextSdkVer(
       die("Breaking changes are not allowed on release branches.");
     }
 
-    if (sdkVerBumpType === "rel") {
+    // Only bump if we need to; we don't want to generate a new RC or release
+    // when nothing has changed since the last RC or release, unless it is a
+    // promotion from RC to full release.
+    if (headMatchesTag && !(sdkVerBumpType === "rel" && currentIsRc)) {
+      core.info(` - head matches latest tag on release branch`);
+    } else if (sdkVerBumpType === "rel") {
       if (currentIsRel) {
         // Pushes on release branches with a finalized release always
         // bump PATCH, no exception.
@@ -601,7 +611,6 @@ function getNextSdkVer(
     } else {
       // Bumps for "rc" and "dev" are identical on a release branch
       if (currentIsRc) {
-        // Current version is an rc, so bump that
         nextVersion = currentVersion.nextPrerelease();
         if (!nextVersion) {
           die(
@@ -680,8 +689,8 @@ function getNextSdkVer(
     }
   }
 
-  core.info(` - next version: ${nextVersion?.toString()}`);
-  if (!nextVersion) {
+  core.info(` - next version: ${nextVersion?.toString() ?? "none"}`);
+  if (!nextVersion && !headMatchesTag) {
     die(`Unable to bump version for: ${currentVersion.toString()}`);
   }
 
@@ -743,25 +752,25 @@ export async function bumpSdkVer(
     config.prereleasePrefix ?? "dev", // SdkVer dictates dev versions
     config.initialDevelopment
   );
-  if (!nextVersion) return false; // should never happen
 
   let bumped = false;
-  const changelog = await generateChangelog(bumpInfo);
-  bumped = await publishBump(
-    nextVersion,
-    releaseMode,
-    headSha,
-    changelog,
-    isBranchAllowedToPublish,
-    // Re-use the latest draft release only when not running on a release branch,
-    // otherwise we might randomly reset a `dev-N` number chain.
-    !isReleaseBranch ? latestDraft?.id : undefined
-  );
-
-  if (!bumped && !isReleaseBranch) {
+  if (nextVersion) {
+    const changelog = await generateChangelog(bumpInfo);
+    bumped = await publishBump(
+      nextVersion,
+      releaseMode,
+      headSha,
+      changelog,
+      isBranchAllowedToPublish,
+      // Re-use the latest draft release only when not running on a release branch,
+      // otherwise we might randomly reset a `dev-N` number chain.
+      !isReleaseBranch ? latestDraft?.id : undefined
+    );
+  }
+  if (!bumped) {
     core.info("ℹ️ No bump was performed");
   }
-  core.setOutput("next-version", nextVersion.toString());
+  core.setOutput("next-version", nextVersion?.toString() ?? "");
   core.endGroup();
   return bumped;
 }
