@@ -270,7 +270,7 @@ export class SemVer {
       if (lhs.prerelease && rhs.prerelease) {
         const l = +(firstNum.exec(lhs.prerelease)?.groups?.preversion ?? 0);
         const r = +(firstNum.exec(rhs.prerelease)?.groups?.preversion ?? 0);
-        core.debug(`sort: ${rhs} is subver ${l}, ${lhs} is subver ${l}`);
+        core.debug(`sort: ${rhs} is subver ${r}, ${lhs} is subver ${l}`);
         if (l === r) {
           sortResult = lhs.prerelease.localeCompare(rhs.prerelease);
         } else {
