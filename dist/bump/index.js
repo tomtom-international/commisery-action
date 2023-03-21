@@ -11993,6 +11993,7 @@ function bumpSemVer(config, bumpInfo, releaseMode, branchName, headSha, isBranch
 }
 exports.bumpSemVer = bumpSemVer;
 function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatchesTag, hasBreakingChange, devPrereleaseText, isInitialDevelopment) {
+    var _a;
     const currentIsRc = currentVersion.prerelease.startsWith(RC_PREFIX);
     const currentIsRel = currentVersion.prerelease === "";
     const currentBuildInfo = currentVersion.build;
@@ -12007,8 +12008,13 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
             v.build = currentBuildInfo;
         return v;
     };
-    core.info(`Determining SDK bump for version ${currentVersion.toString()}:`);
-    core.info(` - current version type: ${currentIsRel ? "release" : currentIsRc ? "release candidate" : "dev"}`);
+    const currentVersionType = currentIsRel
+        ? "release"
+        : currentIsRc
+            ? "release candidate"
+            : "dev";
+    core.info(`Determining SDK bump for version ${currentVersion.toString()}${headMatchesTag ? " (HEAD)" : ""}:`);
+    core.info(` - current version type: ${currentVersionType}`);
     core.info(` - bump type: ${sdkVerBumpType}`);
     core.info(` - branch type: ${isReleaseBranch ? "" : "not "}release`);
     core.info(` - breaking changes: ${hasBreakingChange ? "yes" : "no"}`);
@@ -12035,7 +12041,13 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
             !(currentIsRc && currentVersion.minor === 0 && currentVersion.patch === 0)) {
             die("Breaking changes are not allowed on release branches.");
         }
-        if (sdkVerBumpType === "rel") {
+        // Only bump if we need to; we don't want to generate a new RC or release
+        // when nothing has changed since the last RC or release, unless it is a
+        // promotion from RC to full release.
+        if (headMatchesTag && !(sdkVerBumpType === "rel" && currentIsRc)) {
+            core.info(` - head matches latest tag on release branch`);
+        }
+        else if (sdkVerBumpType === "rel") {
             if (currentIsRel) {
                 // Pushes on release branches with a finalized release always
                 // bump PATCH, no exception.
@@ -12051,7 +12063,6 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
         else {
             // Bumps for "rc" and "dev" are identical on a release branch
             if (currentIsRc) {
-                // Current version is an rc, so bump that
                 nextVersion = currentVersion.nextPrerelease();
                 if (!nextVersion) {
                     die(`Unable to bump RC version for: ${currentVersion.toString()}; ` +
@@ -12133,8 +12144,8 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
             }
         }
     }
-    core.info(` - next version: ${nextVersion === null || nextVersion === void 0 ? void 0 : nextVersion.toString()}`);
-    if (!nextVersion) {
+    core.info(` - next version: ${(_a = nextVersion === null || nextVersion === void 0 ? void 0 : nextVersion.toString()) !== null && _a !== void 0 ? _a : "none"}`);
+    if (!nextVersion && !headMatchesTag) {
         die(`Unable to bump version for: ${currentVersion.toString()}`);
     }
     return nextVersion;
@@ -12143,7 +12154,7 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
  * Bump and release/tag SDK versions
  */
 function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, branchName, isBranchAllowedToPublish) {
-    var _a, _b, _c;
+    var _a, _b, _c, _d;
     return __awaiter(this, void 0, void 0, function* () {
         const isReleaseBranch = branchName.match(config.releaseBranches);
         const hasBreakingChange = bumpInfo.processedCommits.some(c => { var _a; return (_a = c.message) === null || _a === void 0 ? void 0 : _a.breakingChange; });
@@ -12172,18 +12183,18 @@ function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, bran
         const headMatchesTag = yield (0, github_1.currentHeadMatchesTag)(cv.toString());
         const nextVersion = getNextSdkVer(cv, sdkVerBumpType, isReleaseBranch, headMatchesTag, hasBreakingChange, (_c = config.prereleasePrefix) !== null && _c !== void 0 ? _c : "dev", // SdkVer dictates dev versions
         config.initialDevelopment);
-        if (!nextVersion)
-            return false; // should never happen
         let bumped = false;
-        const changelog = yield (0, changelog_1.generateChangelog)(bumpInfo);
-        bumped = yield publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish, 
-        // Re-use the latest draft release only when not running on a release branch,
-        // otherwise we might randomly reset a `dev-N` number chain.
-        !isReleaseBranch ? latestDraft === null || latestDraft === void 0 ? void 0 : latestDraft.id : undefined);
-        if (!bumped && !isReleaseBranch) {
+        if (nextVersion) {
+            const changelog = yield (0, changelog_1.generateChangelog)(bumpInfo);
+            bumped = yield publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish, 
+            // Re-use the latest draft release only when not running on a release branch,
+            // otherwise we might randomly reset a `dev-N` number chain.
+            !isReleaseBranch ? latestDraft === null || latestDraft === void 0 ? void 0 : latestDraft.id : undefined);
+        }
+        if (!bumped) {
             core.info("ℹ️ No bump was performed");
         }
-        core.setOutput("next-version", nextVersion.toString());
+        core.setOutput("next-version", (_d = nextVersion === null || nextVersion === void 0 ? void 0 : nextVersion.toString()) !== null && _d !== void 0 ? _d : "");
         core.endGroup();
         return bumped;
     });
@@ -18181,12 +18192,12 @@ function findPair(items, key) {
     return undefined;
 }
 class YAMLMap extends Collection.Collection {
+    static get tagName() {
+        return 'tag:yaml.org,2002:map';
+    }
     constructor(schema) {
         super(Node.MAP, schema);
         this.items = [];
-    }
-    static get tagName() {
-        return 'tag:yaml.org,2002:map';
     }
     /**
      * Adds a value to the collection.
@@ -18295,12 +18306,12 @@ var Scalar = __nccwpck_require__(9338);
 var toJS = __nccwpck_require__(2463);
 
 class YAMLSeq extends Collection.Collection {
+    static get tagName() {
+        return 'tag:yaml.org,2002:seq';
+    }
     constructor(schema) {
         super(Node.SEQ, schema);
         this.items = [];
-    }
-    static get tagName() {
-        return 'tag:yaml.org,2002:seq';
     }
     add(value) {
         this.items.push(value);
@@ -22293,6 +22304,7 @@ function createStringifyContext(doc, options) {
         doubleQuotedAsJSON: false,
         doubleQuotedMinMultiLineLength: 40,
         falseStr: 'false',
+        flowCollectionPadding: true,
         indentSeq: true,
         lineWidth: 80,
         minContentWidth: 20,
@@ -22316,6 +22328,7 @@ function createStringifyContext(doc, options) {
     return {
         anchors: new Set(),
         doc,
+        flowCollectionPadding: opt.flowCollectionPadding ? ' ' : '',
         indent: '',
         indentStep: typeof opt.indent === 'number' ? ' '.repeat(opt.indent) : '  ',
         inFlow,
@@ -22473,7 +22486,7 @@ function stringifyBlockCollection({ comment, items }, ctx, { blockItemPrefix, fl
     return str;
 }
 function stringifyFlowCollection({ comment, items }, ctx, { flowChars, itemIndent, onComment }) {
-    const { indent, indentStep, options: { commentString } } = ctx;
+    const { indent, indentStep, flowCollectionPadding: fcPadding, options: { commentString } } = ctx;
     itemIndent += indentStep;
     const itemCtx = Object.assign({}, ctx, {
         indent: itemIndent,
@@ -22542,7 +22555,7 @@ function stringifyFlowCollection({ comment, items }, ctx, { flowChars, itemInden
             str += `\n${indent}${end}`;
         }
         else {
-            str = `${start} ${lines.join(' ')} ${end}`;
+            str = `${start}${fcPadding}${lines.join(' ')}${fcPadding}${end}`;
         }
     }
     if (comment) {
@@ -22798,19 +22811,18 @@ function stringifyPair({ key, value }, ctx, onComment, onChompKeep) {
         if (keyComment)
             str += stringifyComment.lineComment(str, ctx.indent, commentString(keyComment));
     }
-    let vcb = '';
-    let valueComment = null;
+    let vsb, vcb, valueComment;
     if (Node.isNode(value)) {
-        if (value.spaceBefore)
-            vcb = '\n';
-        if (value.commentBefore) {
-            const cs = commentString(value.commentBefore);
-            vcb += `\n${stringifyComment.indentComment(cs, ctx.indent)}`;
-        }
+        vsb = !!value.spaceBefore;
+        vcb = value.commentBefore;
         valueComment = value.comment;
     }
-    else if (value && typeof value === 'object') {
-        value = doc.createNode(value);
+    else {
+        vsb = false;
+        vcb = null;
+        valueComment = null;
+        if (value && typeof value === 'object')
+            value = doc.createNode(value);
     }
     ctx.implicitKey = false;
     if (!explicitKey && !keyComment && Node.isScalar(value))
@@ -22825,24 +22837,50 @@ function stringifyPair({ key, value }, ctx, onComment, onChompKeep) {
         !value.tag &&
         !value.anchor) {
         // If indentSeq === false, consider '- ' as part of indentation where possible
-        ctx.indent = ctx.indent.substr(2);
+        ctx.indent = ctx.indent.substring(2);
     }
     let valueCommentDone = false;
     const valueStr = stringify.stringify(value, ctx, () => (valueCommentDone = true), () => (chompKeep = true));
     let ws = ' ';
-    if (vcb || keyComment) {
-        if (valueStr === '' && !ctx.inFlow)
-            ws = vcb === '\n' ? '\n\n' : vcb;
-        else
-            ws = `${vcb}\n${ctx.indent}`;
+    if (keyComment || vsb || vcb) {
+        ws = vsb ? '\n' : '';
+        if (vcb) {
+            const cs = commentString(vcb);
+            ws += `\n${stringifyComment.indentComment(cs, ctx.indent)}`;
+        }
+        if (valueStr === '' && !ctx.inFlow) {
+            if (ws === '\n')
+                ws = '\n\n';
+        }
+        else {
+            ws += `\n${ctx.indent}`;
+        }
     }
     else if (!explicitKey && Node.isCollection(value)) {
-        const flow = valueStr[0] === '[' || valueStr[0] === '{';
-        if (!flow || valueStr.includes('\n'))
-            ws = `\n${ctx.indent}`;
+        const vs0 = valueStr[0];
+        const nl0 = valueStr.indexOf('\n');
+        const hasNewline = nl0 !== -1;
+        const flow = ctx.inFlow ?? value.flow ?? value.items.length === 0;
+        if (hasNewline || !flow) {
+            let hasPropsLine = false;
+            if (hasNewline && (vs0 === '&' || vs0 === '!')) {
+                let sp0 = valueStr.indexOf(' ');
+                if (vs0 === '&' &&
+                    sp0 !== -1 &&
+                    sp0 < nl0 &&
+                    valueStr[sp0 + 1] === '!') {
+                    sp0 = valueStr.indexOf(' ', sp0 + 1);
+                }
+                if (sp0 === -1 || nl0 < sp0)
+                    hasPropsLine = true;
+            }
+            if (!hasPropsLine)
+                ws = `\n${ctx.indent}`;
+        }
     }
-    else if (valueStr === '' || valueStr[0] === '\n')
+    else if (valueStr === '' || valueStr[0] === '\n') {
         ws = '';
+    }
     str += ws + valueStr;
     if (ctx.inFlow) {
         if (valueCommentDone && onComment)
@@ -23100,7 +23138,7 @@ function blockString({ comment, type, value }, ctx, onComment, onChompKeep) {
 }
 function plainString(item, ctx, onComment, onChompKeep) {
     const { type, value } = item;
-    const { actualString, implicitKey, indent, inFlow } = ctx;
+    const { actualString, implicitKey, indent, indentStep, inFlow } = ctx;
     if ((implicitKey && /[\n[\]{},]/.test(value)) ||
         (inFlow && /[[\]{},]/.test(value))) {
         return quotedString(value, ctx);
@@ -23124,9 +23162,14 @@ function plainString(item, ctx, onComment, onChompKeep) {
         // Where allowed & type not set explicitly, prefer block style for multiline strings
         return blockString(item, ctx, onComment, onChompKeep);
     }
-    if (indent === '' && containsDocumentMarker(value)) {
-        ctx.forceBlockIndent = true;
-        return blockString(item, ctx, onComment, onChompKeep);
+    if (containsDocumentMarker(value)) {
+        if (indent === '') {
+            ctx.forceBlockIndent = true;
+            return blockString(item, ctx, onComment, onChompKeep);
+        }
+        else if (implicitKey && indent === indentStep) {
+            return quotedString(value, ctx);
+        }
     }
     const str = value.replace(/\n+/g, `$&\n${indent}`);
     // Verify that output will be parsed as a string, as e.g. plain numbers and
