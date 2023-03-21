@@ -12091,7 +12091,7 @@ class SemVer {
             if (lhs.prerelease && rhs.prerelease) {
                 const l = +((_c = (_b = (_a = firstNum.exec(lhs.prerelease)) === null || _a === void 0 ? void 0 : _a.groups) === null || _b === void 0 ? void 0 : _b.preversion) !== null && _c !== void 0 ? _c : 0);
                 const r = +((_f = (_e = (_d = firstNum.exec(rhs.prerelease)) === null || _d === void 0 ? void 0 : _d.groups) === null || _e === void 0 ? void 0 : _e.preversion) !== null && _f !== void 0 ? _f : 0);
-                core.debug(`sort: ${rhs} is subver ${l}, ${lhs} is subver ${l}`);
+                core.debug(`sort: ${rhs} is subver ${r}, ${lhs} is subver ${l}`);
                 if (l === r) {
                     sortResult = lhs.prerelease.localeCompare(rhs.prerelease);
                 }
