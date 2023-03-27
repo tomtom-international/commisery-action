@@ -12074,7 +12074,8 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
             nextVersion.prerelease = "rc1";
         }
         else if (sdkVerBumpType === "dev") {
-            if (hasBreakingChange || currentIsRel || currentIsRc) {
+            // TODO: decide on how best to handle hasBreakingChange in this case
+            if (currentIsRel || currentIsRc) {
                 nextVersion = bumpWithBuildInfo(releaseBump);
                 nextVersion.prerelease = `${devPrereleaseText}1`;
             }
