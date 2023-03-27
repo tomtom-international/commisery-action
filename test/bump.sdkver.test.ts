@@ -241,7 +241,7 @@ const testSuiteDefinitions = [
     tests: [
      // [ test description      , version     ,  bump  , latest draft , branch         , breaking?, expected version ]
         ["main branch"          , "1.2.0"     , "dev"  , undefined    , "master"       , true    , "2.0.0-dev1"      ],
-        ["main branch, draft"   , "1.2.0"     , "dev"  , "1.3.0-dev1" , "master"       , true    , "2.0.0-dev1"      ],
+        ["main branch, draft"   , "1.2.0"     , "dev"  , "1.3.0-dev1" , "master"       , true    , "1.3.0-dev2"      ],
         ["release branch"       , "1.2.0"     , "dev"  , undefined    , "release/1.2.0", true    , undefined         ],
         ["release branch, draft", "1.2.0"     , "dev"  , "1.3.0-dev1" , "release/1.2.0", true    , undefined         ],
         ["release branch+RC"    , "1.2.0-rc1" , "dev"  , undefined    , "release/1.2.0", true    , undefined         ],
