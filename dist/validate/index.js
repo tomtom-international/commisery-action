@@ -11673,6 +11673,8 @@ exports.getVersionBumpType = getVersionBumpType;
                  - the SemVer object or null if no (acceptable) SemVer was found.
                  - the highest bump encountered, or SemVerType.NONE if [0] is null
                  - list of ConventionalCommitMessage objects up to the found SemVer tag
+                 - state of "initial development"; if no version is found, err on the
+                   safe side and declare "initial development" (if configured as such)
  */
 function getVersionBumpTypeAndMessages(prefix, targetSha, config) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -11722,6 +11724,8 @@ function getVersionBumpTypeAndMessages(prefix, targetSha, config) {
             foundVersion: version,
             requiredBump: getVersionBumpType(convCommits),
             processedCommits: results,
+            initialDevelopment: config.initialDevelopment &&
+                (!version || (version && version.major === 0)),
         };
     });
 }
@@ -12161,12 +12165,12 @@ function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, bran
             // full release. In other cases, we need to gather some information
             // to generate the proper changelog.
             const previousRelease = yield (0, github_1.getRelease)({
-                prefixToMatch: cv.prefix,
+                prefixToMatch: nextVersion.prefix,
                 draftOnly: false,
                 fullReleasesOnly: true,
                 constraint: {
-                    major: cv.major,
-                    minor: cv.minor,
+                    major: nextVersion.major,
+                    minor: nextVersion.minor,
                 },
             });
             core.info(`The full release preceding the current one is ${(_d = previousRelease === null || previousRelease === void 0 ? void 0 : previousRelease.name) !== null && _d !== void 0 ? _d : "undefined"}`);
@@ -12504,7 +12508,7 @@ exports.generateChangelogForCommits = generateChangelogForCommits;
 function generateChangelog(bump) {
     var _a, _b, _c, _d, _e;
     return __awaiter(this, void 0, void 0, function* () {
-        return yield generateChangelogForCommits((_b = (_a = bump.foundVersion) === null || _a === void 0 ? void 0 : _a.toString()) !== null && _b !== void 0 ? _b : "", (_e = (_d = (_c = bump.foundVersion) === null || _c === void 0 ? void 0 : _c.bump(bump.requiredBump)) === null || _d === void 0 ? void 0 : _d.toString()) !== null && _e !== void 0 ? _e : "", bump.processedCommits
+        return yield generateChangelogForCommits((_b = (_a = bump.foundVersion) === null || _a === void 0 ? void 0 : _a.toString()) !== null && _b !== void 0 ? _b : "", (_e = (_d = (_c = bump.foundVersion) === null || _c === void 0 ? void 0 : _c.bump(bump.requiredBump, bump.initialDevelopment)) === null || _d === void 0 ? void 0 : _d.toString()) !== null && _e !== void 0 ? _e : "", bump.processedCommits
             .map(c => c.message)
             .filter(c => c));
     });
@@ -13310,7 +13314,7 @@ function getRelease(params) {
         core.debug(`getRelease: sorted list of releases:\n${JSON.stringify(releaseList)}`);
         if (params.constraint) {
             // We're sorted by precedence, highest last, so let's reverse it and we can
-            // can take the first major/minor version lower than the constraint we encounter.
+            // take the first major/minor version lower than the constraint we encounter.
             releaseList.reverse();
             for (const r of releaseList) {
                 core.debug(`checking release ${r.name} against constraint ` +
