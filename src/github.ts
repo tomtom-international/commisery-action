@@ -140,19 +140,23 @@ function sortVersionPrereleases(
 }
 
 /**
- * Gets the name and ID of the existing draft release with the
+ * Gets the name and ID of the existing (draft) release with the
  * most precedence of which the tag name starts with the provided parameter.
+ * If `fullReleasesOnly` is set, only consider full releases (i.e. without a
+ * SemVer prerelease field).
  *
  * Returns an object {id, name}, or `undefined` if no tag was found.
  */
-export async function getRelease(
-  prefixMustMatch: string,
-  isDraft: boolean
-): Promise<{ id: number; name: string } | undefined> {
+export async function getRelease(params: {
+  prefixToMatch: string;
+  draftOnly: boolean;
+  fullReleasesOnly: boolean;
+  constraint?: { major: number; minor: number };
+}): Promise<{ id: number; name: string } | undefined> {
   core.info(
     `getRelease: finding ${
-      isDraft ? "draft " : ""
-    }release with the prefix: ${prefixMustMatch}`
+      params.draftOnly ? "draft " : ""
+    }release with the prefix: ${params.prefixToMatch}`
   );
   const octo = getOctokit();
 
@@ -166,8 +170,9 @@ export async function getRelease(
 
   /**
    * We need to:
-   *  - only consider releases starting with the provided `nameStartsWith`
-   *    and `isDraft` parameters
+   *  - only consider releases starting with the provided prefix, draft and
+   *    release parameters
+   *  - consider the major/minor constraint, if provided
    *  - _NOT_ rely on the temporal data; the precendence of the existing tags
    *    shall determined according to a "SemVer-esque prerelease", that is:
    *      * componentX-1.2.3-9 < componentX-1.2.3-10
@@ -175,14 +180,41 @@ export async function getRelease(
    */
 
   const releaseList = result
-    .filter(r => r.isDraft === isDraft)
-    .filter(r => SemVer.fromString(r.tagName)?.prefix === prefixMustMatch)
+    .filter(r => r.isDraft === params.draftOnly)
+    .filter(r => {
+      const asSemVer = SemVer.fromString(r.tagName);
+      return asSemVer?.prefix === params.prefixToMatch &&
+        params.fullReleasesOnly
+        ? asSemVer?.prerelease === ""
+        : true;
+    })
     .map(r => ({ id: r.id, name: r.tagName }))
     .sort((lhs, rhs) => SemVer.sortSemVer(lhs.name, rhs.name));
 
   core.debug(
     `getRelease: sorted list of releases:\n${JSON.stringify(releaseList)}`
   );
+
+  if (params.constraint) {
+    // We're sorted by precedence, highest last, so let's reverse it and we can
+    // can take the first major/minor version lower than the constraint we encounter.
+    releaseList.reverse();
+    for (const r of releaseList) {
+      core.debug(
+        `checking release ${r.name} against constraint ` +
+          `${params.constraint.major}.${params.constraint.minor}.*`
+      );
+      const sv = SemVer.fromString(r.name);
+      if (
+        sv &&
+        sv.major <= params.constraint.major &&
+        sv.minor <= params.constraint.minor
+      ) {
+        return r;
+      }
+    }
+    return;
+  }
   return releaseList.pop();
 }
 
@@ -260,8 +292,8 @@ export async function getReleaseConfiguration(): Promise<string> {
 }
 
 /**
- * Attempt to match the provided list of git `tags` to the commits in the
- * current context's repository.
+ * Runs the provided matcher function to a list of commits reachable from the provided
+ * `sha`, or GitHub's `context.sha` if undefined.
  * Takes a `matcher` function, and executes it on each commit in the repository.
  *
  * When (if) the matcher function returns a SemVer object, this function shall
@@ -271,20 +303,25 @@ export async function getReleaseConfiguration(): Promise<string> {
  * the commits encountered.
  */
 export async function matchTagsToCommits(
-  sha: string,
-  tags: IGitTag[],
+  sha: string | undefined,
   matcher: (msg: string, hash: string) => SemVer | null
 ): Promise<[SemVer | null, ICommit[]]> {
   const octo = getOctokit();
   const commitList: ICommit[] = [];
   let match: SemVer | null = null;
+  sha = sha ?? github.context.sha;
   for await (const resp of octo.paginate.iterator(octo.rest.repos.listCommits, {
     ...github.context.repo,
     sha,
   })) {
     for (const commit of resp.data) {
       match = matcher(commit.commit.message, commit.sha);
-      if (match) return [match, commitList];
+      if (match) {
+        core.debug(
+          `Matching on (${commit.sha}):${commit.commit.message.split("\n")[0]}`
+        );
+        return [match, commitList];
+      }
       commitList.push({ message: commit.commit.message, sha: commit.sha });
     }
   }
@@ -494,4 +531,25 @@ export async function getContent(path: string): Promise<string | undefined> {
  */
 export async function currentHeadMatchesTag(tagName: string): Promise<boolean> {
   return (await getShaForTag(tagName)) === github.context.sha;
+}
+
+/**
+ * Returns the commits between two Git refs.
+ * According to the docs, the behavior matches `baseRef...compRef`, with an additional
+ * "chronological" order (unsure if commit- or author-date).
+ *
+ * Returns a list ICommits representing `baseRef...compRef`.
+ */
+export async function getCommitsBetweenRefs(
+  baseRef: string,
+  compRef?: string
+): Promise<ICommit[]> {
+  const { data: resp } =
+    await getOctokit().rest.repos.compareCommitsWithBasehead({
+      owner: OWNER,
+      repo: REPO,
+      basehead: `${baseRef}...${compRef ?? github.context.sha}`,
+    });
+
+  return githubCommitsAsICommits(resp.commits);
 }
