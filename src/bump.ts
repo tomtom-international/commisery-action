@@ -17,12 +17,13 @@
 import * as core from "@actions/core";
 import { RequestError } from "@octokit/request-error";
 
-import { generateChangelog } from "./changelog";
+import { generateChangelogForCommits, generateChangelog } from "./changelog";
 import { Configuration } from "./config";
 import {
   createRelease,
   createTag,
   currentHeadMatchesTag,
+  getCommitsBetweenRefs,
   getLatestTags,
   getRelease,
   getShaForTag,
@@ -39,6 +40,7 @@ import {
 } from "./errors";
 import {
   ICommit,
+  IGitTag,
   IValidationResult,
   IVersionBumpTypeAndMessages,
   ReleaseMode,
@@ -75,9 +77,9 @@ function getSemVerIfMatches(
     const dbg = (tag, commit, message): void => {
       core.debug(`Tag '${tag}' on commit '${commit.slice(0, 6)}' ${message}`);
     };
-    // If provided, make sure that the prefix matches as well
     const sv: SemVer | null = SemVer.fromString(tagName);
     if (sv) {
+      // If provided, make sure that the prefix matches as well
       // Asterisk is a special case, meaning 'any prefix'
       if (sv.prefix === prefix || prefix === "*") {
         dbg(tagName, commitSha, "matches prefix");
@@ -90,6 +92,24 @@ function getSemVerIfMatches(
   }
 
   return null;
+}
+
+/** Validates a list of commits in a bump context, which differs slightly to
+ * pull request validation runs, as some rules need to be disabled.
+ */
+function processCommitsForBump(
+  commits: ICommit[],
+  config: Configuration
+): IValidationResult[] {
+  // We'll relax certain rules while processing these commits; these are
+  // commits/pull request titles that (ideally) have been validated
+  // _before_ they were merged, and certain GitHub CI settings may append
+  // a reference to the PR number in merge commits.
+  const configCopy = JSON.parse(JSON.stringify(config));
+  configCopy.rules["C014"].enabled = false; // SubjectExceedsLineLengthLimit
+  configCopy.rules["C019"].enabled = false; // SubjectContainsIssueReference
+
+  return processCommits(commits, configCopy);
 }
 
 /**
@@ -184,21 +204,9 @@ export async function getVersionBumpTypeAndMessages(
     return null;
   };
 
-  const [version, commitList] = await matchTagsToCommits(
-    targetSha,
-    tags,
-    tagMatcher
-  );
+  const [version, commitList] = await matchTagsToCommits(targetSha, tagMatcher);
 
-  // We'll relax certain rules while processing these commits; these are
-  // commits/pull request titles that (ideally) have been validated
-  // _before_ they were merged, and certain GitHub CI settings may append
-  // a reference to the PR number in merge commits.
-  const configCopy = JSON.parse(JSON.stringify(config));
-  configCopy.rules["C014"].enabled = false; // SubjectExceedsLineLengthLimit
-  configCopy.rules["C019"].enabled = false; // SubjectContainsIssueReference
-
-  const results = processCommits(commitList, configCopy);
+  const results = processCommitsForBump(commitList, config);
   const convCommits = results
     .map(r => r.message)
     .filter((r): r is ConventionalCommitMessage => r !== undefined);
@@ -233,7 +241,11 @@ async function tryUpdateDraftRelease(
   const baseCurrent = `${cv.prefix}${cv.major}.${cv.minor}.${cv.patch}${preStem}`;
   const nextMajor = `${cv.nextMajor().toString()}${preStem}`;
   const nextMinor = `${cv.nextMinor().toString()}${preStem}`;
-  const latestDraftRelease = await getRelease(cv.prefix, true);
+  const latestDraftRelease = await getRelease({
+    prefixToMatch: cv.prefix,
+    draftOnly: true,
+    fullReleasesOnly: false,
+  });
   if (!latestDraftRelease) return;
 
   const currentDraftVersion = SemVer.fromString(latestDraftRelease.name);
@@ -281,11 +293,10 @@ async function newDraftRelease(
 
 export async function bumpDraftRelease(
   bumpInfo: IVersionBumpTypeAndMessages,
+  changelog: string,
   sha: string,
   prefix: string
 ): Promise<string> {
-  const changelog = await generateChangelog(bumpInfo);
-
   if (!bumpInfo.foundVersion) throw Error("Found version is falsy"); // should never happen
 
   const result =
@@ -477,9 +488,10 @@ export async function bumpSemVer(
     config.initialDevelopment
   );
 
+  const changelog = await generateChangelog(bumpInfo);
+
   let bumped = false;
   if (nextVersion) {
-    const changelog = await generateChangelog(bumpInfo);
     bumped = await publishBump(
       nextVersion,
       releaseMode,
@@ -504,6 +516,7 @@ export async function bumpSemVer(
       // Create/rename draft release
       const ver = await bumpDraftRelease(
         bumpInfo,
+        changelog,
         headSha,
         config.prereleasePrefix
       );
@@ -547,17 +560,12 @@ function getNextSdkVer(
     return v as SemVer;
   };
 
-  const currentVersionType = currentIsRel
-    ? "release"
-    : currentIsRc
-    ? "release candidate"
-    : "dev";
+  core.info(`Determining SDK bump for version ${currentVersion.toString()}:`);
   core.info(
-    `Determining SDK bump for version ${currentVersion.toString()}${
-      headMatchesTag ? " (HEAD)" : ""
-    }:`
+    ` - current version type: ${
+      currentIsRel ? "release" : currentIsRc ? "release candidate" : "dev"
+    }`
   );
-  core.info(` - current version type: ${currentVersionType}`);
   core.info(` - bump type: ${sdkVerBumpType}`);
   core.info(` - branch type: ${isReleaseBranch ? "" : "not "}release`);
   core.info(` - breaking changes: ${hasBreakingChange ? "yes" : "no"}`);
@@ -723,14 +731,22 @@ export async function bumpSdkVer(
   // Don't look at the draft version on a release branch; the current version
   // should always reflect the version to be bumped (as no dev releases are
   // allowed on a release branch)
-  const latestDraft = await getRelease(cv.prefix, true);
-  const latestRelease = await getRelease(cv.prefix, false);
+  const latestDraft = await getRelease({
+    prefixToMatch: cv.prefix,
+    draftOnly: true,
+    fullReleasesOnly: false,
+  });
+  const latestRelease = await getRelease({
+    prefixToMatch: cv.prefix,
+    draftOnly: false,
+    fullReleasesOnly: true,
+  });
+
   core.info(
     `Current version: ${cv.toString()}, latest GitHub release draft: ${
       latestDraft?.name ?? "NONE"
     }, latest GitHub release: ${latestRelease?.name ?? "NONE"}`
   );
-  // `latestRelease` is not used for anything functional at this point
 
   if (!isReleaseBranch && latestDraft) {
     // If we're not on a release branch and a draft version exists that is
@@ -754,8 +770,43 @@ export async function bumpSdkVer(
   );
 
   let bumped = false;
+
   if (nextVersion) {
-    const changelog = await generateChangelog(bumpInfo);
+    // Since we want the changelog since the last _full_ release, we
+    // can only rely on the `bumpInfo` if the "current version" is a
+    // full release. In other cases, we need to gather some information
+    // to generate the proper changelog.
+    const previousRelease = await getRelease({
+      prefixToMatch: cv.prefix,
+      draftOnly: false,
+      fullReleasesOnly: true,
+      constraint: {
+        major: cv.major,
+        minor: cv.minor,
+      },
+    });
+    core.info(
+      `The full release preceding the current one is ${
+        previousRelease?.name ?? "undefined"
+      }`
+    );
+    let changelog = "";
+
+    if (previousRelease && cv.prerelease) {
+      const toVersion =
+        // Since "dev" releases on non-release-branches result in a draft
+        // release, we'll need to use the commit sha.
+        sdkVerBumpType === "dev" && !isReleaseBranch
+          ? headSha.substring(0, 8)
+          : nextVersion.toString();
+      changelog = await generateChangelogForCommits(
+        previousRelease.name,
+        toVersion,
+        await collectChangelogCommits(previousRelease.name, config)
+      );
+    } else {
+      changelog = await generateChangelog(bumpInfo);
+    }
     bumped = await publishBump(
       nextVersion,
       releaseMode,
@@ -773,4 +824,33 @@ export async function bumpSdkVer(
   core.setOutput("next-version", nextVersion?.toString() ?? "");
   core.endGroup();
   return bumped;
+}
+
+/**
+ * For SdkVer, the latest tag (i.e. "current version") may not be the starting
+ * point we want for generating a changelog; in this context, we want to get a
+ * list of commits since the last _full_ release.
+ *
+ * Returns an object containing:
+ *   - the name of the last full release reachable from our current version
+ *   - the list of valid Conventional Commit objects since that release
+ */
+async function collectChangelogCommits(
+  previousRelease: string,
+  config: Configuration
+): Promise<ConventionalCommitMessage[]> {
+  core.startGroup(`📜 Gathering changelog information`);
+  const commits = await getCommitsBetweenRefs(previousRelease);
+  core.info(
+    `Processing commit list (since ${previousRelease}) ` +
+      `for changelog generation:\n-> ` +
+      `${commits.map(c => c.message.split("\n")[0]).join("\n-> ")}`
+  );
+
+  const processedCommits = processCommitsForBump(commits, config);
+
+  core.endGroup();
+  return processedCommits
+    .map(c => c.message)
+    .filter(c => c) as ConventionalCommitMessage[];
 }

@@ -11608,9 +11608,9 @@ function getSemVerIfMatches(prefix, tagName, tagSha, commitSha) {
         const dbg = (tag, commit, message) => {
             core.debug(`Tag '${tag}' on commit '${commit.slice(0, 6)}' ${message}`);
         };
-        // If provided, make sure that the prefix matches as well
         const sv = semver_1.SemVer.fromString(tagName);
         if (sv) {
+            // If provided, make sure that the prefix matches as well
             // Asterisk is a special case, meaning 'any prefix'
             if (sv.prefix === prefix || prefix === "*") {
                 dbg(tagName, commitSha, "matches prefix");
@@ -11623,6 +11623,19 @@ function getSemVerIfMatches(prefix, tagName, tagSha, commitSha) {
         }
     }
     return null;
+}
+/** Validates a list of commits in a bump context, which differs slightly to
+ * pull request validation runs, as some rules need to be disabled.
+ */
+function processCommitsForBump(commits, config) {
+    // We'll relax certain rules while processing these commits; these are
+    // commits/pull request titles that (ideally) have been validated
+    // _before_ they were merged, and certain GitHub CI settings may append
+    // a reference to the PR number in merge commits.
+    const configCopy = JSON.parse(JSON.stringify(config));
+    configCopy.rules["C014"].enabled = false; // SubjectExceedsLineLengthLimit
+    configCopy.rules["C019"].enabled = false; // SubjectContainsIssueReference
+    return (0, validate_1.processCommits)(commits, configCopy);
 }
 /**
  * Determines the highest SemVer bump level based on the provided
@@ -11700,15 +11713,8 @@ function getVersionBumpTypeAndMessages(prefix, targetSha, config) {
             core.debug(`Commit ${commitSha.slice(0, 6)} is not associated with a tag`);
             return null;
         };
-        const [version, commitList] = yield (0, github_1.matchTagsToCommits)(targetSha, tags, tagMatcher);
-        // We'll relax certain rules while processing these commits; these are
-        // commits/pull request titles that (ideally) have been validated
-        // _before_ they were merged, and certain GitHub CI settings may append
-        // a reference to the PR number in merge commits.
-        const configCopy = JSON.parse(JSON.stringify(config));
-        configCopy.rules["C014"].enabled = false; // SubjectExceedsLineLengthLimit
-        configCopy.rules["C019"].enabled = false; // SubjectContainsIssueReference
-        const results = (0, validate_1.processCommits)(commitList, configCopy);
+        const [version, commitList] = yield (0, github_1.matchTagsToCommits)(targetSha, tagMatcher);
+        const results = processCommitsForBump(commitList, config);
         const convCommits = results
             .map(r => r.message)
             .filter((r) => r !== undefined);
@@ -11740,7 +11746,11 @@ function tryUpdateDraftRelease(cv, changelog, sha) {
         const baseCurrent = `${cv.prefix}${cv.major}.${cv.minor}.${cv.patch}${preStem}`;
         const nextMajor = `${cv.nextMajor().toString()}${preStem}`;
         const nextMinor = `${cv.nextMinor().toString()}${preStem}`;
-        const latestDraftRelease = yield (0, github_1.getRelease)(cv.prefix, true);
+        const latestDraftRelease = yield (0, github_1.getRelease)({
+            prefixToMatch: cv.prefix,
+            draftOnly: true,
+            fullReleasesOnly: false,
+        });
         if (!latestDraftRelease)
             return;
         const currentDraftVersion = semver_1.SemVer.fromString(latestDraftRelease.name);
@@ -11769,10 +11779,9 @@ function newDraftRelease(currentVersion, changelog, sha, prefix) {
         return nextPrereleaseVersion.toString();
     });
 }
-function bumpDraftRelease(bumpInfo, sha, prefix) {
+function bumpDraftRelease(bumpInfo, changelog, sha, prefix) {
     var _a;
     return __awaiter(this, void 0, void 0, function* () {
-        const changelog = yield (0, changelog_1.generateChangelog)(bumpInfo);
         if (!bumpInfo.foundVersion)
             throw Error("Found version is falsy"); // should never happen
         const result = (_a = (yield tryUpdateDraftRelease(bumpInfo.foundVersion, changelog, sha))) !== null && _a !== void 0 ? _a : (yield newDraftRelease(bumpInfo.foundVersion, changelog, sha, prefix));
@@ -11917,9 +11926,9 @@ function bumpSemVer(config, bumpInfo, releaseMode, branchName, headSha, isBranch
             return false;
         }
         const nextVersion = (_a = bumpInfo.foundVersion) === null || _a === void 0 ? void 0 : _a.bump(bumpInfo.requiredBump, config.initialDevelopment);
+        const changelog = yield (0, changelog_1.generateChangelog)(bumpInfo);
         let bumped = false;
         if (nextVersion) {
-            const changelog = yield (0, changelog_1.generateChangelog)(bumpInfo);
             bumped = yield publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish);
         }
         else {
@@ -11934,7 +11943,7 @@ function bumpSemVer(config, bumpInfo, releaseMode, branchName, headSha, isBranch
                 !(0, github_1.isPullRequestEvent)() &&
                 releaseMode === "release") {
                 // Create/rename draft release
-                const ver = yield bumpDraftRelease(bumpInfo, headSha, config.prereleasePrefix);
+                const ver = yield bumpDraftRelease(bumpInfo, changelog, headSha, config.prereleasePrefix);
                 core.info(`ℹ️ Created draft prerelease version ${ver}`);
             }
             else {
@@ -11968,13 +11977,8 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
             v.build = currentBuildInfo;
         return v;
     };
-    const currentVersionType = currentIsRel
-        ? "release"
-        : currentIsRc
-            ? "release candidate"
-            : "dev";
-    core.info(`Determining SDK bump for version ${currentVersion.toString()}${headMatchesTag ? " (HEAD)" : ""}:`);
-    core.info(` - current version type: ${currentVersionType}`);
+    core.info(`Determining SDK bump for version ${currentVersion.toString()}:`);
+    core.info(` - current version type: ${currentIsRel ? "release" : currentIsRc ? "release candidate" : "dev"}`);
     core.info(` - bump type: ${sdkVerBumpType}`);
     core.info(` - branch type: ${isReleaseBranch ? "" : "not "}release`);
     core.info(` - breaking changes: ${hasBreakingChange ? "yes" : "no"}`);
@@ -12114,7 +12118,7 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
  * Bump and release/tag SDK versions
  */
 function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, branchName, isBranchAllowedToPublish) {
-    var _a, _b, _c, _d;
+    var _a, _b, _c, _d, _e;
     return __awaiter(this, void 0, void 0, function* () {
         const isReleaseBranch = branchName.match(config.releaseBranches);
         const hasBreakingChange = bumpInfo.processedCommits.some(c => { var _a; return (_a = c.message) === null || _a === void 0 ? void 0 : _a.breakingChange; });
@@ -12127,10 +12131,17 @@ function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, bran
         // Don't look at the draft version on a release branch; the current version
         // should always reflect the version to be bumped (as no dev releases are
         // allowed on a release branch)
-        const latestDraft = yield (0, github_1.getRelease)(cv.prefix, true);
-        const latestRelease = yield (0, github_1.getRelease)(cv.prefix, false);
+        const latestDraft = yield (0, github_1.getRelease)({
+            prefixToMatch: cv.prefix,
+            draftOnly: true,
+            fullReleasesOnly: false,
+        });
+        const latestRelease = yield (0, github_1.getRelease)({
+            prefixToMatch: cv.prefix,
+            draftOnly: false,
+            fullReleasesOnly: true,
+        });
         core.info(`Current version: ${cv.toString()}, latest GitHub release draft: ${(_a = latestDraft === null || latestDraft === void 0 ? void 0 : latestDraft.name) !== null && _a !== void 0 ? _a : "NONE"}, latest GitHub release: ${(_b = latestRelease === null || latestRelease === void 0 ? void 0 : latestRelease.name) !== null && _b !== void 0 ? _b : "NONE"}`);
-        // `latestRelease` is not used for anything functional at this point
         if (!isReleaseBranch && latestDraft) {
             // If we're not on a release branch and a draft version exists that is
             // newer than the latest tag, we continue with that
@@ -12145,7 +12156,33 @@ function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, bran
         config.initialDevelopment);
         let bumped = false;
         if (nextVersion) {
-            const changelog = yield (0, changelog_1.generateChangelog)(bumpInfo);
+            // Since we want the changelog since the last _full_ release, we
+            // can only rely on the `bumpInfo` if the "current version" is a
+            // full release. In other cases, we need to gather some information
+            // to generate the proper changelog.
+            const previousRelease = yield (0, github_1.getRelease)({
+                prefixToMatch: cv.prefix,
+                draftOnly: false,
+                fullReleasesOnly: true,
+                constraint: {
+                    major: cv.major,
+                    minor: cv.minor,
+                },
+            });
+            core.info(`The full release preceding the current one is ${(_d = previousRelease === null || previousRelease === void 0 ? void 0 : previousRelease.name) !== null && _d !== void 0 ? _d : "undefined"}`);
+            let changelog = "";
+            if (previousRelease && cv.prerelease) {
+                const toVersion = 
+                // Since "dev" releases on non-release-branches result in a draft
+                // release, we'll need to use the commit sha.
+                sdkVerBumpType === "dev" && !isReleaseBranch
+                    ? headSha.substring(0, 8)
+                    : nextVersion.toString();
+                changelog = yield (0, changelog_1.generateChangelogForCommits)(previousRelease.name, toVersion, yield collectChangelogCommits(previousRelease.name, config));
+            }
+            else {
+                changelog = yield (0, changelog_1.generateChangelog)(bumpInfo);
+            }
             bumped = yield publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish, 
             // Re-use the latest draft release only when not running on a release branch,
             // otherwise we might randomly reset a `dev-N` number chain.
@@ -12154,12 +12191,35 @@ function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, bran
         if (!bumped) {
             core.info("ℹ️ No bump was performed");
         }
-        core.setOutput("next-version", (_d = nextVersion === null || nextVersion === void 0 ? void 0 : nextVersion.toString()) !== null && _d !== void 0 ? _d : "");
+        core.setOutput("next-version", (_e = nextVersion === null || nextVersion === void 0 ? void 0 : nextVersion.toString()) !== null && _e !== void 0 ? _e : "");
         core.endGroup();
         return bumped;
     });
 }
 exports.bumpSdkVer = bumpSdkVer;
+/**
+ * For SdkVer, the latest tag (i.e. "current version") may not be the starting
+ * point we want for generating a changelog; in this context, we want to get a
+ * list of commits since the last _full_ release.
+ *
+ * Returns an object containing:
+ *   - the name of the last full release reachable from our current version
+ *   - the list of valid Conventional Commit objects since that release
+ */
+function collectChangelogCommits(previousRelease, config) {
+    return __awaiter(this, void 0, void 0, function* () {
+        core.startGroup(`📜 Gathering changelog information`);
+        const commits = yield (0, github_1.getCommitsBetweenRefs)(previousRelease);
+        core.info(`Processing commit list (since ${previousRelease}) ` +
+            `for changelog generation:\n-> ` +
+            `${commits.map(c => c.message.split("\n")[0]).join("\n-> ")}`);
+        const processedCommits = processCommitsForBump(commits, config);
+        core.endGroup();
+        return processedCommits
+            .map(c => c.message)
+            .filter(c => c);
+    });
+}
 
 
 /***/ }),
@@ -12217,7 +12277,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.generateChangelog = exports.getChangelogConfiguration = void 0;
+exports.generateChangelog = exports.generateChangelogForCommits = exports.getChangelogConfiguration = void 0;
 const github_1 = __nccwpck_require__(5438);
 const github_2 = __nccwpck_require__(978);
 const yaml = __importStar(__nccwpck_require__(4083));
@@ -12329,24 +12389,29 @@ function getChangelogConfiguration() {
 }
 exports.getChangelogConfiguration = getChangelogConfiguration;
 /**
- * Returns a pretty-formatted Changelog (markdown) based on the
- * provided Conventional Commit messages.
+ * Returns a markdown-formatted changelog representing the provided list of
+ * Conventional Commits.
+ *
+ * A link to a GitHub ref comparison page will be generated at the bottom of
+ * the changelog, using the current GitHub context as well as the input to
+ * this function, in the form of `startVersion...endVersion`.
+ * `endVersion` can be an empty string, in which case the current HEAD sha
+ * will be used.
  */
-function generateChangelog(bump) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
+function generateChangelogForCommits(startVersion, endVersion, commitList) {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j;
     return __awaiter(this, void 0, void 0, function* () {
-        if (bump.foundVersion === null) {
+        if (startVersion === "") {
             return "";
         }
         const config = yield getChangelogConfiguration();
-        const { owner, repo } = github_1.context.repo;
         const changelog = new Map();
-        for (const commit of bump.processedCommits) {
-            if (!commit.message)
+        for (const commit of commitList) {
+            if (!commit)
                 continue;
-            const bumpLabel = Label.create("bump", semver_1.SemVerType[commit.message.bump]);
-            const typeLabel = Label.create("type", commit.message.type);
-            const scopeLabel = Label.create("scope", ((_b = (_a = commit.message) === null || _a === void 0 ? void 0 : _a.scope) === null || _b === void 0 ? void 0 : _b.toLowerCase()) || "*");
+            const bumpLabel = Label.create("bump", semver_1.SemVerType[commit.bump]);
+            const typeLabel = Label.create("type", commit.type);
+            const scopeLabel = Label.create("scope", ((_a = commit.scope) === null || _a === void 0 ? void 0 : _a.toLowerCase()) || "*");
             // Adds the following items as "virtual" labels for each commit:
             // * The version bump (`bump:<version>`)
             // * The conventional commit type (`type:<type>`)
@@ -12355,8 +12420,8 @@ function generateChangelog(bump) {
             // We will reuse the labels and author associated with a Pull Request
             // (with the exception of `bump:<version>` and `scope:<scope>`) for all
             // commits associated with the PR.
-            if (commit.message.hexsha) {
-                const pullRequests = yield (0, github_2.getAssociatedPullRequests)(commit.message.hexsha);
+            if (commit.hexsha) {
+                const pullRequests = yield (0, github_2.getAssociatedPullRequests)(commit.hexsha);
                 if (pullRequests.length > 0) {
                     const pullRequest = pullRequests[0];
                     // Append the labels of the associated Pull Request
@@ -12369,7 +12434,7 @@ function generateChangelog(bump) {
                         .map(label => label.name));
                     // Check if the author of the Pull Request is part of the exclude list
                     if (pullRequest.user &&
-                        ((_d = (_c = config.changelog.exclude) === null || _c === void 0 ? void 0 : _c.authors) === null || _d === void 0 ? void 0 : _d.includes(pullRequest.user.login))) {
+                        ((_c = (_b = config.changelog.exclude) === null || _b === void 0 ? void 0 : _b.authors) === null || _c === void 0 ? void 0 : _c.includes(pullRequest.user.login))) {
                         continue;
                     }
                 }
@@ -12381,9 +12446,9 @@ function generateChangelog(bump) {
             // Either group commits per Conventional Commit scope, or group them all
             // together (*)
             const scope = config.changelog.group === "scope"
-                ? ((_f = (_e = commit.message) === null || _e === void 0 ? void 0 : _e.scope) === null || _f === void 0 ? void 0 : _f.toLowerCase()) || "*"
+                ? ((_d = commit === null || commit === void 0 ? void 0 : commit.scope) === null || _d === void 0 ? void 0 : _d.toLowerCase()) || "*"
                 : "*";
-            changelog.set(scope, (_g = changelog.get(scope)) !== null && _g !== void 0 ? _g : new Map());
+            changelog.set(scope, (_e = changelog.get(scope)) !== null && _e !== void 0 ? _e : new Map());
             for (const category of config.changelog.categories) {
                 // Apply all exclusion patterns from Pull Request metadata on Category
                 if (labels.some(label => { var _a, _b; return (_b = (_a = category.exclude) === null || _a === void 0 ? void 0 : _a.labels) === null || _b === void 0 ? void 0 : _b.includes(label); })) {
@@ -12395,11 +12460,11 @@ function generateChangelog(bump) {
                     .some(label => { var _a; return (_a = category.labels) === null || _a === void 0 ? void 0 : _a.includes(label); })) {
                     continue;
                 }
-                if (((_h = changelog.get(scope)) === null || _h === void 0 ? void 0 : _h.get(category.title)) === undefined) {
-                    (_j = changelog.get(scope)) === null || _j === void 0 ? void 0 : _j.set(category.title, []);
+                if (((_f = changelog.get(scope)) === null || _f === void 0 ? void 0 : _f.get(category.title)) === undefined) {
+                    (_g = changelog.get(scope)) === null || _g === void 0 ? void 0 : _g.set(category.title, []);
                 }
-                (_l = (_k = changelog
-                    .get(scope)) === null || _k === void 0 ? void 0 : _k.get(category.title)) === null || _l === void 0 ? void 0 : _l.push(yield generateChangelogEntry(commit.message));
+                (_j = (_h = changelog
+                    .get(scope)) === null || _h === void 0 ? void 0 : _h.get(category.title)) === null || _j === void 0 ? void 0 : _j.push(yield generateChangelogEntry(commit));
                 break;
             }
         }
@@ -12423,10 +12488,25 @@ function generateChangelog(bump) {
                 }
             }
         }
-        const diffRange = `${bump.foundVersion.toString()}...` +
-            `${(_o = (_m = bump.foundVersion.bump(bump.requiredBump)) === null || _m === void 0 ? void 0 : _m.toString()) !== null && _o !== void 0 ? _o : github_1.context.sha.substring(0, 8)}`;
-        formattedChangelog += `\n\n*Diff since last release: [${diffRange}](https://github.com/${owner}/${repo}/compare/${diffRange})*`;
+        const { owner, repo } = github_1.context.repo;
+        const diffRange = `${startVersion}...${endVersion || github_1.context.sha.substring(0, 8)}`;
+        formattedChangelog +=
+            `\n\n*Diff since last release: ` +
+                `[${diffRange}](https://github.com/${owner}/${repo}/compare/${diffRange})*`;
         return formattedChangelog;
+    });
+}
+exports.generateChangelogForCommits = generateChangelogForCommits;
+/**
+ * Returns a markdown-formatted changelog, based on the info contained
+ * in the provided `IVersionBumpTypeAndMessages`.
+ */
+function generateChangelog(bump) {
+    var _a, _b, _c, _d, _e;
+    return __awaiter(this, void 0, void 0, function* () {
+        return yield generateChangelogForCommits((_b = (_a = bump.foundVersion) === null || _a === void 0 ? void 0 : _a.toString()) !== null && _b !== void 0 ? _b : "", (_e = (_d = (_c = bump.foundVersion) === null || _c === void 0 ? void 0 : _c.bump(bump.requiredBump)) === null || _d === void 0 ? void 0 : _d.toString()) !== null && _e !== void 0 ? _e : "", bump.processedCommits
+            .map(c => c.message)
+            .filter(c => c));
     });
 }
 exports.generateChangelog = generateChangelog;
@@ -13085,7 +13165,7 @@ var __asyncValues = (this && this.__asyncValues) || function (o) {
     function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.currentHeadMatchesTag = exports.getContent = exports.updateLabels = exports.getAssociatedPullRequests = exports.getLatestTags = exports.getShaForTag = exports.matchTagsToCommits = exports.getReleaseConfiguration = exports.getConfig = exports.createTag = exports.updateDraftRelease = exports.getRelease = exports.createRelease = exports.getPullRequest = exports.getCommitsInPR = exports.getPullRequestTitle = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
+exports.getCommitsBetweenRefs = exports.currentHeadMatchesTag = exports.getContent = exports.updateLabels = exports.getAssociatedPullRequests = exports.getLatestTags = exports.getShaForTag = exports.matchTagsToCommits = exports.getReleaseConfiguration = exports.getConfig = exports.createTag = exports.updateDraftRelease = exports.getRelease = exports.createRelease = exports.getPullRequest = exports.getCommitsInPR = exports.getPullRequestTitle = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const fs = __importStar(__nccwpck_require__(7147));
 const github = __importStar(__nccwpck_require__(5438));
@@ -13193,32 +13273,57 @@ function sortVersionPrereleases(releaseList, nameStartsWith) {
     return releaseList.sort((lhs, rhs) => semver_1.SemVer.sortSemVer(lhs.name, rhs.name));
 }
 /**
- * Gets the name and ID of the existing draft release with the
+ * Gets the name and ID of the existing (draft) release with the
  * most precedence of which the tag name starts with the provided parameter.
+ * If `fullReleasesOnly` is set, only consider full releases (i.e. without a
+ * SemVer prerelease field).
  *
  * Returns an object {id, name}, or `undefined` if no tag was found.
  */
-function getRelease(prefixMustMatch, isDraft) {
+function getRelease(params) {
     return __awaiter(this, void 0, void 0, function* () {
-        core.info(`getRelease: finding ${isDraft ? "draft " : ""}release with the prefix: ${prefixMustMatch}`);
+        core.info(`getRelease: finding ${params.draftOnly ? "draft " : ""}release with the prefix: ${params.prefixToMatch}`);
         const octo = getOctokit();
         const result = (yield octo.paginate(octo.rest.repos.listReleases, Object.assign({}, github.context.repo))).map(r => ({ isDraft: r.draft, tagName: r.tag_name, id: r.id }));
         core.debug(`getRelease: listReleases returned:\n${JSON.stringify(result)}`);
         /**
          * We need to:
-         *  - only consider releases starting with the provided `nameStartsWith`
-         *    and `isDraft` parameters
+         *  - only consider releases starting with the provided prefix, draft and
+         *    release parameters
+         *  - consider the major/minor constraint, if provided
          *  - _NOT_ rely on the temporal data; the precendence of the existing tags
          *    shall determined according to a "SemVer-esque prerelease", that is:
          *      * componentX-1.2.3-9 < componentX-1.2.3-10
          *  - return the highest-precedence item
          */
         const releaseList = result
-            .filter(r => r.isDraft === isDraft)
-            .filter(r => { var _a; return ((_a = semver_1.SemVer.fromString(r.tagName)) === null || _a === void 0 ? void 0 : _a.prefix) === prefixMustMatch; })
+            .filter(r => r.isDraft === params.draftOnly)
+            .filter(r => {
+            const asSemVer = semver_1.SemVer.fromString(r.tagName);
+            return (asSemVer === null || asSemVer === void 0 ? void 0 : asSemVer.prefix) === params.prefixToMatch &&
+                params.fullReleasesOnly
+                ? (asSemVer === null || asSemVer === void 0 ? void 0 : asSemVer.prerelease) === ""
+                : true;
+        })
             .map(r => ({ id: r.id, name: r.tagName }))
             .sort((lhs, rhs) => semver_1.SemVer.sortSemVer(lhs.name, rhs.name));
         core.debug(`getRelease: sorted list of releases:\n${JSON.stringify(releaseList)}`);
+        if (params.constraint) {
+            // We're sorted by precedence, highest last, so let's reverse it and we can
+            // can take the first major/minor version lower than the constraint we encounter.
+            releaseList.reverse();
+            for (const r of releaseList) {
+                core.debug(`checking release ${r.name} against constraint ` +
+                    `${params.constraint.major}.${params.constraint.minor}.*`);
+                const sv = semver_1.SemVer.fromString(r.name);
+                if (sv &&
+                    sv.major <= params.constraint.major &&
+                    sv.minor <= params.constraint.minor) {
+                    return r;
+                }
+            }
+            return;
+        }
         return releaseList.pop();
     });
 }
@@ -13293,8 +13398,8 @@ function getReleaseConfiguration() {
 }
 exports.getReleaseConfiguration = getReleaseConfiguration;
 /**
- * Attempt to match the provided list of git `tags` to the commits in the
- * current context's repository.
+ * Runs the provided matcher function to a list of commits reachable from the provided
+ * `sha`, or GitHub's `context.sha` if undefined.
  * Takes a `matcher` function, and executes it on each commit in the repository.
  *
  * When (if) the matcher function returns a SemVer object, this function shall
@@ -13303,12 +13408,13 @@ exports.getReleaseConfiguration = getReleaseConfiguration;
  * Alternatively, if no match could be made, returns `null` along with all
  * the commits encountered.
  */
-function matchTagsToCommits(sha, tags, matcher) {
+function matchTagsToCommits(sha, matcher) {
     var _a, e_1, _b, _c;
     return __awaiter(this, void 0, void 0, function* () {
         const octo = getOctokit();
         const commitList = [];
         let match = null;
+        sha = sha !== null && sha !== void 0 ? sha : github.context.sha;
         try {
             for (var _d = true, _e = __asyncValues(octo.paginate.iterator(octo.rest.repos.listCommits, Object.assign(Object.assign({}, github.context.repo), { sha }))), _f; _f = yield _e.next(), _a = _f.done, !_a;) {
                 _c = _f.value;
@@ -13317,8 +13423,10 @@ function matchTagsToCommits(sha, tags, matcher) {
                     const resp = _c;
                     for (const commit of resp.data) {
                         match = matcher(commit.commit.message, commit.sha);
-                        if (match)
+                        if (match) {
+                            core.debug(`Matching on (${commit.sha}):${commit.commit.message.split("\n")[0]}`);
                             return [match, commitList];
+                        }
                         commitList.push({ message: commit.commit.message, sha: commit.sha });
                     }
                 }
@@ -13508,6 +13616,24 @@ function currentHeadMatchesTag(tagName) {
     });
 }
 exports.currentHeadMatchesTag = currentHeadMatchesTag;
+/**
+ * Returns the commits between two Git refs.
+ * According to the docs, the behavior matches `baseRef...compRef`, with an additional
+ * "chronological" order (unsure if commit- or author-date).
+ *
+ * Returns a list ICommits representing `baseRef...compRef`.
+ */
+function getCommitsBetweenRefs(baseRef, compRef) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const { data: resp } = yield getOctokit().rest.repos.compareCommitsWithBasehead({
+            owner: OWNER,
+            repo: REPO,
+            basehead: `${baseRef}...${compRef !== null && compRef !== void 0 ? compRef : github.context.sha}`,
+        });
+        return githubCommitsAsICommits(resp.commits);
+    });
+}
+exports.getCommitsBetweenRefs = getCommitsBetweenRefs;
 
 
 /***/ }),

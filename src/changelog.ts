@@ -176,27 +176,34 @@ export async function getChangelogConfiguration(): Promise<IReleaseConfiguration
 }
 
 /**
- * Returns a pretty-formatted Changelog (markdown) based on the
- * provided Conventional Commit messages.
+ * Returns a markdown-formatted changelog representing the provided list of
+ * Conventional Commits.
+ *
+ * A link to a GitHub ref comparison page will be generated at the bottom of
+ * the changelog, using the current GitHub context as well as the input to
+ * this function, in the form of `startVersion...endVersion`.
+ * `endVersion` can be an empty string, in which case the current HEAD sha
+ * will be used.
  */
-export async function generateChangelog(
-  bump: IVersionBumpTypeAndMessages
+export async function generateChangelogForCommits(
+  startVersion: string,
+  endVersion: string,
+  commitList: ConventionalCommitMessage[]
 ): Promise<string> {
-  if (bump.foundVersion === null) {
+  if (startVersion === "") {
     return "";
   }
   const config = await getChangelogConfiguration();
-  const { owner, repo } = context.repo;
 
   const changelog: TChangelog = new Map();
-  for (const commit of bump.processedCommits) {
-    if (!commit.message) continue;
+  for (const commit of commitList) {
+    if (!commit) continue;
 
-    const bumpLabel = Label.create("bump", SemVerType[commit.message.bump]);
-    const typeLabel = Label.create("type", commit.message.type);
+    const bumpLabel = Label.create("bump", SemVerType[commit.bump]);
+    const typeLabel = Label.create("type", commit.type);
     const scopeLabel = Label.create(
       "scope",
-      commit.message?.scope?.toLowerCase() || "*"
+      commit.scope?.toLowerCase() || "*"
     );
 
     // Adds the following items as "virtual" labels for each commit:
@@ -209,10 +216,8 @@ export async function generateChangelog(
     // (with the exception of `bump:<version>` and `scope:<scope>`) for all
     // commits associated with the PR.
 
-    if (commit.message.hexsha) {
-      const pullRequests = await getAssociatedPullRequests(
-        commit.message.hexsha
-      );
+    if (commit.hexsha) {
+      const pullRequests = await getAssociatedPullRequests(commit.hexsha);
 
       if (pullRequests.length > 0) {
         const pullRequest = pullRequests[0];
@@ -252,7 +257,7 @@ export async function generateChangelog(
     // together (*)
     const scope =
       config.changelog.group === "scope"
-        ? commit.message?.scope?.toLowerCase() || "*"
+        ? commit?.scope?.toLowerCase() || "*"
         : "*";
 
     changelog.set(scope, changelog.get(scope) ?? new Map<string, string[]>());
@@ -278,7 +283,7 @@ export async function generateChangelog(
       changelog
         .get(scope)
         ?.get(category.title)
-        ?.push(await generateChangelogEntry(commit.message));
+        ?.push(await generateChangelogEntry(commit));
 
       break;
     }
@@ -308,13 +313,29 @@ export async function generateChangelog(
     }
   }
 
-  const diffRange =
-    `${bump.foundVersion.toString()}...` +
-    `${
-      bump.foundVersion.bump(bump.requiredBump)?.toString() ??
-      context.sha.substring(0, 8)
-    }`;
-  formattedChangelog += `\n\n*Diff since last release: [${diffRange}](https://github.com/${owner}/${repo}/compare/${diffRange})*`;
+  const { owner, repo } = context.repo;
+  const diffRange = `${startVersion}...${
+    endVersion || context.sha.substring(0, 8)
+  }`;
+  formattedChangelog +=
+    `\n\n*Diff since last release: ` +
+    `[${diffRange}](https://github.com/${owner}/${repo}/compare/${diffRange})*`;
 
   return formattedChangelog;
+}
+
+/**
+ * Returns a markdown-formatted changelog, based on the info contained
+ * in the provided `IVersionBumpTypeAndMessages`.
+ */
+export async function generateChangelog(
+  bump: IVersionBumpTypeAndMessages
+): Promise<string> {
+  return await generateChangelogForCommits(
+    bump.foundVersion?.toString() ?? "",
+    bump.foundVersion?.bump(bump.requiredBump)?.toString() ?? "",
+    bump.processedCommits
+      .map(c => c.message)
+      .filter(c => c) as ConventionalCommitMessage[]
+  );
 }

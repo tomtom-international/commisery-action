@@ -61,12 +61,16 @@ beforeEach(() => {
   jest.spyOn(github, "isPullRequestEvent").mockReturnValue(false);
   jest.spyOn(github, "createTag").mockResolvedValue();
   jest.spyOn(github, "createRelease").mockResolvedValue();
+  jest.spyOn(github, "getCommitsBetweenRefs").mockResolvedValue([]);
 
   const releaseTypeInput = core.getInput("release-type");
   jest.spyOn(core, "getBooleanInput").mockImplementation(U.mockGetBooleanInput);
 
   jest
     .spyOn(changelog, "generateChangelog")
+    .mockResolvedValue(U.CHANGELOG_PLACEHOLDER);
+  jest
+    .spyOn(changelog, "generateChangelogForCommits")
     .mockResolvedValue(U.CHANGELOG_PLACEHOLDER);
 
   jest.spyOn(github, "getLatestTags").mockResolvedValue([
