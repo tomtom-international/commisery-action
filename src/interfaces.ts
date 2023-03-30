@@ -26,6 +26,9 @@ export interface IVersionBumpTypeAndMessages {
   /* The validation results of messages from the provided commitish up to
    * (but not including) the commit associated with the nearest SemVer tag */
   processedCommits: IValidationResult[];
+  /* True when initialDevelopment mode is configured and active (i.e. the
+   * major version is > 0. */
+  initialDevelopment: boolean;
 }
 
 export interface IRuleConfigItem {

@@ -197,7 +197,7 @@ export async function getRelease(params: {
 
   if (params.constraint) {
     // We're sorted by precedence, highest last, so let's reverse it and we can
-    // can take the first major/minor version lower than the constraint we encounter.
+    // take the first major/minor version lower than the constraint we encounter.
     releaseList.reverse();
     for (const r of releaseList) {
       core.debug(

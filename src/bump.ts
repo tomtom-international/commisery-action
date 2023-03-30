@@ -156,6 +156,8 @@ export function getVersionBumpType(
                  - the SemVer object or null if no (acceptable) SemVer was found.
                  - the highest bump encountered, or SemVerType.NONE if [0] is null
                  - list of ConventionalCommitMessage objects up to the found SemVer tag
+                 - state of "initial development"; if no version is found, err on the
+                   safe side and declare "initial development" (if configured as such)
  */
 export async function getVersionBumpTypeAndMessages(
   prefix: string,
@@ -215,6 +217,9 @@ export async function getVersionBumpTypeAndMessages(
     foundVersion: version,
     requiredBump: getVersionBumpType(convCommits),
     processedCommits: results,
+    initialDevelopment:
+      config.initialDevelopment &&
+      (!version || (version && version.major === 0)),
   };
 }
 
@@ -777,12 +782,12 @@ export async function bumpSdkVer(
     // full release. In other cases, we need to gather some information
     // to generate the proper changelog.
     const previousRelease = await getRelease({
-      prefixToMatch: cv.prefix,
+      prefixToMatch: nextVersion.prefix,
       draftOnly: false,
       fullReleasesOnly: true,
       constraint: {
-        major: cv.major,
-        minor: cv.minor,
+        major: nextVersion.major,
+        minor: nextVersion.minor,
       },
     });
     core.info(

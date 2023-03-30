@@ -333,7 +333,9 @@ export async function generateChangelog(
 ): Promise<string> {
   return await generateChangelogForCommits(
     bump.foundVersion?.toString() ?? "",
-    bump.foundVersion?.bump(bump.requiredBump)?.toString() ?? "",
+    bump.foundVersion
+      ?.bump(bump.requiredBump, bump.initialDevelopment)
+      ?.toString() ?? "",
     bump.processedCommits
       .map(c => c.message)
       .filter(c => c) as ConventionalCommitMessage[]

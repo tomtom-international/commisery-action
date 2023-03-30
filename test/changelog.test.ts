@@ -71,6 +71,7 @@ describe("Generate Changelog", () => {
         { message: "fix: avoid crash", sha: "37e57c03317" },
         { message: "ci: non-bumping commit", sha: "47e57c03317" },
       ]),
+      initialDevelopment: false,
     };
     const changelog = await generateChangelog(bump);
     expect(changelog).toEqual(
@@ -98,6 +99,7 @@ describe("Generate Changelog", () => {
       processedCommits: createMessages([
         { message: "feat: add pull request reference", sha: "0x123abc" },
       ]),
+      initialDevelopment: false,
     };
     const changelog = await generateChangelog(bump);
     expect(changelog).toEqual(
@@ -119,6 +121,7 @@ describe("Generate Changelog", () => {
       processedCommits: createMessages([
         { message: "feat: add pull request reference (#1)", sha: "0x123abc" },
       ]),
+      initialDevelopment: false,
     };
     const changelog = await generateChangelog(bump);
     expect(changelog).toEqual(
@@ -154,6 +157,7 @@ describe("Generate Changelog", () => {
           sha: "37e57c03317",
         },
       ]),
+      initialDevelopment: false,
     };
     const changelog = await generateChangelog(bump);
     expect(changelog).toEqual(
@@ -186,6 +190,7 @@ describe("Generate Changelog", () => {
           sha: "27e57c03317",
         },
       ]),
+      initialDevelopment: false,
     };
 
     jest.spyOn(github, "getReleaseConfiguration").mockResolvedValue(
@@ -233,6 +238,7 @@ describe("Generate Changelog", () => {
           sha: "27e57c03317",
         },
       ]),
+      initialDevelopment: false,
     };
 
     jest.spyOn(github, "getReleaseConfiguration").mockResolvedValue(
@@ -285,6 +291,7 @@ describe("Generate Changelog", () => {
           sha: "27e57c03317",
         },
       ]),
+      initialDevelopment: false,
     };
 
     jest.spyOn(github, "getReleaseConfiguration").mockResolvedValue(
@@ -329,6 +336,7 @@ describe("Generate Changelog", () => {
           sha: "27e57c03317",
         },
       ]),
+      initialDevelopment: false,
     };
 
     jest.spyOn(github, "getReleaseConfiguration").mockResolvedValue(
@@ -389,6 +397,7 @@ describe("Generate Changelog", () => {
           sha: "27e57c03317",
         },
       ]),
+      initialDevelopment: false,
     };
 
     jest.spyOn(github, "getReleaseConfiguration").mockResolvedValue(
