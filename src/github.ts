@@ -23,8 +23,6 @@ import { ICommit, IGitTag } from "./interfaces";
 import { SemVer } from "./semver";
 import * as Label from "./label";
 
-const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
-
 /**
  * Get Octokit instance
  */
@@ -79,8 +77,7 @@ export async function getCommitsInPR(
 ): Promise<ICommit[]> {
   // Retrieve commits from provided pull request
   const { data: commits } = await getOctokit().rest.pulls.listCommits({
-    owner: OWNER,
-    repo: REPO,
+    ...github.context.repo,
     pull_number: pullRequestId,
   });
 
@@ -98,8 +95,7 @@ export async function getPullRequest(
   octokit.RestEndpointMethodTypes["pulls"]["get"]["response"]["data"]
 > {
   const { data: pr } = await getOctokit().rest.pulls.get({
-    owner: OWNER,
-    repo: REPO,
+    ...github.context.repo,
     pull_number: pullRequestId,
   });
 
@@ -121,8 +117,7 @@ export async function createRelease(
   prerelease: boolean
 ): Promise<void> {
   await getOctokit().rest.repos.createRelease({
-    owner: OWNER,
-    repo: REPO,
+    ...github.context.repo,
     tag_name: tagName,
     target_commitish: commitish,
     name: tagName,
@@ -237,8 +232,7 @@ export async function updateDraftRelease(
       `and body below:\n${bodyContents}`
   );
   const result = await getOctokit().rest.repos.updateRelease({
-    owner: OWNER,
-    repo: REPO,
+    ...github.context.repo,
     release_id: id,
     target_commitish: sha,
     draft: isDraft,
@@ -258,8 +252,7 @@ export async function updateDraftRelease(
  */
 export async function createTag(tagName: string, sha: string): Promise<void> {
   await getOctokit().rest.git.createRef({
-    owner: OWNER,
-    repo: REPO,
+    ...github.context.repo,
     ref: tagName.startsWith("refs/tags/") ? tagName : `refs/tags/${tagName}`,
     sha,
   });
@@ -348,7 +341,7 @@ export async function getShaForTag(tag: string): Promise<string | undefined> {
   }
   const result: graphqlQueryResult = await getOctokit().graphql(`
       {
-        repository(owner: "${OWNER}", name: "${REPO}") {
+        repository(owner: "${github.context.repo.owner}", name: "${github.context.repo.repo}") {
           ref(qualifiedName: "${tag}") {
             target {
               oid
@@ -388,7 +381,7 @@ export async function getLatestTags(pageSize: number): Promise<IGitTag[]> {
 
   const result: graphqlQueryResult = await getOctokit().graphql(`
       {
-        repository(owner: "${OWNER}", name: "${REPO}") {
+        repository(owner: "${github.context.repo.owner}", name: "${github.context.repo.repo}") {
           refs(
             refPrefix: "refs/tags/"
             first: ${pageSize}
@@ -436,8 +429,7 @@ export async function getAssociatedPullRequests(
   try {
     const { data: prs } =
       await getOctokit().rest.repos.listPullRequestsAssociatedWithCommit({
-        owner: OWNER,
-        repo: REPO,
+        ...github.context.repo,
         commit_sha: sha,
       });
 
@@ -461,8 +453,7 @@ export async function updateLabels(labels: string[]): Promise<void> {
   // Retrieve current labels
   const { data: pullRequestLabels } =
     await getOctokit().rest.issues.listLabelsOnIssue({
-      owner: OWNER,
-      repo: REPO,
+      ...github.context.repo,
       issue_number: issueId,
     });
 
@@ -475,8 +466,7 @@ export async function updateLabels(labels: string[]): Promise<void> {
           labels = labels.filter(l => l !== label.name);
         } else {
           await getOctokit().rest.issues.removeLabel({
-            owner: OWNER,
-            repo: REPO,
+            ...github.context.repo,
             issue_number: issueId,
             name: label.name,
           });
@@ -487,8 +477,7 @@ export async function updateLabels(labels: string[]): Promise<void> {
     if (labels.length > 0) {
       // Add new label if it does not yet exist
       await getOctokit().rest.issues.addLabels({
-        owner: OWNER,
-        repo: REPO,
+        ...github.context.repo,
         issue_number: issueId,
         labels,
       });
@@ -511,8 +500,7 @@ export async function updateLabels(labels: string[]): Promise<void> {
 export async function getContent(path: string): Promise<string | undefined> {
   try {
     const response = await getOctokit().rest.repos.getContent({
-      owner: OWNER,
-      repo: REPO,
+      ...github.context.repo,
       path,
       ref: github.context.ref,
     });
@@ -546,8 +534,7 @@ export async function getCommitsBetweenRefs(
 ): Promise<ICommit[]> {
   const { data: resp } =
     await getOctokit().rest.repos.compareCommitsWithBasehead({
-      owner: OWNER,
-      repo: REPO,
+      ...github.context.repo,
       basehead: `${baseRef}...${compRef ?? github.context.sha}`,
     });
 

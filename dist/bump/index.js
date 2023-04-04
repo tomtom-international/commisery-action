@@ -13215,7 +13215,6 @@ const fs = __importStar(__nccwpck_require__(7147));
 const github = __importStar(__nccwpck_require__(5438));
 const semver_1 = __nccwpck_require__(8593);
 const Label = __importStar(__nccwpck_require__(2008));
-const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || "").split("/");
 /**
  * Get Octokit instance
  */
@@ -13266,11 +13265,7 @@ exports.getPullRequestTitle = getPullRequestTitle;
 function getCommitsInPR(pullRequestId) {
     return __awaiter(this, void 0, void 0, function* () {
         // Retrieve commits from provided pull request
-        const { data: commits } = yield getOctokit().rest.pulls.listCommits({
-            owner: OWNER,
-            repo: REPO,
-            pull_number: pullRequestId,
-        });
+        const { data: commits } = yield getOctokit().rest.pulls.listCommits(Object.assign(Object.assign({}, github.context.repo), { pull_number: pullRequestId }));
         return githubCommitsAsICommits(commits);
     });
 }
@@ -13282,11 +13277,7 @@ exports.getCommitsInPR = getCommitsInPR;
  */
 function getPullRequest(pullRequestId) {
     return __awaiter(this, void 0, void 0, function* () {
-        const { data: pr } = yield getOctokit().rest.pulls.get({
-            owner: OWNER,
-            repo: REPO,
-            pull_number: pullRequestId,
-        });
+        const { data: pr } = yield getOctokit().rest.pulls.get(Object.assign(Object.assign({}, github.context.repo), { pull_number: pullRequestId }));
         return pr;
     });
 }
@@ -13300,16 +13291,9 @@ exports.getPullRequest = getPullRequest;
  */
 function createRelease(tagName, commitish, body, draft, prerelease) {
     return __awaiter(this, void 0, void 0, function* () {
-        yield getOctokit().rest.repos.createRelease({
-            owner: OWNER,
-            repo: REPO,
-            tag_name: tagName,
-            target_commitish: commitish,
-            name: tagName,
-            body,
+        yield getOctokit().rest.repos.createRelease(Object.assign(Object.assign({}, github.context.repo), { tag_name: tagName, target_commitish: commitish, name: tagName, body,
             draft,
-            prerelease,
-        });
+            prerelease }));
     });
 }
 exports.createRelease = createRelease;
@@ -13381,17 +13365,7 @@ function updateDraftRelease(id, newName, tagName, sha, bodyContents, isDraft = t
     return __awaiter(this, void 0, void 0, function* () {
         core.debug(`Update existing draft release with id ${id} to ${newName} (${tagName}) sha: ${sha}, ` +
             `and body below:\n${bodyContents}`);
-        const result = yield getOctokit().rest.repos.updateRelease({
-            owner: OWNER,
-            repo: REPO,
-            release_id: id,
-            target_commitish: sha,
-            draft: isDraft,
-            prerelease: isPrerelease,
-            body: bodyContents,
-            name: newName,
-            tag_name: tagName,
-        });
+        const result = yield getOctokit().rest.repos.updateRelease(Object.assign(Object.assign({}, github.context.repo), { release_id: id, target_commitish: sha, draft: isDraft, prerelease: isPrerelease, body: bodyContents, name: newName, tag_name: tagName }));
         return result.status < 400;
     });
 }
@@ -13403,12 +13377,7 @@ exports.updateDraftRelease = updateDraftRelease;
  */
 function createTag(tagName, sha) {
     return __awaiter(this, void 0, void 0, function* () {
-        yield getOctokit().rest.git.createRef({
-            owner: OWNER,
-            repo: REPO,
-            ref: tagName.startsWith("refs/tags/") ? tagName : `refs/tags/${tagName}`,
-            sha,
-        });
+        yield getOctokit().rest.git.createRef(Object.assign(Object.assign({}, github.context.repo), { ref: tagName.startsWith("refs/tags/") ? tagName : `refs/tags/${tagName}`, sha }));
     });
 }
 exports.createTag = createTag;
@@ -13502,7 +13471,7 @@ function getShaForTag(tag) {
         }
         const result = yield getOctokit().graphql(`
       {
-        repository(owner: "${OWNER}", name: "${REPO}") {
+        repository(owner: "${github.context.repo.owner}", name: "${github.context.repo.repo}") {
           ref(qualifiedName: "${tag}") {
             target {
               oid
@@ -13522,7 +13491,7 @@ function getLatestTags(pageSize) {
     return __awaiter(this, void 0, void 0, function* () {
         const result = yield getOctokit().graphql(`
       {
-        repository(owner: "${OWNER}", name: "${REPO}") {
+        repository(owner: "${github.context.repo.owner}", name: "${github.context.repo.repo}") {
           refs(
             refPrefix: "refs/tags/"
             first: ${pageSize}
@@ -13561,11 +13530,7 @@ exports.getLatestTags = getLatestTags;
 function getAssociatedPullRequests(sha) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const { data: prs } = yield getOctokit().rest.repos.listPullRequestsAssociatedWithCommit({
-                owner: OWNER,
-                repo: REPO,
-                commit_sha: sha,
-            });
+            const { data: prs } = yield getOctokit().rest.repos.listPullRequestsAssociatedWithCommit(Object.assign(Object.assign({}, github.context.repo), { commit_sha: sha }));
             return prs;
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }
@@ -13585,11 +13550,7 @@ function updateLabels(labels) {
     return __awaiter(this, void 0, void 0, function* () {
         const issueId = getPullRequestId();
         // Retrieve current labels
-        const { data: pullRequestLabels } = yield getOctokit().rest.issues.listLabelsOnIssue({
-            owner: OWNER,
-            repo: REPO,
-            issue_number: issueId,
-        });
+        const { data: pullRequestLabels } = yield getOctokit().rest.issues.listLabelsOnIssue(Object.assign(Object.assign({}, github.context.repo), { issue_number: issueId }));
         try {
             // Remove all bump, type and initial development labels
             for (const label of pullRequestLabels) {
@@ -13599,23 +13560,13 @@ function updateLabels(labels) {
                         labels = labels.filter(l => l !== label.name);
                     }
                     else {
-                        yield getOctokit().rest.issues.removeLabel({
-                            owner: OWNER,
-                            repo: REPO,
-                            issue_number: issueId,
-                            name: label.name,
-                        });
+                        yield getOctokit().rest.issues.removeLabel(Object.assign(Object.assign({}, github.context.repo), { issue_number: issueId, name: label.name }));
                     }
                 }
             }
             if (labels.length > 0) {
                 // Add new label if it does not yet exist
-                yield getOctokit().rest.issues.addLabels({
-                    owner: OWNER,
-                    repo: REPO,
-                    issue_number: issueId,
-                    labels,
-                });
+                yield getOctokit().rest.issues.addLabels(Object.assign(Object.assign({}, github.context.repo), { issue_number: issueId, labels }));
             }
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }
@@ -13634,12 +13585,7 @@ exports.updateLabels = updateLabels;
 function getContent(path) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const response = yield getOctokit().rest.repos.getContent({
-                owner: OWNER,
-                repo: REPO,
-                path,
-                ref: github.context.ref,
-            });
+            const response = yield getOctokit().rest.repos.getContent(Object.assign(Object.assign({}, github.context.repo), { path, ref: github.context.ref }));
             if ("content" in response.data) {
                 return Buffer.from(response.data.content, "base64").toString("utf8");
             }
@@ -13669,11 +13615,7 @@ exports.currentHeadMatchesTag = currentHeadMatchesTag;
  */
 function getCommitsBetweenRefs(baseRef, compRef) {
     return __awaiter(this, void 0, void 0, function* () {
-        const { data: resp } = yield getOctokit().rest.repos.compareCommitsWithBasehead({
-            owner: OWNER,
-            repo: REPO,
-            basehead: `${baseRef}...${compRef !== null && compRef !== void 0 ? compRef : github.context.sha}`,
-        });
+        const { data: resp } = yield getOctokit().rest.repos.compareCommitsWithBasehead(Object.assign(Object.assign({}, github.context.repo), { basehead: `${baseRef}...${compRef !== null && compRef !== void 0 ? compRef : github.context.sha}` }));
         return githubCommitsAsICommits(resp.commits);
     });
 }
