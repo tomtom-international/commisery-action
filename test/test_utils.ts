@@ -38,7 +38,8 @@ export const INITIAL_VERSION = "1.2.3";
 export const PATCH_BUMPED_VERSION = "1.2.4";
 export const MINOR_BUMPED_VERSION = "1.3.0";
 export const MAJOR_BUMPED_VERSION = "2.0.0";
-export const HEAD_SHA = "baaadb0b";
+export const HEAD_SHA = "baaaadb0b";
+export const HEAD_SHA_ABBREV_8 = HEAD_SHA.substring(0, 8);
 export const BASE_COMMIT = { message: "chore: base commit", sha: "f00dcafe" };
 
 export const CHANGELOG_PLACEHOLDER = "CHANGELOG_PLACEHOLDER";

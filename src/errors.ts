@@ -39,3 +39,10 @@ export class FixupCommitError extends Error {
     this.name = "FixupCommitError";
   }
 }
+
+export class BumpError extends Error {
+  constructor(msg) {
+    super(`Error while applying version bump: ${msg}`);
+    this.name = "BumpError";
+  }
+}

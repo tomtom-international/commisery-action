@@ -10953,7 +10953,7 @@ exports._testData = {
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.FixupCommitError = exports.MergeCommitError = exports.ConventionalCommitError = void 0;
+exports.BumpError = exports.FixupCommitError = exports.MergeCommitError = exports.ConventionalCommitError = void 0;
 class ConventionalCommitError extends Error {
     constructor(message, errors) {
         super(message);
@@ -10976,6 +10976,13 @@ class FixupCommitError extends Error {
     }
 }
 exports.FixupCommitError = FixupCommitError;
+class BumpError extends Error {
+    constructor(msg) {
+        super(`Error while applying version bump: ${msg}`);
+        this.name = "BumpError";
+    }
+}
+exports.BumpError = BumpError;
 
 
 /***/ }),
@@ -11977,18 +11984,19 @@ class SemVer {
     }
     /**
      * Attempts to increment the first number encountered in the
-     * `prerelease` field.
+     * `prerelease` field, optionally overriding string before and
+     * after said number.
+     *
      * Returns new SemVer object or `null` if unsuccessful.
      */
-    nextPrerelease() {
-        const match = /(?<pre>\D*)(?<prereleaseVersion>\d+)(?<post>.*)/.exec(this.prerelease);
+    nextPrerelease(pre, post) {
+        const match = /(?<pre>\D*)(?<nr>\d+)(?<post>.*)/.exec(this.prerelease);
         if (match == null || match.groups == null) {
             return null;
         }
         const nv = SemVer.copy(this);
-        nv.prerelease =
-            `${match.groups.pre}` +
-                `${+match.groups.prereleaseVersion + 1}${match.groups.post}`;
+        nv.prerelease = `${pre !== null && pre !== void 0 ? pre : match.groups.pre}${+match.groups.nr + 1}${post !== null && post !== void 0 ? post : match.groups.post}`;
+        nv.build = "";
         return nv;
     }
     /**
