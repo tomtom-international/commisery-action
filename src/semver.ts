@@ -149,21 +149,22 @@ export class SemVer {
 
   /**
    * Attempts to increment the first number encountered in the
-   * `prerelease` field.
+   * `prerelease` field, optionally overriding string before and
+   * after said number.
+   *
    * Returns new SemVer object or `null` if unsuccessful.
    */
-  nextPrerelease(): SemVer | null {
-    const match = /(?<pre>\D*)(?<prereleaseVersion>\d+)(?<post>.*)/.exec(
-      this.prerelease
-    );
+  nextPrerelease(pre?: string, post?: string): SemVer | null {
+    const match = /(?<pre>\D*)(?<nr>\d+)(?<post>.*)/.exec(this.prerelease);
     if (match == null || match.groups == null) {
       return null;
     }
 
     const nv = SemVer.copy(this);
-    nv.prerelease =
-      `${match.groups.pre}` +
-      `${+match.groups.prereleaseVersion + 1}${match.groups.post}`;
+    nv.prerelease = `${pre ?? match.groups.pre}${+match.groups.nr + 1}${
+      post ?? match.groups.post
+    }`;
+    nv.build = "";
 
     return nv;
   }
