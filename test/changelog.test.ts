@@ -19,10 +19,15 @@ import dedent from "dedent";
 import * as github from "../src/github";
 
 import { ConventionalCommitMessage } from "../src/commit";
-import { generateChangelog } from "../src/changelog";
+import {
+  generateChangelog,
+  generateChangelogForCommits,
+} from "../src/changelog";
 import { IVersionBumpTypeAndMessages, ICommit } from "../src/interfaces";
 import { SemVer, SemVerType } from "../src/semver";
 const githubActions = require("@actions/github");
+
+import * as core from "@actions/core";
 
 // We need to wrap this in a mock to be able to spy on it later
 jest.mock("../src/github");
@@ -434,6 +439,30 @@ describe("Generate Changelog", () => {
 
         *Diff since last release: [1.0.0...1.1.0](https://github.com/tomtom-international/commisery-action/compare/1.0.0...1.1.0)*`
       )
+    );
+  });
+
+  test("Commit range", async () => {
+    const changelog = await generateChangelogForCommits(
+      "123456789a",
+      "a987654321",
+      [new ConventionalCommitMessage("docs: add manual for X", "123456789abc")]
+    );
+    expect(changelog).toContain(
+      `*Diff since last release: [123456789a...a987654321]` +
+        `(https://github.com/tomtom-international/commisery-action/compare/123456789a...a987654321)*`
+    );
+  });
+
+  test("Commit range with end version from context", async () => {
+    githubActions.context.sha = "1234567890abcdef";
+
+    const changelog = await generateChangelogForCommits("v1.2.3-rc20", "", [
+      new ConventionalCommitMessage("docs: add manual for X", "456789abc"),
+    ]);
+    expect(changelog).toContain(
+      `*Diff since last release: [v1.2.3-rc20...12345678]` + // context.sha is truncated
+        `(https://github.com/tomtom-international/commisery-action/compare/v1.2.3-rc20...12345678)*`
     );
   });
 
