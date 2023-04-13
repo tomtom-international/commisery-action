@@ -6280,7 +6280,9 @@ var init_spawn_options_plugin = __esm({
 
 // src/lib/plugins/timout-plugin.ts
 function timeoutPlugin({
-  block
+  block,
+  stdErr = true,
+  stdOut = true
 }) {
   if (block > 0) {
     return {
@@ -6304,8 +6306,8 @@ function timeoutPlugin({
           stop();
           context.kill(new GitPluginError(void 0, "timeout", `block timeout reached`));
         }
-        (_a2 = context.spawned.stdout) == null ? void 0 : _a2.on("data", wait);
-        (_b = context.spawned.stderr) == null ? void 0 : _b.on("data", wait);
+        stdOut && ((_a2 = context.spawned.stdout) == null ? void 0 : _a2.on("data", wait));
+        stdErr && ((_b = context.spawned.stderr) == null ? void 0 : _b.on("data", wait));
         context.spawned.on("exit", stop);
         context.spawned.on("close", stop);
         wait();
@@ -7538,7 +7540,7 @@ var init_parse_push = __esm({
           local
         });
       }),
-      new LineParser(/^[*-=]\s+([^:]+):(\S+)\s+\[(.+)]$/, (result, [local, remote, type]) => {
+      new LineParser(/^[=*-]\s+([^:]+):(\S+)\s+\[(.+)]$/, (result, [local, remote, type]) => {
         result.pushed.push(pushResultPushedItem(local, remote, type));
       }),
       new LineParser(/^Branch '([^']+)' set up to track remote branch '([^']+)' from '([^']+)'/, (result, [local, remote, remoteName]) => {

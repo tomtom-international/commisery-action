@@ -44,7 +44,7 @@
     "commander": "^9.5.0",
     "dedent": "^0.7.0",
     "difflib": "^0.2.4",
-    "simple-git": "^3.16.0",
+    "simple-git": "^3.17.0",
     "yaml": "^2.2.1"
   },
   "devDependencies": {
