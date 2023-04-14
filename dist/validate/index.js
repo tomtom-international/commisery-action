@@ -14018,7 +14018,9 @@ class MissingSeparator {
     }
     validate(message, _) {
         if (message.separator === undefined || !message.separator.includes(":")) {
-            const columnNumber = { start: message.subject.indexOf(" ") + 1 };
+            const columnNumber = {
+                start: Math.max(1, message.subject.indexOf(" ") + 1),
+            };
             if (message.scope) {
                 columnNumber.start =
                     message.subject.indexOf(message.scope) + message.scope.length + 2;

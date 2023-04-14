@@ -260,7 +260,9 @@ class MissingSeparator implements IConventionalCommitRule {
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (message.separator === undefined || !message.separator.includes(":")) {
-      const columnNumber = { start: message.subject.indexOf(" ") + 1 };
+      const columnNumber = {
+        start: Math.max(1, message.subject.indexOf(" ") + 1),
+      };
 
       if (message.scope) {
         columnNumber.start =

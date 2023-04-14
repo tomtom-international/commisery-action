@@ -41,6 +41,7 @@ function assertRuleValidationError(
       if (err.message && err.message.startsWith(`[${type.id}]`)) {
         foundError = true;
       }
+      expect(err.columnNumber.start).toBeGreaterThan(0);
     }
     expect(foundError).toBe(true);
   }
@@ -226,6 +227,7 @@ describe("Rules", () => {
       "feat missing seperator",
       "feat(test) missing seperator",
       "feat ! missing seperator",
+      "empty",
     ]) {
       assertRuleValidationError(message, getConventionalCommitRule("C008"));
     }
