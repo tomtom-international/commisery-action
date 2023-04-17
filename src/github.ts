@@ -178,10 +178,10 @@ export async function getRelease(params: {
     .filter(r => r.isDraft === params.draftOnly)
     .filter(r => {
       const asSemVer = SemVer.fromString(r.tagName);
-      return asSemVer?.prefix === params.prefixToMatch &&
-        params.fullReleasesOnly
-        ? asSemVer?.prerelease === ""
-        : true;
+      return (
+        asSemVer?.prefix === params.prefixToMatch &&
+        (params.fullReleasesOnly ? asSemVer?.prerelease === "" : true)
+      );
     })
     .map(r => ({ id: r.id, name: r.tagName }))
     .sort((lhs, rhs) => SemVer.sortSemVer(lhs.name, rhs.name));
