@@ -13360,10 +13360,8 @@ function getRelease(params) {
             .filter(r => r.isDraft === params.draftOnly)
             .filter(r => {
             const asSemVer = semver_1.SemVer.fromString(r.tagName);
-            return (asSemVer === null || asSemVer === void 0 ? void 0 : asSemVer.prefix) === params.prefixToMatch &&
-                params.fullReleasesOnly
-                ? (asSemVer === null || asSemVer === void 0 ? void 0 : asSemVer.prerelease) === ""
-                : true;
+            return ((asSemVer === null || asSemVer === void 0 ? void 0 : asSemVer.prefix) === params.prefixToMatch &&
+                (params.fullReleasesOnly ? (asSemVer === null || asSemVer === void 0 ? void 0 : asSemVer.prerelease) === "" : true));
         })
             .map(r => ({ id: r.id, name: r.tagName }))
             .sort((lhs, rhs) => semver_1.SemVer.sortSemVer(lhs.name, rhs.name));
