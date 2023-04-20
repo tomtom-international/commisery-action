@@ -71,8 +71,8 @@ jobs:
           create-release: true              # OPTIONAL, default: `false`
           create-release: false             # OPTIONAL, default: `false`
       - run: echo "Current version is ${{steps.release-version.outputs.current-version}}"
-      - if: steps.release-version.outputs.next-version != ""
-        run: echo "Version bumped to ${{steps.release-version.outputs.next-version}}
+      - if: steps.release-version.outputs.next-version != ''
+        run: echo "Version bumped to ${{steps.release-version.outputs.next-version}}"
 ```
 More info on the bump action and the available options [here](docs/github-action.md)
 
