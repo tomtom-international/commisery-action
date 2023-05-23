@@ -20,10 +20,12 @@ import { RequestError } from "@octokit/request-error";
 import { generateChangelogForCommits, generateChangelog } from "./changelog";
 import { Configuration } from "./config";
 import {
+  createBranch,
   createRelease,
   createTag,
   currentHeadMatchesTag,
   getCommitsBetweenRefs,
+  getRunNumber,
   getLatestTags,
   getRelease,
   getShaForTag,
@@ -855,6 +857,39 @@ export async function bumpSdkVer(
   }
   if (!bumped) {
     core.info("ℹ️ No bump was performed");
+  } else {
+    // Create a release branch for releases and RC's if we're configured to do so
+    // and are currently not running on a release branch.
+    if (
+      config.sdkverCreateReleaseBranches !== undefined &&
+      !isReleaseBranch &&
+      sdkVerBumpType !== "dev"
+    ) {
+      const releaseBranchName = `${config.sdkverCreateReleaseBranches}${nextVersion.major}.${nextVersion.minor}`;
+      core.info(`Creating release branch ${releaseBranchName}..`);
+      try {
+        createBranch(`refs/heads/${releaseBranchName}`, headSha);
+      } catch (ex: unknown) {
+        if (ex instanceof RequestError && ex.status === 422) {
+          core.warning(
+            `The branch '${releaseBranchName}' already exists` +
+              `${getRunNumber() !== 1 ? " (NOTE: this is a re-run)." : "."}`
+          );
+        } else if (ex instanceof RequestError) {
+          core.warning(
+            `Unable to create release branch '${releaseBranchName}' due to ` +
+              `HTTP request error (status ${ex.status}):\n${ex.message}`
+          );
+        } else if (ex instanceof Error) {
+          core.warning(
+            `Unable to create release branch '${releaseBranchName}':\n${ex.message}`
+          );
+        } else {
+          core.warning(`Unknown error during ${releaseMode} creation`);
+          throw ex;
+        }
+      }
+    }
   }
   core.setOutput("next-version", nextVersion?.toString() ?? "");
   core.endGroup();
