@@ -24,7 +24,6 @@ import { Configuration } from "../src/config";
 import * as fs from "fs";
 import { SemVer } from "../src/semver";
 import * as U from "./test_utils";
-import { isReadable } from "stream";
 
 jest.mock("fs", () => ({
   promises: { access: jest.fn() },
@@ -86,7 +85,6 @@ beforeEach(() => {
       SemVer.fromString(U.INITIAL_VERSION),
       U.DEFAULT_COMMIT_LIST,
     ]);
-
   const MOCKLOG = 0;
   if (MOCKLOG) {
     jest.spyOn(core, "debug").mockImplementation(console.log);
@@ -328,6 +326,76 @@ for (const definition of testSuiteDefinitions) {
     );
   });
 }
+
+describe("Create release branch", () => {
+  beforeEach(() => {
+    jest.spyOn(fs, "existsSync").mockReturnValue(true);
+    jest
+      .spyOn(fs, "readFileSync")
+      .mockReturnValue(
+        `version-scheme: "sdkver"\nsdkver-create-release-branches: true`
+      );
+    setInputSpyWith({ "release-type": "rc" });
+  });
+
+  test.each([
+    ["main", "rel"],
+    ["main", "rc"],
+    ["main", "dev"],
+    ["release/1.3", "rel"],
+    ["release/1.3", "rc"],
+    ["release/1.3", "dev"],
+  ])("branch '%s', bump '%s'", async (branch, bumpType) => {
+    gh.context.ref = `refs/heads/${branch}`;
+    setInputSpyWith({ "release-type": bumpType });
+
+    await bumpaction.exportedForTesting.run();
+
+    if (branch === "main" && ["rel", "rc"].includes(bumpType)) {
+      expect(github.createBranch).toHaveBeenCalledWith(
+        "refs/heads/release/1.3",
+        U.HEAD_SHA
+      );
+    } else {
+      expect(github.createBranch).not.toHaveBeenCalled();
+    }
+  });
+
+  it("should be default disabled", async () => {
+    gh.context.ref = "refs/heads/main";
+    jest.spyOn(fs, "readFileSync").mockReturnValue(`version-scheme: "sdkver"`);
+    await bumpaction.exportedForTesting.run();
+    expect(github.createBranch).not.toHaveBeenCalled();
+  });
+
+  it("uses the default branch prefix when boolean 'true' is configured", async () => {
+    gh.context.ref = "refs/heads/main";
+    jest
+      .spyOn(fs, "readFileSync")
+      .mockReturnValue(
+        `version-scheme: "sdkver"\nsdkver-create-release-branches: true`
+      );
+    await bumpaction.exportedForTesting.run();
+    expect(github.createBranch).toHaveBeenCalledWith(
+      "refs/heads/release/1.3",
+      "baaaadb0b"
+    );
+  });
+
+  it("correctly uses string configuration values as branch prefix", async () => {
+    gh.context.ref = "refs/heads/main";
+    jest
+      .spyOn(fs, "readFileSync")
+      .mockReturnValue(
+        `version-scheme: "sdkver"\nsdkver-create-release-branches: "rel-"`
+      );
+    await bumpaction.exportedForTesting.run();
+    expect(github.createBranch).toHaveBeenCalledWith(
+      "refs/heads/rel-1.3",
+      "baaaadb0b"
+    );
+  });
+});
 
 afterAll(() => {
   jest.restoreAllMocks();

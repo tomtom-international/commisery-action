@@ -61,6 +61,13 @@ export function getPullRequestId(): number {
 }
 
 /**
+ * Get GitHub run number
+ */
+export function getRunNumber(): number {
+  return github.context.runNumber;
+}
+
+/**
  * The current pull request's title
  */
 export async function getPullRequestTitle(): Promise<string> {
@@ -539,4 +546,17 @@ export async function getCommitsBetweenRefs(
     });
 
   return githubCommitsAsICommits(resp.commits);
+}
+
+/**
+ * Creates a new branch named `branchName` on the provided sha
+ * @param name The name of the branch to be created
+ * @param sha The commit hash of the branch-off point
+ */
+export async function createBranch(name: string, sha: string): Promise<void> {
+  await getOctokit().rest.git.createRef({
+    ...github.context.repo,
+    ref: name.startsWith("refs/heads/") ? name : `refs/heads/${name}`,
+    sha,
+  });
 }

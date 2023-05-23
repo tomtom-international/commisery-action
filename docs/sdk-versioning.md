@@ -201,8 +201,9 @@ which are supported by the SdkVer, including:
 
   `.commisery.yml`:
   ```yml
-  version-scheme: "sdkver"    # Enable SdkVer strategy
-  initial-development: false  # Allow BREAKING CHANGES to update the <API> version
+  version-scheme: "sdkver"              # Enable SdkVer strategy
+  initial-development: false            # Allow BREAKING CHANGES to update the <API> version
+  sdkver-create-release-branches: true  # Push a new release branch for rel- and RC-builds on main
   ```
 
 - Add the following workflow to your repository:

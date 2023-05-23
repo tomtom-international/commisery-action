@@ -72,6 +72,7 @@ const CONFIG_ITEMS = [
   "version-scheme",
   "release-branches",
   "prereleases",
+  "sdkver-create-release-branches",
 ];
 
 const VERSION_SCHEMES = ["semver", "sdkver"];
@@ -105,6 +106,7 @@ export class Configuration {
   prereleasePrefix?: string = undefined;
   tags: IConfigurationRules = DEFAULT_ACCEPTED_TAGS;
   rules: Map<string, IRuleConfigItem> = new Map<string, IRuleConfigItem>();
+  sdkverCreateReleaseBranches?: string = undefined;
 
   set initialDevelopment(initialDevelopment: boolean) {
     this._initialDevelopment = initialDevelopment;
@@ -288,7 +290,7 @@ export class Configuration {
           break;
 
         case "initial-development":
-          /* Example YAML
+          /* Example YAML:
            *   initial-development: true
            */
           if (typeof data[key] === "boolean") {
@@ -303,7 +305,7 @@ export class Configuration {
           break;
 
         case "prereleases":
-          /* Example YAML
+          /* Example YAML:
            *   prereleases: ""
            *   prereleases: "dev"
            */
@@ -317,7 +319,36 @@ export class Configuration {
             );
           }
           break;
+
+        case "sdkver-create-release-branches":
+          /* Example YAML:
+           *   sdkver-create-release-branches: true  # defaults to 'release/'
+           *   sdkver-create-release-branches: "rel-"
+           */
+          if (typeof data[key] === "boolean") {
+            this.sdkverCreateReleaseBranches = data[key]
+              ? "release/"
+              : undefined;
+          } else if (typeof data[key] === "string") {
+            this.sdkverCreateReleaseBranches = data[key];
+          } else {
+            throw new Error(
+              `Incorrect type '${typeof data[
+                key
+              ]}' for '${key}', must be either "boolean" or "string"!`
+            );
+          }
+          break;
       }
+    }
+    if (
+      this.sdkverCreateReleaseBranches !== undefined &&
+      this.versionScheme !== "sdkver"
+    ) {
+      core.warning(
+        "The configuration option `sdkver-create-release-branches` is only relevant " +
+          'when the `version-scheme` is set to `"sdkver"`.'
+      );
     }
   }
 
