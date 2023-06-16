@@ -13384,9 +13384,10 @@ exports.getPullRequest = getPullRequest;
  */
 function createRelease(tagName, commitish, body, draft, prerelease) {
     return __awaiter(this, void 0, void 0, function* () {
-        yield getOctokit().rest.repos.createRelease(Object.assign(Object.assign({}, github.context.repo), { tag_name: tagName, target_commitish: commitish, name: tagName, body,
+        const response = yield getOctokit().rest.repos.createRelease(Object.assign(Object.assign({}, github.context.repo), { tag_name: tagName, target_commitish: commitish, name: tagName, body,
             draft,
             prerelease }));
+        console.log(response);
     });
 }
 exports.createRelease = createRelease;

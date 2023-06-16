@@ -123,7 +123,7 @@ export async function createRelease(
   draft: boolean,
   prerelease: boolean
 ): Promise<void> {
-  await getOctokit().rest.repos.createRelease({
+  const response = await getOctokit().rest.repos.createRelease({
     ...github.context.repo,
     tag_name: tagName,
     target_commitish: commitish,
@@ -132,6 +132,7 @@ export async function createRelease(
     draft,
     prerelease,
   });
+  console.log(response)
 }
 
 function sortVersionPrereleases(
