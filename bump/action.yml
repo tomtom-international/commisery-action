@@ -52,6 +52,10 @@ inputs:
       One of ["rel", "rc", "dev"] [EXPERIMENTAL]
     default: ""
     required: false
+  create-changelog:
+    description: 'Adds changelog to the release'
+    required: false
+    default: true
   config:
     description: 'Path to the Commisery configuration file'
     required: false
