@@ -17,9 +17,10 @@
 import { createHash } from "crypto";
 import { RequestError } from "@octokit/request-error";
 
-export const toICommit = msg => ({
+export const toICommit = (msg, p?) => ({
   message: msg,
   sha: createHash("sha1").update(msg).digest("hex").substring(0, 20),
+  parents: p,
 });
 export const PATCH_MSG = toICommit("fix: something");
 export const MINOR_MSG = toICommit("feat: add something");

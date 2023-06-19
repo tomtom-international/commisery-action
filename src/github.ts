@@ -42,6 +42,7 @@ function githubCommitsAsICommits(
     return {
       message: c.commit.message,
       sha: c.sha,
+      parents: c.parents.map(p => p.sha),
     };
   });
 }
