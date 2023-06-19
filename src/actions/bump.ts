@@ -24,16 +24,13 @@ import {
   getVersionBumpTypeAndMessages,
   printNonCompliance,
 } from "../bump";
-import { generateChangelog } from "../changelog";
-import { ConventionalCommitMessage } from "../commit";
 import { Configuration } from "../config";
-import { getConfig, isPullRequestEvent } from "../github";
+import { getConfig } from "../github";
 import {
   IVersionBumpTypeAndMessages,
   ReleaseMode,
   SdkVerBumpType,
 } from "../interfaces";
-import { SemVer, SemVerType } from "../semver";
 
 /**
  * Bump action entrypoint
@@ -120,6 +117,8 @@ async function run(): Promise<void> {
 
     printNonCompliance(bumpInfo.processedCommits);
 
+    const createChangelog = core.getBooleanInput("create-changelog");
+
     core.info("");
     const releaseTypeInput = core.getInput("release-type");
 
@@ -136,7 +135,8 @@ async function run(): Promise<void> {
         releaseMode,
         branchName,
         context.sha,
-        isBranchAllowedToPublish
+        isBranchAllowedToPublish,
+        createChangelog
       );
     } else if (config.versionScheme === "sdkver") {
       if (!["rel", "rc", "dev", ""].includes(releaseTypeInput)) {
@@ -157,7 +157,8 @@ async function run(): Promise<void> {
         releaseType,
         context.sha,
         branchName,
-        isBranchAllowedToPublish
+        isBranchAllowedToPublish,
+        createChangelog
       );
     } else {
       throw new Error(

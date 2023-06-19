@@ -11527,6 +11527,7 @@ function run() {
                     : "Enforcing version `1.0.0` as we are no longer in `initial development`.");
             }
             (0, bump_1.printNonCompliance)(bumpInfo.processedCommits);
+            const createChangelog = core.getBooleanInput("create-changelog");
             core.info("");
             const releaseTypeInput = core.getInput("release-type");
             if (config.versionScheme === "semver") {
@@ -11534,7 +11535,7 @@ function run() {
                     core.warning("The input value 'release-type' has no effect when using SemVer as the version scheme.");
                 }
                 core.startGroup("🔍 Determining SemVer bump");
-                yield (0, bump_1.bumpSemVer)(config, bumpInfo, releaseMode, branchName, github_1.context.sha, isBranchAllowedToPublish);
+                yield (0, bump_1.bumpSemVer)(config, bumpInfo, releaseMode, branchName, github_1.context.sha, isBranchAllowedToPublish, createChangelog);
             }
             else if (config.versionScheme === "sdkver") {
                 if (!["rel", "rc", "dev", ""].includes(releaseTypeInput)) {
@@ -11544,7 +11545,7 @@ function run() {
                 core.startGroup("🔍 Determining SdkVer bump");
                 // For non-release branches, a flow similar to SemVer can be followed,
                 // but release branches get linear increments.
-                yield (0, bump_1.bumpSdkVer)(config, bumpInfo, releaseMode, releaseType, github_1.context.sha, branchName, isBranchAllowedToPublish);
+                yield (0, bump_1.bumpSdkVer)(config, bumpInfo, releaseMode, releaseType, github_1.context.sha, branchName, isBranchAllowedToPublish, createChangelog);
             }
             else {
                 throw new Error(`Unimplemented 'version-scheme': ${config.versionScheme}`);
@@ -11956,7 +11957,7 @@ function publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllow
     });
 }
 exports.publishBump = publishBump;
-function bumpSemVer(config, bumpInfo, releaseMode, branchName, headSha, isBranchAllowedToPublish) {
+function bumpSemVer(config, bumpInfo, releaseMode, branchName, headSha, isBranchAllowedToPublish, createChangelog) {
     var _a;
     return __awaiter(this, void 0, void 0, function* () {
         const compliantCommits = bumpInfo.processedCommits
@@ -11978,7 +11979,9 @@ function bumpSemVer(config, bumpInfo, releaseMode, branchName, headSha, isBranch
             return false;
         }
         const nextVersion = (_a = bumpInfo.foundVersion) === null || _a === void 0 ? void 0 : _a.bump(bumpInfo.requiredBump, config.initialDevelopment);
-        const changelog = yield (0, changelog_1.generateChangelog)(bumpInfo);
+        let changelog = "";
+        if (createChangelog)
+            changelog = yield (0, changelog_1.generateChangelog)(bumpInfo);
         let bumped = false;
         if (nextVersion) {
             const buildMetadata = core.getInput("build-metadata");
@@ -12187,7 +12190,7 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
 /**
  * Bump and release/tag SDK versions
  */
-function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, branchName, isBranchAllowedToPublish) {
+function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, branchName, isBranchAllowedToPublish, createChangelog) {
     var _a, _b, _c, _d, _e, _f;
     return __awaiter(this, void 0, void 0, function* () {
         const isReleaseBranch = branchName.match(config.releaseBranches);
@@ -12240,17 +12243,19 @@ function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, bran
             });
             core.info(`The full release preceding the current one is ${(_e = previousRelease === null || previousRelease === void 0 ? void 0 : previousRelease.name) !== null && _e !== void 0 ? _e : "undefined"}`);
             let changelog = "";
-            if (previousRelease && cv.prerelease) {
-                const toVersion = 
-                // Since "dev" releases on non-release-branches result in a draft
-                // release, we'll need to use the commit sha.
-                sdkVerBumpType === "dev" && !isReleaseBranch
-                    ? shortSha(headSha)
-                    : nextVersion.toString();
-                changelog = yield (0, changelog_1.generateChangelogForCommits)(previousRelease.name, toVersion, yield collectChangelogCommits(previousRelease.name, config));
-            }
-            else {
-                changelog = yield (0, changelog_1.generateChangelog)(bumpInfo);
+            if (createChangelog) {
+                if (previousRelease && cv.prerelease) {
+                    const toVersion = 
+                    // Since "dev" releases on non-release-branches result in a draft
+                    // release, we'll need to use the commit sha.
+                    sdkVerBumpType === "dev" && !isReleaseBranch
+                        ? shortSha(headSha)
+                        : nextVersion.toString();
+                    changelog = yield (0, changelog_1.generateChangelogForCommits)(previousRelease.name, toVersion, yield collectChangelogCommits(previousRelease.name, config));
+                }
+                else {
+                    changelog = yield (0, changelog_1.generateChangelog)(bumpInfo);
+                }
             }
             bumped = yield publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish, 
             // Re-use the latest draft release only when not running on a release branch,

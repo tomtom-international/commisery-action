@@ -469,7 +469,8 @@ export async function bumpSemVer(
   releaseMode: ReleaseMode,
   branchName: string,
   headSha: string,
-  isBranchAllowedToPublish: boolean
+  isBranchAllowedToPublish: boolean,
+  createChangelog: boolean
 ): Promise<boolean> {
   const compliantCommits = bumpInfo.processedCommits
     .filter(c => c.message !== undefined)
@@ -501,7 +502,8 @@ export async function bumpSemVer(
     config.initialDevelopment
   );
 
-  const changelog = await generateChangelog(bumpInfo);
+  let changelog = "";
+  if (createChangelog) changelog = await generateChangelog(bumpInfo);
 
   let bumped = false;
   if (nextVersion) {
@@ -750,7 +752,8 @@ export async function bumpSdkVer(
   sdkVerBumpType: SdkVerBumpType,
   headSha,
   branchName,
-  isBranchAllowedToPublish
+  isBranchAllowedToPublish: boolean,
+  createChangelog: boolean
 ): Promise<boolean> {
   const isReleaseBranch = branchName.match(config.releaseBranches);
   const hasBreakingChange = bumpInfo.processedCommits.some(
@@ -828,20 +831,22 @@ export async function bumpSdkVer(
     );
     let changelog = "";
 
-    if (previousRelease && cv.prerelease) {
-      const toVersion =
-        // Since "dev" releases on non-release-branches result in a draft
-        // release, we'll need to use the commit sha.
-        sdkVerBumpType === "dev" && !isReleaseBranch
-          ? shortSha(headSha)
-          : nextVersion.toString();
-      changelog = await generateChangelogForCommits(
-        previousRelease.name,
-        toVersion,
-        await collectChangelogCommits(previousRelease.name, config)
-      );
-    } else {
-      changelog = await generateChangelog(bumpInfo);
+    if (createChangelog) {
+      if (previousRelease && cv.prerelease) {
+        const toVersion =
+          // Since "dev" releases on non-release-branches result in a draft
+          // release, we'll need to use the commit sha.
+          sdkVerBumpType === "dev" && !isReleaseBranch
+            ? shortSha(headSha)
+            : nextVersion.toString();
+        changelog = await generateChangelogForCommits(
+          previousRelease.name,
+          toVersion,
+          await collectChangelogCommits(previousRelease.name, config)
+        );
+      } else {
+        changelog = await generateChangelog(bumpInfo);
+      }
     }
 
     bumped = await publishBump(

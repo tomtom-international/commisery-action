@@ -71,6 +71,8 @@ export const mockGetBooleanInput = (setting, options?) => {
       return true;
     case "create-tag":
       return false;
+    case "create-changelog":
+      return true;
   }
   expect("error").toBe(`getBooleanInput("${setting}") not mocked`);
   return false;

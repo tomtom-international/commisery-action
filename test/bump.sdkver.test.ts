@@ -397,6 +397,62 @@ describe("Create release branch", () => {
   });
 });
 
+describe("Create changelog", () => {
+  const createChangelogInput = [
+    { desc: "yes", createChangelog: true },
+    { desc: "no", createChangelog: false },
+  ];
+
+  beforeEach(() => {
+    jest
+      .spyOn(github, "matchTagsToCommits")
+      .mockResolvedValue([
+        SemVer.fromString(U.INITIAL_VERSION),
+        [U.toICommit("fix: valid message")],
+      ]);
+  });
+
+  test.each(createChangelogInput)("$desc", async ({ createChangelog }) => {
+    jest
+      .spyOn(core, "getBooleanInput")
+      .mockImplementation((setting, options?) => {
+        switch (setting) {
+          case "create-release":
+            return true;
+          case "create-tag":
+            return false;
+          case "create-changelog":
+            return createChangelog;
+        }
+        return false;
+      });
+    setInputSpyWith({ "release-type": "rel" });
+
+    await bumpaction.exportedForTesting.run();
+    if (createChangelog) {
+      expect(changelog.generateChangelog).toHaveBeenCalledTimes(1);
+      expect(github.createRelease).toHaveBeenCalledTimes(1);
+      expect(github.createRelease).toHaveBeenCalledWith(
+        U.MINOR_BUMPED_VERSION,
+        U.HEAD_SHA,
+        U.CHANGELOG_PLACEHOLDER,
+        false,
+        false
+      );
+    } else {
+      expect(changelog.generateChangelog).not.toHaveBeenCalled();
+      expect(github.createRelease).toHaveBeenCalledTimes(1);
+      expect(github.createRelease).toHaveBeenCalledWith(
+        U.MINOR_BUMPED_VERSION,
+        U.HEAD_SHA,
+        "",
+        false,
+        false
+      );
+    }
+  });
+});
+
 afterAll(() => {
   jest.restoreAllMocks();
 });
