@@ -14,14 +14,25 @@
  * limitations under the License.
  */
 
-import * as github from "../src/github";
-jest.mock("../src/github");
+import * as fs from "fs";
 
+import * as github from "../src/github";
 import * as core from "@actions/core";
-jest.mock("@actions/core");
+
+import * as U from "./test_utils";
 
 import { Configuration } from "../src/config";
 import * as validate from "../src/actions/validate";
+import { ICommit } from "../src/interfaces";
+
+jest.mock("../src/github");
+jest.mock("@actions/core");
+
+jest.mock("fs", () => ({
+  promises: { access: jest.fn() },
+  existsSync: jest.fn(),
+  readFileSync: jest.fn(),
+}));
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -29,7 +40,7 @@ beforeEach(() => {
   jest.spyOn(github, "isPullRequestEvent").mockReturnValue(true);
 });
 
-const toICommit = msg => ({ message: msg, sha: "f00dface" });
+const toICommit = (msg, p?) => ({ message: msg, sha: "f00dface", parents: p });
 const NOK_1 = toICommit("foo: invalid commit");
 const NOK_2 = toICommit("FIX : ~nvalid commit!");
 const NOK_3 = toICommit("ci: long\nmultiline\n\n INVALID-COMMIT: withfooter");
@@ -249,4 +260,164 @@ describe("Update labels", () => {
       });
     }
   );
+});
+
+describe("Commit validation exclusion by sha", () => {
+  const commit = (valid: boolean, n: number, p?: ICommit[]) =>
+    U.toICommit(
+      valid ? `ci: add valid commit ${n}` : `add invalid commit ${n}`,
+      p?.map(x => x.sha)
+    );
+
+  const getInterestingListOfCommits = () => {
+    /*
+     * Test with the following commit graph:
+     *
+     *   0-1-2-3-7-8-9     where _3_ and _5_ are
+     *    \     /          not conventional commits
+     *     4-5-6
+     */
+    const list: ICommit[] = [];
+    list.push(commit(true, 0));
+    list.push(commit(true, 1, [list[0]]));
+    list.push(commit(true, 2, [list[1]]));
+    list.push(commit(false, 3, [list[2]]));
+    list.push(commit(true, 4, [list[0]]));
+    list.push(commit(false, 5, [list[4]]));
+    list.push(commit(true, 6, [list[5]]));
+    list.push(commit(true, 7, [list[3], list[6]]));
+    list.push(commit(true, 8, [list[7]]));
+    list.push(commit(true, 9, [list[8]]));
+    return list;
+  };
+
+  const commitList = getInterestingListOfCommits();
+
+  beforeEach(() => {
+    jest.spyOn(fs, "existsSync").mockReturnValue(true);
+    jest
+      .spyOn(github, "getPullRequestTitle")
+      .mockResolvedValue(U.PRTITLE("chore"));
+
+    jest.spyOn(github, "getCommitsInPR").mockResolvedValue(commitList);
+  });
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("should be disabled by default", async () => {
+    jest.spyOn(fs, "readFileSync").mockReturnValue(``);
+    await validate.exportedForTesting.run();
+    expect(core.setFailed).toHaveBeenCalled();
+  });
+
+  it("should be able to exclude a commit and its ancestors", async () => {
+    // Get a list with only one failure for this basic test (commits 0 through 5)
+    jest
+      .spyOn(github, "getCommitsInPR")
+      .mockResolvedValue(commitList.slice(0, 5));
+    jest
+      .spyOn(fs, "readFileSync")
+      .mockReturnValue(`excluded-commits: ["${commitList[3].sha}"]`);
+
+    await validate.exportedForTesting.run();
+
+    expect(core.setFailed).not.toHaveBeenCalled();
+
+    // Expect info logs with "ignoring"-messages for 4 and all its ancestors
+    [
+      `[Ee]xcluded.+${commitList[1].message}`,
+      `[Ee]xcluded.+${commitList[2].message}`,
+      `[Ee]xcluded.+${commitList[3].message}`,
+    ].map(x =>
+      expect(core.startGroup).toHaveBeenCalledWith(expect.stringMatching(x))
+    );
+  });
+
+  it("should not ignore unrelated commits", async () => {
+    /* Reminder:
+     *   0-1-2-3-7-8-9     where _3_ and _5_ are
+     *    \     /          not conventional commits
+     *     4-5-6
+     *
+     * This test excludes 6, so should still trigger errors on 3, while ignoring 5
+     */
+
+    jest
+      .spyOn(fs, "readFileSync")
+      .mockReturnValue(`excluded-commits: ["${commitList[6].sha}"]`);
+
+    await validate.exportedForTesting.run();
+    expect(core.setFailed).toHaveBeenCalled();
+    // Exclude 6, so expect errors for 3 and ignore messages for 4 and 5
+    expect(core.error).toHaveBeenCalledWith(expect.anything(), {
+      title: expect.stringContaining(commitList[3].message),
+    });
+    [
+      `[Ee]xcluded.+${commitList[4].message}`,
+      `[Ee]xcluded.+${commitList[5].message}`,
+      `[Ee]xcluded.+${commitList[6].message}`,
+    ].map(x =>
+      expect(core.startGroup).toHaveBeenCalledWith(expect.stringMatching(x))
+    );
+  });
+
+  it("should handle both parents of a merge", async () => {
+    /* Reminder:
+     *   0-1-2-3-7-8-9     where _3_ and _5_ are
+     *    \     /          not conventional commits
+     *     4-5-6
+     *
+     * This test excludes 7, so should ignoring 1 through 6
+     */
+
+    jest
+      .spyOn(fs, "readFileSync")
+      .mockReturnValue(`excluded-commits: ["${commitList[7].sha}"]`);
+
+    await validate.exportedForTesting.run();
+    // Exclude 7, so expect no errors and ignore messages for everything <7
+    expect(core.setFailed).not.toHaveBeenCalled();
+    expect(core.error).not.toHaveBeenCalled();
+    [
+      `[Ee]xcluded.+${commitList[1].message}`,
+      `[Ee]xcluded.+${commitList[3].message}`,
+      `[Ee]xcluded.+${commitList[5].message}`,
+    ].map(x =>
+      expect(core.startGroup).toHaveBeenCalledWith(expect.stringMatching(x))
+    );
+  });
+
+  it("should be ignored if no excluded commits are found (with bad commits)", async () => {
+    jest
+      .spyOn(fs, "readFileSync")
+      .mockReturnValue(`excluded-commits: ["abc123"]`);
+
+    await validate.exportedForTesting.run();
+    // No commits are excluded, so expect errors for 3 and 5
+    expect(core.setFailed).toHaveBeenCalled();
+    expect(core.error).toHaveBeenCalledWith(expect.anything(), {
+      title: expect.stringContaining(commitList[3].message),
+    });
+    expect(core.error).toHaveBeenCalledWith(expect.anything(), {
+      title: expect.stringContaining(commitList[5].message),
+    });
+  });
+
+  it("should be ignored if no excluded commits are found (with good commits)", async () => {
+    jest
+      .spyOn(github, "getCommitsInPR")
+      .mockResolvedValue(commitList.slice(0, 3)); // short list, only good commits
+    jest
+      .spyOn(fs, "readFileSync")
+      .mockReturnValue(`excluded-commits: ["abc123"]`);
+
+    await validate.exportedForTesting.run();
+    // No commits are excluded, no errors are expected
+    expect(core.setFailed).not.toHaveBeenCalled();
+    expect(core.error).not.toHaveBeenCalled();
+    expect(core.info).not.toHaveBeenCalledWith(expect.anything(), {
+      title: expect.stringMatching(`[Ee]xcluded.+`),
+    });
+  });
 });

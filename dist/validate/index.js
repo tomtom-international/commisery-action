@@ -12891,6 +12891,7 @@ const CONFIG_ITEMS = [
     "release-branches",
     "prereleases",
     "sdkver-create-release-branches",
+    "excluded-commits",
 ];
 const VERSION_SCHEMES = ["semver", "sdkver"];
 /**
@@ -13093,6 +13094,21 @@ class Configuration {
                         throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be either "boolean" or "string"!`);
                     }
                     break;
+                case "excluded-commits":
+                    /* Example YAML:
+                     *   excluded-commits: []
+                     *   excluded-commits: ["3723ac94f5091257195d91a26e03492a8265b90d"]
+                     *   excluded-commits:
+                     *     - 3723ac94f5091257195d91a26e03492a8265b90d
+                     *     - 1234567890123456789012345678901234567890
+                     */
+                    if (typeof data[key] === "object") {
+                        this.excludedCommits = data[key];
+                    }
+                    else {
+                        throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be an array of strings!`);
+                    }
+                    break;
             }
         }
         if (this.sdkverCreateReleaseBranches !== undefined &&
@@ -13114,6 +13130,7 @@ class Configuration {
         this.tags = DEFAULT_ACCEPTED_TAGS;
         this.rules = new Map();
         this.sdkverCreateReleaseBranches = undefined;
+        this.excludedCommits = [];
         for (const rule of rules_1.ALL_RULES) {
             this.rules[rule.id] = {
                 description: rule.description,
@@ -13277,6 +13294,7 @@ function githubCommitsAsICommits(commits) {
         return {
             message: c.commit.message,
             sha: c.sha,
+            parents: c.parents.map(x => x.sha),
         };
     });
 }
@@ -14989,16 +15007,76 @@ function outputCommitListErrors(validationResults, useErrorLevel) {
     }
 }
 exports.outputCommitListErrors = outputCommitListErrors;
+/* Returns a list of commits that should be excluded from validation checks,
+ * following the configured exclusion sha's in the provided Configuration object.
+ *
+ * Parents of excluded commits are excluded (children are not).
+ */
+function getExcludedCommits(commits, config) {
+    var _a;
+    if (config.excludedCommits.length < 1)
+        return [];
+    const commitParentsMap = new Map();
+    for (const commit of commits) {
+        core.debug(`${commit.sha}: ${commit.message}, parents: ${commit.parents}`);
+        commitParentsMap.set(commit.sha, (_a = commit.parents) !== null && _a !== void 0 ? _a : []);
+    }
+    const collectParents = (commitSha) => {
+        const exclist = [];
+        let c = commitSha;
+        while (c !== undefined) {
+            exclist.push(c);
+            const parents = commitParentsMap.get(c);
+            core.debug(`Considering sha: ${c}, parents ${parents}`);
+            if (parents === undefined)
+                break;
+            if (parents.length > 1) {
+                // Recurse/fan out on encountering more than one parent, right side first
+                for (const p of parents.reverse()) {
+                    core.debug(`Recurse into parent ${p}`);
+                    exclist.push(...collectParents(p));
+                    core.debug(`Collected from parent ${p}`);
+                }
+                break;
+            }
+            else if (parents.length === 1) {
+                c = parents[0];
+            }
+            else {
+                c = undefined;
+            }
+        }
+        return exclist;
+    };
+    core.debug(`Collecting excluded commits`);
+    const excludedSet = new Set();
+    for (const excludedCommitSha of config.excludedCommits) {
+        for (const foundSha of collectParents(excludedCommitSha)) {
+            excludedSet.add(foundSha);
+        }
+    }
+    const excludedCommits = Array.from(excludedSet);
+    core.debug(`Done collecting excluded commits, result: ${excludedCommits}`);
+    return commits.filter(c => excludedCommits.includes(c.sha));
+}
 /* Takes an array of ICommit interface objects and process them using the
  * provided `Configuration` into an array of IValidationResult objects.
  * This contains the input, ConventionalCommitMessage object if compliant,
- * and any errors relating to the message if not.
+ * any errors relating to the message if not, and any commits that were
+ * encountered, but were configured to be excluded.
  */
 function processCommits(commits, config) {
     const results = [];
+    const exclusionList = getExcludedCommits(commits, config);
     for (const commit of commits) {
         const message = commit.message;
         const sha = commit.sha;
+        if (exclusionList.find(c => c.sha === sha)) {
+            // `sha` is an (ancestor of an) excluded commit; push an undefined message
+            // with no errors to results, signifying an excluded commit
+            results.push({ input: commit, message: undefined, errors: [] });
+            continue;
+        }
         try {
             const cc = new commit_1.ConventionalCommitMessage(message, undefined, config);
             results.push({ input: commit, message: cc, errors: [] });
@@ -15029,8 +15107,9 @@ function validateCommitsInCurrentPR(config) {
         const conventionalCommitMessages = [];
         const commits = yield (0, github_1.getCommitsInPR)((0, github_1.getPullRequestId)());
         const results = processCommits(commits, config);
-        const passResults = results.filter(c => c.errors.length === 0);
+        const passResults = results.filter(c => c.errors.length === 0 && c.message !== undefined);
         const failResults = results.filter(c => c.errors.length !== 0);
+        const excludeResults = results.filter(c => c.errors.length === 0 && c.message === undefined);
         if (passResults.length > 0) {
             core.info(`✅ ${failResults.length === 0 ? "All " : ""}${passResults.length}` +
                 ` of the pull request's commits are valid Conventional Commits`);
@@ -15044,6 +15123,19 @@ function validateCommitsInCurrentPR(config) {
             core.info(""); // for vertical whitespace
             core.setFailed(`${failResults.length} of the pull request's commits are not valid Conventional Commits`);
             outputCommitListErrors(failResults, true);
+        }
+        if (excludeResults.length > 0) {
+            core.info("");
+            core.info(`↷ Ignored ${excludeResults.length} commit${excludeResults.length > 1 ? "s" : ""}`);
+            for (const c of excludeResults) {
+                const subject = c.input.message.split("\n")[0];
+                const ancestor = !config.excludedCommits.includes(c.input.sha);
+                core.startGroup(`↷ ${ancestor ? `Ancestor of excluded commit` : `Excluded commit`}` +
+                    ` (${c.input.sha.slice(0, 8)}): ` +
+                    `${subject}`);
+                core.info(c.input.message);
+                core.endGroup();
+            }
         }
         return {
             compliant: failResults.length === 0,
