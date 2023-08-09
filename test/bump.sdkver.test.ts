@@ -188,132 +188,132 @@ const testSuiteDefinitions = [
   {
     suite: "Dev bumps on main branch",
     tests: [
-     // [ test description      , version     ,  bump  , latest draft     , branch         , breaking?, expected version ]
-        ["from dev-draft"       , "1.1.0"     , "dev"  , "1.2.0-dev1+123" , "master"       , false    , `1.2.0-dev2+${U.HEAD_SHA_ABBREV_8}` ],
-        ["from dev"             , "1.1.0"     , "dev"  , undefined        , "master"       , false    , `1.2.0-dev1+${U.HEAD_SHA_ABBREV_8}` ],
-        ["from rc"              , "1.2.0-rc1" , "dev"  , undefined        , "master"       , false    , `1.3.0-dev1+${U.HEAD_SHA_ABBREV_8}` ],
-        ["from release"         , "1.2.0"     , "dev"  , undefined        , "master"       , false    , `1.3.0-dev1+${U.HEAD_SHA_ABBREV_8}` ],
+     // [ test description      , version      ,  bump  , latest draft       , branch         , breaking?, expected version ]
+        ["from dev-draft"       , "1.1.0"      , "dev"  , "1.2.0-dev001.123" , "master"       , false    , `1.2.0-dev002.${U.HEAD_SHA_ABBREV_8}` ],
+        ["from dev"             , "1.1.0"      , "dev"  , undefined          , "master"       , false    , `1.2.0-dev001.${U.HEAD_SHA_ABBREV_8}` ],
+        ["from rc"              , "1.2.0-rc01" , "dev"  , undefined          , "master"       , false    , `1.3.0-dev001.${U.HEAD_SHA_ABBREV_8}` ],
+        ["from release"         , "1.2.0"      , "dev"  , undefined          , "master"       , false    , `1.3.0-dev001.${U.HEAD_SHA_ABBREV_8}` ],
     ],
   },
   {
     suite: "Dev bumps on release branch",
     tests: [
-     // [ test description      , version     ,  bump  , latest draft     , branch         , breaking?, expected version ]
-        ["from dev"             , "1.1.0"     , "dev"  , "1.2.0-dev1+234" , "release/1.2.0", false    , "1.1.1"          ], // <-- note that the branch name
-        ["from rc"              , "1.2.0-rc1" , "dev"  , "1.2.0-dev1+345" , "release/1.2.0", false    , "1.2.0-rc2"      ], //     is not considered as any
-        ["from release"         , "1.2.0"     , "dev"  , undefined        , "release/1.2.0", false    , "1.2.1"          ], //     sort of versioning input
-        ["from rel + HEADisTag" , "1.2.0"     , "dev"  , undefined        , "release/1.2.0", false    , undefined        ],
+     // [ test description      , version      ,  bump  , latest draft       , branch         , breaking?, expected version ]
+        ["from dev"             , "1.1.0"      , "dev"  , "1.2.0-dev001.234" , "release/1.2.0", false    , "1.1.1"          ], // <-- note that the branch name
+        ["from rc"              , "1.2.0-rc01" , "dev"  , "1.2.0-dev001.345" , "release/1.2.0", false    , "1.2.0-rc02"     ], //     is not considered as any
+        ["from release"         , "1.2.0"      , "dev"  , undefined          , "release/1.2.0", false    , "1.2.1"          ], //     sort of versioning input
+        ["from rel + HEADisTag" , "1.2.0"      , "dev"  , undefined          , "release/1.2.0", false    , undefined        ],
     ],
   },
   {
     suite: "Release candidate bumps on main branch",
     tests: [
-     // [ test description      , version     ,  bump  , latest draft     , branch           , breaking?, expected version ]  //     may be non-intuitive; rc
-        ["from dev"             , "1.1.0"     , "rc"   , "1.2.0-dev1+1"   , "master"         , false    , "1.2.0-rc1"      ], //     increments only happen on
-        ["from rc"              , "1.2.0-rc1" , "rc"   , "1.2.0-dev1+2"   , "master"         , false    , "1.3.0-rc1"      ], // <-- rel. branches, so this is
-        ["from release"         , "1.2.0"     , "rc"   , "1.2.0-dev1+3"   , "master"         , false    , "1.3.0-rc1"      ], //     the _next_ release
+     // [ test description      , version      ,  bump  , latest draft       , branch           , breaking?, expected version ]  //     may be non-intuitive; rc
+        ["from dev"             , "1.1.0"      , "rc"   , "1.2.0-dev001.1"   , "master"         , false    , "1.2.0-rc01"     ], //     increments only happen on
+        ["from rc"              , "1.2.0-rc01" , "rc"   , "1.2.0-dev001.2"   , "master"         , false    , "1.3.0-rc01"     ], // <-- rel. branches, so this is
+        ["from release"         , "1.2.0"      , "rc"   , "1.2.0-dev001.3"   , "master"         , false    , "1.3.0-rc01"     ], //     the _next_ release
     ],
   },
   {
     suite: "Release candidate bumps on release branch",
     tests: [
-     // [ test description      , version     ,  bump  , latest draft     , branch         , breaking?, expected version ]
-        ["from dev"             , "1.1.0"     , "rc"   , "1.2.0-dev1+1"   , "release/1.2.0", false    , "1.1.1"          ],
-        ["from rc"              , "1.2.0-rc1" , "rc"   , "1.2.0-dev1+2"   , "release/1.2.0", false    , "1.2.0-rc2"      ],
-        ["from rc + HEADisTag"  , "1.2.0-rc1" , "rc"   , "1.2.0-dev1+3"   , "release/1.2.0", false    , undefined        ],
-        ["from release"         , "1.2.0"     , "rc"   , "1.2.0-dev1+4"   , "release/1.2.0", false    , "1.2.1"          ],
+     // [ test description      , version      ,  bump  , latest draft       , branch         , breaking?, expected version ]
+        ["from dev"             , "1.1.0"      , "rc"   , "1.2.0-dev001.1"   , "release/1.2.0", false    , "1.1.1"          ],
+        ["from rc"              , "1.2.0-rc01" , "rc"   , "1.2.0-dev001.2"   , "release/1.2.0", false    , "1.2.0-rc02"     ],
+        ["from rc + HEADisTag"  , "1.2.0-rc01" , "rc"   , "1.2.0-dev001.3"   , "release/1.2.0", false    , undefined        ],
+        ["from release"         , "1.2.0"      , "rc"   , "1.2.0-dev001.4"   , "release/1.2.0", false    , "1.2.1"          ],
     ],
   },
   {
     suite: "Release bumps on main branch",
     tests: [
-     // [ test description      , version     ,  bump  , latest draft     , branch         , breaking?, expected version ]
-        ["from dev"             , "1.1.0"     , "rel"  , "1.2.0-dev1+1"   , "master"       , false    , "1.2.0"          ],
-        ["from rc + HEADisTag"  , "1.2.0-rc1" , "rel"  , "1.2.0-dev1+1"   , "master"       , false    , "1.2.0"          ], // note that "HEADisTag" triggers specialized behavior
-        ["from rc + HEADisnoTag", "1.2.0-rc1" , "rel"  , "1.2.0-dev1+1"   , "master"       , false    , "1.3.0"          ],
-        ["from release"         , "1.2.0"     , "rel"  , "1.2.0-dev1+1"   , "master"       , false    , "1.3.0"          ],
+     // [ test description      , version      ,  bump  , latest draft     , branch         , breaking?, expected version ]
+        ["from dev"             , "1.1.0"      , "rel"  , "1.2.0-dev001.1"   , "master"       , false    , "1.2.0"        ],
+        ["from rc + HEADisTag"  , "1.2.0-rc01" , "rel"  , "1.2.0-dev001.1"   , "master"       , false    , "1.2.0"        ], // note that "HEADisTag" triggers specialized behavior
+        ["from rc + HEADisnoTag", "1.2.0-rc01" , "rel"  , "1.2.0-dev001.1"   , "master"       , false    , "1.3.0"        ],
+        ["from release"         , "1.2.0"      , "rel"  , "1.2.0-dev001.1"   , "master"       , false    , "1.3.0"        ],
     ],
   },
   {
     suite: "Release bumps on release branch",
     tests: [
-     // [ test description      , version     ,  bump  , latest draft     , branch         , breaking?, expected version ]
-        ["from dev"             , "1.1.0"     , "rel"  , "1.2.0-dev1+1"   , "release/1.2.0", false    , "1.1.1"          ],
-        ["from rc"              , "1.2.0-rc1" , "rel"  , "1.2.0-dev1+1"   , "release/1.2.0", false    , "1.2.0"          ],
-        ["from release"         , "1.2.0"     , "rel"  , "1.2.0-dev1+1"   , "release/1.2.0", false    , "1.2.1"          ],
-        ["from rel + HEADisTag" , "1.2.0"     , "rel"  , undefined        , "release/1.2.0", false    , undefined        ],
+     // [ test description      , version      ,  bump  , latest draft     , branch         , breaking?, expected version ]
+        ["from dev"             , "1.1.0"      , "rel"  , "1.2.0-dev001.1" , "release/1.2.0", false    , "1.1.1"          ],
+        ["from rc"              , "1.2.0-rc01" , "rel"  , "1.2.0-dev001.1" , "release/1.2.0", false    , "1.2.0"          ],
+        ["from release"         , "1.2.0"      , "rel"  , "1.2.0-dev001.1" , "release/1.2.0", false    , "1.2.1"          ],
+        ["from rel + HEADisTag" , "1.2.0"      , "rel"  , undefined        , "release/1.2.0", false    , undefined        ],
     ],
   },
   // BREAKING CHANGES
   {
     suite: "Dev bumps with breaking changes",
     tests: [
-     // [ test description      , version     ,  bump  , latest draft     , branch         , breaking?, expected version ]
-        ["main branch"          , "1.2.0"     , "dev"  , undefined        , "master"       , true    , `2.0.0-dev1+${U.HEAD_SHA_ABBREV_8}` ],
-        ["main branch, draft"   , "1.2.0"     , "dev"  , "1.3.0-dev1+2"   , "master"       , true    , `1.3.0-dev2+${U.HEAD_SHA_ABBREV_8}` ],
-        ["release branch"       , "1.2.0"     , "dev"  , undefined        , "release/1.2.0", true    , undefined         ],
-        ["release branch, draft", "1.2.0"     , "dev"  , "1.3.0-dev1+3"   , "release/1.2.0", true    , undefined         ],
-        ["release branch+RC"    , "1.2.0-rc1" , "dev"  , undefined        , "release/1.2.0", true    , undefined         ],
-        ["rel branch+RC, draft" , "1.2.0-rc1" , "dev"  , "1.3.0-dev1+3"   , "release/1.2.0", true    , undefined         ],
+     // [ test description      , version      ,  bump  , latest draft     , branch         , breaking?, expected version ]
+        ["main branch"          , "1.2.0"      , "dev"  , undefined        , "master"       , true    , `2.0.0-dev001.${U.HEAD_SHA_ABBREV_8}` ],
+        ["main branch, draft"   , "1.2.0"      , "dev"  , "1.3.0-dev001.2" , "master"       , true    , `1.3.0-dev002.${U.HEAD_SHA_ABBREV_8}` ],
+        ["release branch"       , "1.2.0"      , "dev"  , undefined        , "release/1.2.0", true    , undefined         ],
+        ["release branch, draft", "1.2.0"      , "dev"  , "1.3.0-dev001.3" , "release/1.2.0", true    , undefined         ],
+        ["release branch+RC"    , "1.2.0-rc01" , "dev"  , undefined        , "release/1.2.0", true    , undefined         ],
+        ["rel branch+RC, draft" , "1.2.0-rc01" , "dev"  , "1.3.0-dev001.3" , "release/1.2.0", true    , undefined         ],
     ],
   },
   {
     suite: "Rc bumps with breaking changes",
     tests: [
-     // [ test description      , version     ,  bump  , latest draft , branch         , breaking?, expected version ]
-        ["main branch"          , "1.2.0"     , "rc"   , undefined    , "master"       , true    , "2.0.0-rc1"       ],
-        ["main branch+RC"       , "1.2.0-rc1" , "rc"   , undefined    , "master"       , true    , "2.0.0-rc1"       ],
-        ["release branch"       , "1.2.0"     , "rc"   , undefined    , "release/1.2.0", true    , undefined         ],
-        ["release branch+RC"    , "1.2.0-rc1" , "rc"   , undefined    , "release/1.2.0", true    , undefined         ],
-        ["RB+ RC for next major", "2.0.0-rc1" , "dev"  , undefined    , "release/2.0.0", true    , "2.0.0-rc2"       ],
+     // [ test description      , version      ,  bump  , latest draft , branch         , breaking?, expected version ]
+        ["main branch"          , "1.2.0"      , "rc"   , undefined    , "master"       , true    , "2.0.0-rc01"      ],
+        ["main branch+RC"       , "1.2.0-rc01" , "rc"   , undefined    , "master"       , true    , "2.0.0-rc01"      ],
+        ["release branch"       , "1.2.0"      , "rc"   , undefined    , "release/1.2.0", true    , undefined         ],
+        ["release branch+RC"    , "1.2.0-rc01" , "rc"   , undefined    , "release/1.2.0", true    , undefined         ],
+        ["RB+ RC for next major", "2.0.0-rc01" , "dev"  , undefined    , "release/2.0.0", true    , "2.0.0-rc02"      ],
     ],
   },
   {
     suite: "Release bumps with breaking changes",
     tests: [
-     // [ test description      , version     ,  bump  , latest draft , branch         , breaking?, expected version ]
-        ["main branch"          , "1.2.0"     , "rel"  , undefined    , "master"       , true    , "2.0.0"           ],
-        ["release branch"       , "1.2.0"     , "rel"  , undefined    , "release/1.2.0", true    , undefined         ],
-        ["release branch+RC"    , "1.2.0-rc1" , "rel"  , undefined    , "release/1.2.0", true    , undefined         ],
+     // [ test description      , version      ,  bump  , latest draft , branch         , breaking?, expected version ]
+        ["main branch"          , "1.2.0"      , "rel"  , undefined    , "master"       , true    , "2.0.0"           ],
+        ["release branch"       , "1.2.0"      , "rel"  , undefined    , "release/1.2.0", true    , undefined         ],
+        ["release branch+RC"    , "1.2.0-rc01" , "rel"  , undefined    , "release/1.2.0", true    , undefined         ],
     ],
   },
   // DRAFT RELEASE HANDLING
   {
     suite: "Dev bumps considers draft releases",
     tests: [
-     // [ test description      , version     ,  bump  , latest draft , branch         , breaking?, expected version ]
-        ["no draft"             , "1.2.0"     , "dev"  , undefined    , "master"       , false    , `1.3.0-dev1+${U.HEAD_SHA_ABBREV_8}`  ],
-        ["previous version"     , "1.2.0"     , "dev"  , "1.1.0-dev34", "master"       , false    , `1.3.0-dev1+${U.HEAD_SHA_ABBREV_8}`  ],
-        ["current version"      , "1.2.0"     , "dev"  , "1.2.0-dev23", "master"       , false    , `1.3.0-dev1+${U.HEAD_SHA_ABBREV_8}`  ],
-        ["next version"         , "1.2.0"     , "dev"  , "1.3.0-dev19", "master"       , false    , `1.3.0-dev20+${U.HEAD_SHA_ABBREV_8}` ],
-        ["next major"           , "1.2.0"     , "dev"  , "2.0.0-dev11", "master"       , false    , `2.0.0-dev12+${U.HEAD_SHA_ABBREV_8}` ],
+     // [ test description      , version     ,  bump  , latest draft , branch          , breaking?, expected version ]
+        ["no draft"             , "1.2.0"     , "dev"  , undefined    , "master"        , false    , `1.3.0-dev001.${U.HEAD_SHA_ABBREV_8}` ],
+        ["previous version"     , "1.2.0"     , "dev"  , "1.1.0-dev034", "master"       , false    , `1.3.0-dev001.${U.HEAD_SHA_ABBREV_8}` ],
+        ["current version"      , "1.2.0"     , "dev"  , "1.2.0-dev023", "master"       , false    , `1.3.0-dev001.${U.HEAD_SHA_ABBREV_8}` ],
+        ["next version"         , "1.2.0"     , "dev"  , "1.3.0-dev019", "master"       , false    , `1.3.0-dev020.${U.HEAD_SHA_ABBREV_8}` ],
+        ["next major"           , "1.2.0"     , "dev"  , "2.0.0-dev011", "master"       , false    , `2.0.0-dev012.${U.HEAD_SHA_ABBREV_8}` ],
     ],
   },
   {
     suite: "Release candidate bumps ignore draft releases",
     tests: [
-     // [ test description      , version     ,  bump  , latest draft , branch         , breaking?, expected version ]
-        ["mb: no draft"         , "1.2.0"     , "rc"   , undefined    , "master"       , false    , "1.3.0-rc1"      ],
-        ["mb: previous version" , "1.2.0"     , "rc"   , "1.1.0-dev34", "master"       , true     , "2.0.0-rc1"      ],
-        ["mb: current version"  , "1.2.0"     , "rc"   , "1.2.0-dev23", "master"       , false    , "1.3.0-rc1"      ], 
-        ["mb: next version"     , "1.2.0"     , "rc"   , "1.3.0-dev19", "master"       , false    , "1.3.0-rc1"      ],
-        ["rb: no draft"         , "1.2.0"     , "rc"   , undefined    , "release/1.2.0", false    , "1.2.1"          ],
-        ["rb: previous version" , "1.2.0"     , "rc"   , "1.1.0-dev34", "release/1.2.0", false    , "1.2.1"          ],
-        ["rb: current version"  , "1.2.0"     , "rc"   , "1.2.0-dev23", "release/1.2.0", false    , "1.2.1"          ],
-        ["rb: next version"     , "1.2.0"     , "rc"   , "1.3.0-dev19", "release/1.2.0", false    , "1.2.1"          ],
+     // [ test description      , version     ,  bump  , latest draft  , branch         , breaking?, expected version ]
+        ["mb: no draft"         , "1.2.0"     , "rc"   , undefined     , "master"       , false    , "1.3.0-rc01"     ],
+        ["mb: previous version" , "1.2.0"     , "rc"   , "1.1.0-dev034", "master"       , true     , "2.0.0-rc01"     ],
+        ["mb: current version"  , "1.2.0"     , "rc"   , "1.2.0-dev023", "master"       , false    , "1.3.0-rc01"     ], 
+        ["mb: next version"     , "1.2.0"     , "rc"   , "1.3.0-dev019", "master"       , false    , "1.3.0-rc01"     ],
+        ["rb: no draft"         , "1.2.0"     , "rc"   , undefined     , "release/1.2.0", false    , "1.2.1"          ],
+        ["rb: previous version" , "1.2.0"     , "rc"   , "1.1.0-dev034", "release/1.2.0", false    , "1.2.1"          ],
+        ["rb: current version"  , "1.2.0"     , "rc"   , "1.2.0-dev023", "release/1.2.0", false    , "1.2.1"          ],
+        ["rb: next version"     , "1.2.0"     , "rc"   , "1.3.0-dev019", "release/1.2.0", false    , "1.2.1"          ],
     ],
   },
   // MISCELLANEOUS ERRORS
   {
     suite: "Erroneous situations",
     tests: [
-     // [ test description      , version       ,  bump  , latest draft   , branch         , breaking?, expected version ]
-        ["rel branch major bump", "1.2.0"       , "dev"  , undefined      , "release/1.2.0", true    , undefined         ],
-        ["rel branch cur dev"   , `1.1.0-dev8+1`, "dev"  , "1.2.0-dev1+1" , "release/1.2.0", false   , undefined         ],
-        ["incorrect prerelease" , `1.1.0-devs+2`, "dev"  , undefined      , "master"       , false   , `1.2.0-dev1+${U.HEAD_SHA_ABBREV_8}` ],
-        ["wrong bump input"     , `1.1.0-dev1+3`, "beep" , undefined      , "master"       , false   , undefined         ],
-        ["unauth'd branch dev"  , `1.1.0-dev1+4`, "dev"  , undefined      , "mister"       , false   , `1.1.0-dev2+${U.HEAD_SHA_ABBREV_8}` ], // <-- TODO: make fail; not
-        ["unauth'd branch rc"   , `1.1.0-dev1+5`, "rc"   , undefined      , "mister"       , false   , "1.1.0-rc1"       ],                   // <--       implemented yet
+     // [ test description      , version         ,  bump  , latest draft     , branch         , breaking?, expected version ]
+        ["rel branch major bump", "1.2.0"         , "dev"  , undefined        , "release/1.2.0", true    , undefined         ],
+        ["rel branch cur dev"   , `1.1.0-dev008.1`, "dev"  , "1.2.0-dev001+1" , "release/1.2.0", false   , undefined         ],
+        ["incorrect prerelease" , `1.1.0-devs`    , "dev"  , undefined        , "master"       , false   , `1.2.0-dev001.${U.HEAD_SHA_ABBREV_8}` ],
+        ["wrong bump input"     , `1.1.0-dev001.3`, "beep" , undefined        , "master"       , false   , undefined         ],
+        ["unauth'd branch dev"  , `1.1.0-dev001.4`, "dev"  , undefined        , "mister"       , false   , `1.1.0-dev002.${U.HEAD_SHA_ABBREV_8}` ], // <-- TODO: make fail; not
+        ["unauth'd branch rc"   , `1.1.0-dev001.5`, "rc"   , undefined        , "mister"       , false   , "1.1.0-rc01"      ],                     // <--       implemented yet
     ],
   },
 ];
