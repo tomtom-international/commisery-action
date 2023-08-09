@@ -64,12 +64,12 @@ This automatically implies that **no** git tags will be created for each Develop
 
 The below table indicates the behavior when creating a Development Release:
 
-| Current Version | Increment Type      | Next Version |
-| --------------- | ------------------- | ------------ |
-| `0.1.0`         | Non-breaking change | `0.2.0-dev1` |
-| `0.2.0-dev1`    | Non-breaking change | `0.2.0-dev2` |
-| `0.1.0`         | Breaking Change     | `1.0.0-dev1` |
-| `0.2.0-dev1`    | Breaking change     | `1.0.0-dev2` |
+| Current Version | Increment Type      | Next Version   |
+| --------------- | ------------------- | -------------- |
+| `0.1.0`         | Non-breaking change | `0.2.0-dev001` |
+| `0.2.0-dev001`  | Non-breaking change | `0.2.0-dev002` |
+| `0.1.0`         | Breaking Change     | `1.0.0-dev001` |
+| `0.2.0-dev001`  | Breaking change     | `1.0.0-dev002` |
 
 
 ### Release Candidates
@@ -87,16 +87,16 @@ A Release Candidate is initiated on the `main` development branch;
 
 | Current Version | Increment Type      | Next Version |
 | --------------- | ------------------- | ------------ |
-| `0.1.0-dev1`    | Release Candidate   | `0.1.0-rc1`  |
-| `0.1.0`         | Release Candidate   | `0.2.0-rc1`  |
-| `0.1.0-rc1`     | Release Candidate   | `0.2.0-rc1`  |
+| `0.1.0-dev001`  | Release Candidate   | `0.1.0-rc01`  |
+| `0.1.0`         | Release Candidate   | `0.2.0-rc01`  |
+| `0.1.0-rc01`    | Release Candidate   | `0.2.0-rc01`  |
 
 Stabilizing a Release Candidate is handled on a release branch (i.e. `release/0.1`);
 
 | Current Version | Increment Type      | Next Version |
 | --------------- | ------------------- | ------------ |
-| `0.1.0-rc1`     | Non-breaking change | `0.1.0-rc2`  |
-| `0.1.0-rc2`     | Breaking change     | `0.1.0-rc3`  |
+| `0.1.0-rc01`    | Non-breaking change | `0.1.0-rc02`  |
+| `0.1.0-rc02`    | Breaking change     | `0.1.0-rc03`  |
 
 ### Releases
 
@@ -108,15 +108,15 @@ You can release both Development Releases and Release Candidates from either the
 
 | Current Version | Increment Type      | Next Version |
 | --------------- | ------------------- | ------------ |
-| `0.1.0-dev1`    | Release             | `0.1.0`      |
-| `0.1.0-rc1`     | Release             | `0.1.0`      |
+| `0.1.0-dev001`  | Release             | `0.1.0`      |
+| `0.1.0-rc01`    | Release             | `0.1.0`      |
 | `0.1.0`         | Release             | `0.2.0`      |
 
 or the `release` branch:
 
 | Current Version | Increment Type      | Next Version |
 | --------------- | ------------------- | ------------ |
-| `0.1.0-rc2`     | Release             | `0.1.0`      |
+| `0.1.0-rc02`    | Release             | `0.1.0`      |
 | `0.1.0`         | Release             | `0.1.1`      |
 
 Additionally, you can introduce additional fixes on a release by adding commits on a release branch
@@ -134,36 +134,36 @@ Below you can find an example of common strategies which can be utilized using S
 
 ```mermaid
 gitGraph
-  commit id: "0.1.0-dev1"
-  commit id: "0.1.0-dev2" tag: "0.1.0"
-  commit id: "0.2.0-dev1"
-  commit id: "0.2.0-dev2" tag: "0.2.0-rc1"
+  commit id: "0.1.0-dev001"
+  commit id: "0.1.0-dev002" tag: "0.1.0"
+  commit id: "0.2.0-dev001"
+  commit id: "0.2.0-dev002" tag: "0.2.0-rc01"
   branch release/v0.2
   checkout main
-  commit id: "0.3.0-dev1"
+  commit id: "0.3.0-dev001"
   checkout release/v0.2
-  cherry-pick id: "0.3.0-dev1" tag: "0.2.0-rc2 + 0.2.0"
+  cherry-pick id: "0.3.0-dev001" tag: "0.2.0-rc02 + 0.2.0"
   checkout main
-  commit id: "0.3.0-dev2"
-  commit id: "0.3.0-dev3"
+  commit id: "0.3.0-dev002"
+  commit id: "0.3.0-dev003"
   checkout release/v0.2
-  cherry-pick id: "0.3.0-dev3" tag: "0.2.1"
+  cherry-pick id: "0.3.0-dev003" tag: "0.2.1"
   checkout main
-  commit id: "1.0.0-dev1" type: REVERSE
-  commit id: "1.0.0-dev2" tag: "1.0.0-rc1"
+  commit id: "1.0.0-dev001" type: REVERSE
+  commit id: "1.0.0-dev002" tag: "1.0.0-rc01"
   branch release/v1.0
   checkout main
-  commit id: "1.1.0-dev1"
-  commit id: "1.1.0-dev2"
+  commit id: "1.1.0-dev001"
+  commit id: "1.1.0-dev002"
   checkout release/v1.0
-  cherry-pick id: "1.1.0-dev2" tag: "1.0.0-rc2"
+  cherry-pick id: "1.1.0-dev002" tag: "1.0.0-rc02"
   checkout main
-  commit id: "1.1.0-dev3"
-  commit id: "1.1.0-dev4"
+  commit id: "1.1.0-dev003"
+  commit id: "1.1.0-dev004"
   checkout release/v1.0
-  cherry-pick id: "1.1.0-dev4" tag: "1.0.0-rc3 + 1.0.0"
+  cherry-pick id: "1.1.0-dev004" tag: "1.0.0-rc03 + 1.0.0"
   checkout main
-  commit id: "1.1.0-dev5"
+  commit id: "1.1.0-dev005"
   checkout release/v1.0
   commit id: "1.0.1" tag: "1.0.1"
 ```
@@ -267,8 +267,8 @@ $ git pull
 
 ```mermaid
 gitGraph
-  commit id: "0.1.0-dev1"
-  commit id: "0.1.0-dev2"
+  commit id: "0.1.0-dev001"
+  commit id: "0.1.0-dev002"
 ```
 
 > **NOTE**: Above example already contains few earlier Development releases (`0.1.0-devN`)
@@ -281,8 +281,8 @@ $ git checkout -b feat/build-feature
 
 ```mermaid
 gitGraph
-  commit id: "0.1.0-dev1"
-  commit id: "0.1.0-dev2"
+  commit id: "0.1.0-dev001"
+  commit id: "0.1.0-dev002"
   branch feat/build-feature
   checkout feat/build-feature
   commit id: " " type: HIGHLIGHT
@@ -303,8 +303,8 @@ $ git push
 
 ```mermaid
 gitGraph
-  commit id: "0.1.0-dev1"
-  commit id: "0.1.0-dev2"
+  commit id: "0.1.0-dev001"
+  commit id: "0.1.0-dev002"
   branch feat/build-feature
   checkout feat/build-feature
   commit id: "commit-1"
@@ -315,13 +315,13 @@ In the meantime, the `main` branch might have already advanced with additional c
 
 ```mermaid
 gitGraph
-  commit id: "0.1.0-dev1"
-  commit id: "0.1.0-dev2"
+  commit id: "0.1.0-dev001"
+  commit id: "0.1.0-dev002"
   branch feat/build-feature
   checkout feat/build-feature
   commit id: "commit-1"
   checkout main
-  commit id: "0.1.0-dev3" type: HIGHLIGHT
+  commit id: "0.1.0-dev003" type: HIGHLIGHT
   checkout feat/build-feature
   commit id: "commit-2"
 ```
@@ -341,26 +341,26 @@ $ gh pr merge --merge
 
 ```mermaid
 gitGraph
-  commit id: "0.1.0-dev1"
-  commit id: "0.1.0-dev2"
+  commit id: "0.1.0-dev001"
+  commit id: "0.1.0-dev002"
   branch feat/build-feature
   checkout feat/build-feature
   commit id: "commit-1"
   checkout main
-  commit id: "0.1.0-dev3"
+  commit id: "0.1.0-dev003"
   checkout feat/build-feature
   commit id: "commit-2"
   checkout main
-  merge feat/build-feature id: "0.1.0-dev4" type: HIGHLIGHT
+  merge feat/build-feature id: "0.1.0-dev004" type: HIGHLIGHT
 ```
 
-Once the Pull Request is merged, a new `draft` GitHub release (`v0.1.0-dev4`) will be created;
+Once the Pull Request is merged, a new `draft` GitHub release (`v0.1.0-dev004`) will be created;
 
 ```sh
 $ gh release list
 
 TITLE           TYPE    TAG NAME      PUBLISHED
-v0.1.0-dev4     Draft   v0.1.0-dev4   about 1 minute ago
+v0.1.0-dev004     Draft   v0.1.0-dev004   about 1 minute ago
 ```
 
 ## Release Candidate flow
@@ -371,18 +371,18 @@ Considering the current state:
 
 ```mermaid
 gitGraph
-  commit id: "0.1.0-dev1"
-  commit id: "0.1.0-dev2"
+  commit id: "0.1.0-dev001"
+  commit id: "0.1.0-dev002"
 
   branch feat/build-feature
   checkout feat/build-feature
   commit id: "commit-1"
   checkout main
-  commit id: "0.1.0-dev3"
+  commit id: "0.1.0-dev003"
   checkout feat/build-feature
   commit id: "commit-2"
   checkout main
-  merge feat/build-feature id: "0.1.0-dev4"
+  merge feat/build-feature id: "0.1.0-dev004"
 ```
 
 One can trigger a promotion of the latest Development Release to a Release Candidate by 
@@ -396,24 +396,24 @@ This will create a new *tagged* GitHub release with the `pre-release` flag enabl
 
 ```mermaid
 gitGraph
-  commit id: "0.1.0-dev1"
-  commit id: "0.1.0-dev2"
+  commit id: "0.1.0-dev001"
+  commit id: "0.1.0-dev002"
   branch feat/build-feature
   checkout feat/build-feature
   commit id: "commit-1"
   checkout main
-  commit id: "0.1.0-dev3"
+  commit id: "0.1.0-dev003"
   checkout feat/build-feature
   commit id: "commit-2"
   checkout main
-  merge feat/build-feature id: "0.1.0-dev4" tag: "v0.1.0-rc1" type: HIGHLIGHT
+  merge feat/build-feature id: "0.1.0-dev004" tag: "v0.1.0-rc01" type: HIGHLIGHT
 ```
 
 ```sh
 $ gh release list
 
 TITLE           TYPE          TAG NAME      PUBLISHED
-v0.1.0-rc1      Pre-release   v0.1.0-rc1    about 2 minutes ago
+v0.1.0-rc01      Pre-release   v0.1.0-rc01    about 2 minutes ago
 ```
 
 ### Hardening a Release Candidate
@@ -421,14 +421,14 @@ v0.1.0-rc1      Pre-release   v0.1.0-rc1    about 2 minutes ago
 Considering the following initial state:
 ```mermaid
 gitGraph
-  commit id: "0.1.0-dev1"
-  commit id: "0.1.0-dev2"
-  commit id: "0.1.0-dev3"
-  commit id: "0.1.0-dev4" tag: "v0.1.0-rc1"
-  commit id: "0.2.0-dev1"
-  commit id: "0.2.0-dev2"
-  commit id: "0.2.0-dev3"
-  commit id: "0.2.0-dev4"
+  commit id: "0.1.0-dev001"
+  commit id: "0.1.0-dev002"
+  commit id: "0.1.0-dev003"
+  commit id: "0.1.0-dev004" tag: "v0.1.0-rc01"
+  commit id: "0.2.0-dev001"
+  commit id: "0.2.0-dev002"
+  commit id: "0.2.0-dev003"
+  commit id: "0.2.0-dev004"
 ```
 
 In order to harden a Release Candidate, one needs to:
@@ -437,32 +437,32 @@ In order to harden a Release Candidate, one needs to:
 
 ```sh
 $ git checkout -b release/v0.1
-$ git cherry-pick 0.2.0-dev2 # NOTE: This should be the SHA of 0.2.0-dev2
+$ git cherry-pick 0.2.0-dev002 # NOTE: This should be the SHA of 0.2.0-dev002
 ```
 
 ```mermaid
 gitGraph
-  commit id: "0.1.0-dev1"
-  commit id: "0.1.0-dev2"
-  commit id: "0.1.0-dev3"
-  commit id: "0.1.0-dev4" tag: "v0.1.0-rc1"
+  commit id: "0.1.0-dev001"
+  commit id: "0.1.0-dev002"
+  commit id: "0.1.0-dev003"
+  commit id: "0.1.0-dev004" tag: "v0.1.0-rc01"
   branch release/v0.1
   checkout main
-  commit id: "0.2.0-dev1"
-  commit id: "0.2.0-dev2"
+  commit id: "0.2.0-dev001"
+  commit id: "0.2.0-dev002"
   checkout release/v0.1
-  cherry-pick id: "0.2.0-dev2" tag: "v0.1.0-rc2"
+  cherry-pick id: "0.2.0-dev002" tag: "v0.1.0-rc02"
   checkout main
-  commit id: "0.2.0-dev3"
-  commit id: "0.2.0-dev4"
+  commit id: "0.2.0-dev003"
+  commit id: "0.2.0-dev004"
 ```
 
 ```sh
 $ gh release list
 
 TITLE           TYPE          TAG NAME      PUBLISHED
-v0.1.0-rc2      Pre-release   v0.1.0-rc2    about 1 minute ago
-v0.1.0-rc1      Pre-release   v0.1.0-rc1    about 13 minutes ago
+v0.1.0-rc02      Pre-release   v0.1.0-rc02    about 1 minute ago
+v0.1.0-rc01      Pre-release   v0.1.0-rc01    about 13 minutes ago
 ```
 
 ## Release flow
@@ -473,19 +473,19 @@ Considering the following initial state:
 
 ```mermaid
 gitGraph
-  commit id: "0.1.0-dev1"
-  commit id: "0.1.0-dev2"
-  commit id: "0.1.0-dev3"
-  commit id: "0.1.0-dev4" tag: "v0.1.0-rc1"
+  commit id: "0.1.0-dev001"
+  commit id: "0.1.0-dev002"
+  commit id: "0.1.0-dev003"
+  commit id: "0.1.0-dev004" tag: "v0.1.0-rc01"
   branch release/v0.1
   checkout main
-  commit id: "0.2.0-dev1"
-  commit id: "0.2.0-dev2"
+  commit id: "0.2.0-dev001"
+  commit id: "0.2.0-dev002"
   checkout release/v0.1
-  cherry-pick id: "0.2.0-dev2" tag: "v0.1.0-rc2"
+  cherry-pick id: "0.2.0-dev002" tag: "v0.1.0-rc02"
   checkout main
-  commit id: "0.2.0-dev3"
-  commit id: "0.2.0-dev4"
+  commit id: "0.2.0-dev003"
+  commit id: "0.2.0-dev004"
 ```
 
 Running the release workflow on the release branch...
@@ -499,19 +499,19 @@ $ gh workflow run sdkver.yml --ref release/v0.1 --field releaseType=rel
 
 ```mermaid
 gitGraph
-  commit id: "0.1.0-dev1"
-  commit id: "0.1.0-dev2"
-  commit id: "0.1.0-dev3"
-  commit id: "0.1.0-dev4" tag: "v0.1.0-rc1"
+  commit id: "0.1.0-dev001"
+  commit id: "0.1.0-dev002"
+  commit id: "0.1.0-dev003"
+  commit id: "0.1.0-dev004" tag: "v0.1.0-rc01"
   branch release/v0.1
   checkout main
-  commit id: "0.2.0-dev1"
-  commit id: "0.2.0-dev2"
+  commit id: "0.2.0-dev001"
+  commit id: "0.2.0-dev002"
   checkout release/v0.1
-  cherry-pick id: "0.2.0-dev2" tag: "v0.1.0"
+  cherry-pick id: "0.2.0-dev002" tag: "v0.1.0"
   checkout main
-  commit id: "0.2.0-dev3"
-  commit id: "0.2.0-dev4"
+  commit id: "0.2.0-dev003"
+  commit id: "0.2.0-dev004"
 ```
 
 ```sh
@@ -519,8 +519,8 @@ $ gh release list
 
 TITLE           TYPE          TAG NAME      PUBLISHED
 v0.1.0          Latest        v0.1.0        about 2 minutes ago
-v0.1.0-rc2      Pre-release   v0.1.0-rc2    about 7 minute ago
-v0.1.0-rc1      Pre-release   v0.1.0-rc1    about 20 minutes ago
+v0.1.0-rc02      Pre-release   v0.1.0-rc02    about 7 minute ago
+v0.1.0-rc01      Pre-release   v0.1.0-rc01    about 20 minutes ago
 ```
 
 
@@ -533,23 +533,23 @@ $ git checkout main
 $ gh workflow run sdkver.yml --field releaseType=rel
 ```
 
-...will result in a promotion of `v0.2.0-dev4` towards a release:
+...will result in a promotion of `v0.2.0-dev004` towards a release:
 
 ```mermaid
 gitGraph
-  commit id: "0.1.0-dev1"
-  commit id: "0.1.0-dev2"
-  commit id: "0.1.0-dev3"
-  commit id: "0.1.0-dev4" tag: "v0.1.0-rc1"
+  commit id: "0.1.0-dev001"
+  commit id: "0.1.0-dev002"
+  commit id: "0.1.0-dev003"
+  commit id: "0.1.0-dev004" tag: "v0.1.0-rc01"
   branch release/v0.1
   checkout main
-  commit id: "0.2.0-dev1"
-  commit id: "0.2.0-dev2"
+  commit id: "0.2.0-dev001"
+  commit id: "0.2.0-dev002"
   checkout release/v0.1
-  cherry-pick id: "0.2.0-dev2" tag: "v0.1.0"
+  cherry-pick id: "0.2.0-dev002" tag: "v0.1.0"
   checkout main
-  commit id: "0.2.0-dev3"
-  commit id: "0.2.0-dev4" tag: "v0.2.0" type: HIGHLIGHT
+  commit id: "0.2.0-dev003"
+  commit id: "0.2.0-dev004" tag: "v0.2.0" type: HIGHLIGHT
 ```
 
 ```sh
@@ -558,8 +558,8 @@ $ gh release list
 TITLE           TYPE          TAG NAME      PUBLISHED
 v0.2.0          Latest        v0.2.0        about 3 minutes ago
 v0.1.0                        v0.1.0        about 5 minutes ago
-v0.1.0-rc2      Pre-release   v0.1.0-rc2    about 10 minute ago
-v0.1.0-rc1      Pre-release   v0.1.0-rc1    about 23 minutes ago
+v0.1.0-rc02      Pre-release   v0.1.0-rc02    about 10 minute ago
+v0.1.0-rc01      Pre-release   v0.1.0-rc01    about 23 minutes ago
 ```
 
 
@@ -570,23 +570,23 @@ in the next Release version:
 
 ```sh
 $ git checkout release/v0.1
-$ git cherry-pick 0.2.0-dev3 # NOTE: This should be the SHA of 0.2.0-dev3
+$ git cherry-pick 0.2.0-dev003 # NOTE: This should be the SHA of 0.2.0-dev003
 ```
 
 ```mermaid
 gitGraph
-  commit id: "0.1.0-dev4" tag: "v0.1.0-rc1"
+  commit id: "0.1.0-dev004" tag: "v0.1.0-rc01"
   branch release/v0.1
   checkout main
-  commit id: "0.2.0-dev1"
-  commit id: "0.2.0-dev2"
+  commit id: "0.2.0-dev001"
+  commit id: "0.2.0-dev002"
   checkout release/v0.1
-  cherry-pick id: "0.2.0-dev2" tag: "v0.1.0"
+  cherry-pick id: "0.2.0-dev002" tag: "v0.1.0"
   checkout main
-  commit id: "0.2.0-dev3"
-  commit id: "0.2.0-dev4" tag: "v0.2.0"
+  commit id: "0.2.0-dev003"
+  commit id: "0.2.0-dev004" tag: "v0.2.0"
   checkout release/v0.1
-  cherry-pick id: "0.2.0-dev3" tag: "v0.1.1"
+  cherry-pick id: "0.2.0-dev003" tag: "v0.1.1"
 ```
 
 ```sh
@@ -596,6 +596,6 @@ TITLE           TYPE          TAG NAME      PUBLISHED
 v0.1.1                        v0.1.1        about 1 minutes ago
 v0.2.0          Latest        v0.2.0        about 3 minutes ago
 v0.1.0                        v0.1.0        about 5 minutes ago
-v0.1.0-rc2      Pre-release   v0.1.0-rc2    about 10 minute ago
-v0.1.0-rc1      Pre-release   v0.1.0-rc1    about 23 minutes ago
+v0.1.0-rc02     Pre-release   v0.1.0-rc02   about 10 minute ago
+v0.1.0-rc01     Pre-release   v0.1.0-rc01   about 23 minutes ago
 ```
