@@ -114,6 +114,7 @@ describe("Semantic Version bumping by type", () => {
       new SemVer({ major: 1, minor: 2, patch: 4, prefix: "v" })
     );
   });
+
   test("No bump", () => {
     expect(SemVer.fromString("v1.2.3")?.bump(SemVerType.NONE)).toStrictEqual(
       null
@@ -174,6 +175,35 @@ describe("Semantic Version bumping by type (end of initial development)", () => 
     expect(
       SemVer.fromString("v0.2.3")?.bump(SemVerType.NONE, false)
     ).toStrictEqual(new SemVer({ major: 1, minor: 0, patch: 0, prefix: "v" }));
+  });
+});
+
+describe("Semantic Version prerelase incrementing", () => {
+  test("Next prerelease", () => {
+    expect(SemVer.fromString("1.2.3-9")?.nextPrerelease()).toStrictEqual(
+      new SemVer({ major: 1, minor: 2, patch: 3, prerelease: "10" })
+    );
+  });
+  test("Next prerelease, zero padded", () => {
+    expect(SemVer.fromString("1.2.3-00004")?.nextPrerelease()).toStrictEqual(
+      new SemVer({ major: 1, minor: 2, patch: 3, prerelease: "00005" })
+    );
+  });
+  test("Next prerelease, no prerelease", () => {
+    expect(SemVer.fromString("1.2.3")?.nextPrerelease()).toBeNull();
+  });
+  test("Next prerelease, prefix", () => {
+    expect(
+      SemVer.fromString("this-is-version-1.2.3-09")?.nextPrerelease()
+    ).toStrictEqual(
+      new SemVer({
+        major: 1,
+        minor: 2,
+        patch: 3,
+        prefix: "this-is-version-",
+        prerelease: "10",
+      })
+    );
   });
 });
 
