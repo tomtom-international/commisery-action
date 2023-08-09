@@ -160,10 +160,19 @@ export class SemVer {
       return null;
     }
 
+    // We need to keep the same amount of characters in the 'nr' group, so pad it with zeroes as needed.
+    const incrementAndZeroPad = (inputNr: string): string => {
+      let incremented = `${+inputNr + 1}`;
+      while (incremented.length < inputNr.length) {
+        incremented = `0${incremented}`;
+      }
+      return incremented;
+    };
+
     const nv = SemVer.copy(this);
-    nv.prerelease = `${pre ?? match.groups.pre}${+match.groups.nr + 1}${
-      post ?? match.groups.post
-    }`;
+    nv.prerelease = `${pre ?? match.groups.pre}${incrementAndZeroPad(
+      match.groups.nr
+    )}${post ?? match.groups.post}`;
     nv.build = "";
 
     return nv;

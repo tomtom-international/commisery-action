@@ -11784,13 +11784,13 @@ function newDraftRelease(currentVersion, changelog, sha, prefix) {
     return __awaiter(this, void 0, void 0, function* () {
         // Either update went wrong or there was nothing to update
         const nextPrereleaseVersion = currentVersion.nextPatch();
+        nextPrereleaseVersion.build = currentVersion.build;
         if (prefix === "dev") {
-            nextPrereleaseVersion.build = shortSha(sha);
+            nextPrereleaseVersion.prerelease = `${prefix}001.${shortSha(sha)}`;
         }
         else {
-            nextPrereleaseVersion.build = currentVersion.build;
+            nextPrereleaseVersion.prerelease = `${prefix}001`;
         }
-        nextPrereleaseVersion.prerelease = `${prefix}1`;
         yield (0, github_1.createRelease)(nextPrereleaseVersion.toString(), sha, changelog, true, false);
         return nextPrereleaseVersion.toString();
     });
@@ -12043,7 +12043,9 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
         else {
             // Bumps for "rc" and "dev" are identical on a release branch
             if (currentIsRc) {
-                nextVersion = currentVersion.nextPrerelease();
+                // We need to keep the pre intact (undefined), but the post needs to be
+                // cleared, as that contains the commit hash of the previous dev version.
+                nextVersion = currentVersion.nextPrerelease(undefined, "");
                 if (!nextVersion) {
                     fatal(`Unable to bump RC version for: ${currentVersion.toString()}; ` +
                         `make sure it contains an index number.`);
@@ -12105,22 +12107,23 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
                 nextVersion = semver_1.SemVer.copy(currentVersion);
                 nextVersion.build = "";
             }
-            nextVersion.prerelease = `${RC_PREFIX}1`;
+            nextVersion.prerelease = `${RC_PREFIX}01`;
         }
         else if (sdkVerBumpType === "dev") {
             // TODO: decide on how best to handle hasBreakingChange in this case
             if (currentIsRel || currentIsRc) {
                 nextVersion = bumpOrError(releaseBump);
-                nextVersion.prerelease = `${devPrereleaseText}1`;
+                nextVersion.prerelease = `${devPrereleaseText}001`;
             }
             else {
-                nextVersion = currentVersion.nextPrerelease();
+                // Keep prefix, clear postfix
+                nextVersion = currentVersion.nextPrerelease(undefined, "");
                 if (!nextVersion) {
                     // This can only happen if the current version is something
                     // unexpected and invalid, like a prerelease without a number, e.g.:
                     //     1.2.3-rc        1.2.3-dev        1.2.3-testing
                     nextVersion = bumpOrError(semver_1.SemVerType.MINOR);
-                    nextVersion.prerelease = `${devPrereleaseText}1`;
+                    nextVersion.prerelease = `${devPrereleaseText}001`;
                     core.warning(`Failed to bump the prerelease for version ${currentVersion.toString()}` +
                         `; moving to next release version ${nextVersion.toString()}`);
                 }
@@ -12137,12 +12140,7 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
         nextVersion.build = buildMetadata;
     }
     if (sdkVerBumpType === "dev" && !isReleaseBranch) {
-        if (nextVersion.build === "") {
-            nextVersion.build = `${shortSha(headSha)}`;
-        }
-        else {
-            nextVersion.build += `.${shortSha(headSha)}`;
-        }
+        nextVersion.prerelease += `.${shortSha(headSha)}`;
     }
     return nextVersion;
 }
@@ -14745,8 +14743,16 @@ class SemVer {
         if (match == null || match.groups == null) {
             return null;
         }
+        // We need to keep the same amount of characters in the 'nr' group, so pad it with zeroes as needed.
+        const incrementAndZeroPad = (inputNr) => {
+            let incremented = `${+inputNr + 1}`;
+            while (incremented.length < inputNr.length) {
+                incremented = `0${incremented}`;
+            }
+            return incremented;
+        };
         const nv = SemVer.copy(this);
-        nv.prerelease = `${pre !== null && pre !== void 0 ? pre : match.groups.pre}${+match.groups.nr + 1}${post !== null && post !== void 0 ? post : match.groups.post}`;
+        nv.prerelease = `${pre !== null && pre !== void 0 ? pre : match.groups.pre}${incrementAndZeroPad(match.groups.nr)}${post !== null && post !== void 0 ? post : match.groups.post}`;
         nv.build = "";
         return nv;
     }

@@ -294,12 +294,12 @@ async function newDraftRelease(
 ): Promise<string> {
   // Either update went wrong or there was nothing to update
   const nextPrereleaseVersion = currentVersion.nextPatch();
+  nextPrereleaseVersion.build = currentVersion.build;
   if (prefix === "dev") {
-    nextPrereleaseVersion.build = shortSha(sha);
+    nextPrereleaseVersion.prerelease = `${prefix}001.${shortSha(sha)}`;
   } else {
-    nextPrereleaseVersion.build = currentVersion.build;
+    nextPrereleaseVersion.prerelease = `${prefix}001`;
   }
-  nextPrereleaseVersion.prerelease = `${prefix}1`;
   await createRelease(
     nextPrereleaseVersion.toString(),
     sha,
@@ -640,7 +640,9 @@ function getNextSdkVer(
     } else {
       // Bumps for "rc" and "dev" are identical on a release branch
       if (currentIsRc) {
-        nextVersion = currentVersion.nextPrerelease();
+        // We need to keep the pre intact (undefined), but the post needs to be
+        // cleared, as that contains the commit hash of the previous dev version.
+        nextVersion = currentVersion.nextPrerelease(undefined, "");
         if (!nextVersion) {
           fatal(
             `Unable to bump RC version for: ${currentVersion.toString()}; ` +
@@ -698,20 +700,21 @@ function getNextSdkVer(
         nextVersion = SemVer.copy(currentVersion);
         nextVersion.build = "";
       }
-      nextVersion.prerelease = `${RC_PREFIX}1`;
+      nextVersion.prerelease = `${RC_PREFIX}01`;
     } else if (sdkVerBumpType === "dev") {
       // TODO: decide on how best to handle hasBreakingChange in this case
       if (currentIsRel || currentIsRc) {
         nextVersion = bumpOrError(releaseBump);
-        nextVersion.prerelease = `${devPrereleaseText}1`;
+        nextVersion.prerelease = `${devPrereleaseText}001`;
       } else {
-        nextVersion = currentVersion.nextPrerelease();
+        // Keep prefix, clear postfix
+        nextVersion = currentVersion.nextPrerelease(undefined, "");
         if (!nextVersion) {
           // This can only happen if the current version is something
           // unexpected and invalid, like a prerelease without a number, e.g.:
           //     1.2.3-rc        1.2.3-dev        1.2.3-testing
           nextVersion = bumpOrError(SemVerType.MINOR);
-          nextVersion.prerelease = `${devPrereleaseText}1`;
+          nextVersion.prerelease = `${devPrereleaseText}001`;
           core.warning(
             `Failed to bump the prerelease for version ${currentVersion.toString()}` +
               `; moving to next release version ${nextVersion.toString()}`
@@ -732,11 +735,7 @@ function getNextSdkVer(
   }
 
   if (sdkVerBumpType === "dev" && !isReleaseBranch) {
-    if (nextVersion.build === "") {
-      nextVersion.build = `${shortSha(headSha)}`;
-    } else {
-      nextVersion.build += `.${shortSha(headSha)}`;
-    }
+    nextVersion.prerelease += `.${shortSha(headSha)}`;
   }
 
   return nextVersion;
