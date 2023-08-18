@@ -1,5 +1,9 @@
-# Contributing to commisery-action
+<!--
+SPDX-FileCopyrightText: 2023 TomTom <http://tomtom.com>
+SPDX-License-Identifier: Apache-2.0
+-->
 
+# Contributing to commisery-action
 
 :+1::tada: Thanks for taking the time to contribute! :tada::+1:
 

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2023 TomTom <http://tomtom.com>
+# SPDX-License-Identifier: CC0-1.0
+
 dist/
 lib/
 test/

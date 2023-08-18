@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: 2023 TomTom <http://tomtom.com>
+SPDX-License-Identifier: Apache-2.0
+-->
+
 # Semantic Versioning Strategy
 
 This strategy implements the [SemVer 2.0](https://semver.org) specification strictly,

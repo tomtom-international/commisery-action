@@ -1212,6 +1212,19 @@ class HttpClientResponse {
             }));
         });
     }
+    readBodyBuffer() {
+        return __awaiter(this, void 0, void 0, function* () {
+            return new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
+                const chunks = [];
+                this.message.on('data', (chunk) => {
+                    chunks.push(chunk);
+                });
+                this.message.on('end', () => {
+                    resolve(Buffer.concat(chunks));
+                });
+            }));
+        });
+    }
 }
 exports.HttpClientResponse = HttpClientResponse;
 function isHttps(requestUrl) {
@@ -1716,7 +1729,13 @@ function getProxyUrl(reqUrl) {
         }
     })();
     if (proxyVar) {
-        return new URL(proxyVar);
+        try {
+            return new URL(proxyVar);
+        }
+        catch (_a) {
+            if (!proxyVar.startsWith('http://') && !proxyVar.startsWith('https://'))
+                return new URL(`http://${proxyVar}`);
+        }
     }
     else {
         return undefined;
@@ -1726,6 +1745,10 @@ exports.getProxyUrl = getProxyUrl;
 function checkBypass(reqUrl) {
     if (!reqUrl.hostname) {
         return false;
+    }
+    const reqHost = reqUrl.hostname;
+    if (isLoopbackAddress(reqHost)) {
+        return true;
     }
     const noProxy = process.env['no_proxy'] || process.env['NO_PROXY'] || '';
     if (!noProxy) {
@@ -1752,13 +1775,24 @@ function checkBypass(reqUrl) {
         .split(',')
         .map(x => x.trim().toUpperCase())
         .filter(x => x)) {
-        if (upperReqHosts.some(x => x === upperNoProxyItem)) {
+        if (upperNoProxyItem === '*' ||
+            upperReqHosts.some(x => x === upperNoProxyItem ||
+                x.endsWith(`.${upperNoProxyItem}`) ||
+                (upperNoProxyItem.startsWith('.') &&
+                    x.endsWith(`${upperNoProxyItem}`)))) {
             return true;
         }
     }
     return false;
 }
 exports.checkBypass = checkBypass;
+function isLoopbackAddress(host) {
+    const hostLower = host.toLowerCase();
+    return (hostLower === 'localhost' ||
+        hostLower.startsWith('127.') ||
+        hostLower.startsWith('[::1]') ||
+        hostLower.startsWith('[0:0:0:0:0:0:0:1]'));
+}
 //# sourceMappingURL=proxy.js.map
 
 /***/ }),
@@ -4322,12 +4356,12 @@ Class Differ:
 
 "use strict";
 
-module.exports = (flag, argv) => {
-	argv = argv || process.argv;
+
+module.exports = (flag, argv = process.argv) => {
 	const prefix = flag.startsWith('-') ? '' : (flag.length === 1 ? '-' : '--');
-	const pos = argv.indexOf(prefix + flag);
-	const terminatorPos = argv.indexOf('--');
-	return pos !== -1 && (terminatorPos === -1 ? true : pos < terminatorPos);
+	const position = argv.indexOf(prefix + flag);
+	const terminatorPosition = argv.indexOf('--');
+	return position !== -1 && (terminatorPosition === -1 || position < terminatorPosition);
 };
 
 
@@ -4938,9 +4972,9 @@ var __reExport = (target, module2, copyDefault, desc) => {
 var __toESM = (module2, isNodeMode) => {
   return __reExport(__markAsModule(__defProp(module2 != null ? __create(__getProtoOf(module2)) : {}, "default", !isNodeMode && module2 && module2.__esModule ? { get: () => module2.default, enumerable: true } : { value: module2, enumerable: true })), module2);
 };
-var __toCommonJS = /* @__PURE__ */ ((cache) => {
+var __toCommonJS = /* @__PURE__ */ ((cache2) => {
   return (module2, temp) => {
-    return cache && cache.get(module2) || (temp = __reExport(__markAsModule({}), module2, 1), cache && cache.set(module2, temp), temp);
+    return cache2 && cache2.get(module2) || (temp = __reExport(__markAsModule({}), module2, 1), cache2 && cache2.set(module2, temp), temp);
   };
 })(typeof WeakMap !== "undefined" ? /* @__PURE__ */ new WeakMap() : 0);
 var __async = (__this, __arguments, generator) => {
@@ -4989,6 +5023,25 @@ var init_git_response_error = __esm({
         this.git = git;
       }
     };
+  }
+});
+
+// src/lib/args/pathspec.ts
+function pathspec(...paths) {
+  const key = new String(paths);
+  cache.set(key, paths);
+  return key;
+}
+function isPathSpec(path) {
+  return path instanceof String && cache.has(path);
+}
+function toPaths(pathSpec) {
+  return cache.get(pathSpec) || [];
+}
+var cache;
+var init_pathspec = __esm({
+  "src/lib/args/pathspec.ts"() {
+    cache = /* @__PURE__ */ new WeakMap();
   }
 });
 
@@ -5150,7 +5203,8 @@ function filterType(input, filter, def) {
   return arguments.length > 2 ? def : void 0;
 }
 function filterPrimitives(input, omit) {
-  return /number|string|boolean/.test(typeof input) && (!omit || !omit.includes(typeof input));
+  const type = isPathSpec(input) ? "string" : typeof input;
+  return /number|string|boolean/.test(type) && (!omit || !omit.includes(type));
 }
 function filterPlainObject(input) {
   return !!input && objectToString(input) === "[object Object]";
@@ -5162,6 +5216,7 @@ var filterArray, filterString, filterStringArray, filterStringOrStringArray, fil
 var init_argument_filters = __esm({
   "src/lib/utils/argument-filters.ts"() {
     init_util();
+    init_pathspec();
     filterArray = (input) => {
       return Array.isArray(input);
     };
@@ -5292,7 +5347,9 @@ function appendTaskOptions(options, commands = []) {
   }
   return Object.keys(options).reduce((commands2, key) => {
     const value = options[key];
-    if (filterPrimitives(value, ["boolean"])) {
+    if (isPathSpec(value)) {
+      commands2.push(value);
+    } else if (filterPrimitives(value, ["boolean"])) {
       commands2.push(key + "=" + value);
     } else {
       commands2.push(key);
@@ -5329,6 +5386,7 @@ var init_task_options = __esm({
   "src/lib/utils/task-options.ts"() {
     init_argument_filters();
     init_util();
+    init_pathspec();
   }
 });
 
@@ -5956,10 +6014,12 @@ __export(api_exports, {
   GitResponseError: () => GitResponseError,
   ResetMode: () => ResetMode,
   TaskConfigurationError: () => TaskConfigurationError,
-  grepQueryBuilder: () => grepQueryBuilder
+  grepQueryBuilder: () => grepQueryBuilder,
+  pathspec: () => pathspec
 });
 var init_api = __esm({
   "src/lib/api.ts"() {
+    init_pathspec();
     init_git_construct_error();
     init_git_error();
     init_git_plugin_error();
@@ -6334,6 +6394,38 @@ var init_plugins = __esm({
     init_simple_git_plugin();
     init_spawn_options_plugin();
     init_timout_plugin();
+  }
+});
+
+// src/lib/plugins/suffix-paths.plugin.ts
+function suffixPathsPlugin() {
+  return {
+    type: "spawn.args",
+    action(data) {
+      const prefix = [];
+      let suffix;
+      function append2(args) {
+        (suffix = suffix || []).push(...args);
+      }
+      for (let i = 0; i < data.length; i++) {
+        const param = data[i];
+        if (isPathSpec(param)) {
+          append2(toPaths(param));
+          continue;
+        }
+        if (param === "--") {
+          append2(data.slice(i + 1).flatMap((item) => isPathSpec(item) && toPaths(item) || item));
+          break;
+        }
+        prefix.push(param);
+      }
+      return !suffix ? prefix : [...prefix, "--", ...suffix.map(String)];
+    }
+  };
+}
+var init_suffix_paths_plugin = __esm({
+  "src/lib/plugins/suffix-paths.plugin.ts"() {
+    init_pathspec();
   }
 });
 
@@ -7608,6 +7700,29 @@ var init_push = __esm({
   }
 });
 
+// src/lib/tasks/show.ts
+function show_default() {
+  return {
+    showBuffer() {
+      const commands = ["show", ...getTrailingOptions(arguments, 1)];
+      if (!commands.includes("--binary")) {
+        commands.splice(1, 0, "--binary");
+      }
+      return this._runTask(straightThroughBufferTask(commands), trailingFunctionArgument(arguments));
+    },
+    show() {
+      const commands = ["show", ...getTrailingOptions(arguments, 1)];
+      return this._runTask(straightThroughStringTask(commands), trailingFunctionArgument(arguments));
+    }
+  };
+}
+var init_show = __esm({
+  "src/lib/tasks/show.ts"() {
+    init_utils();
+    init_task();
+  }
+});
+
 // src/lib/responses/FileStatusSummary.ts
 var fromPathRegex, FileStatusSummary;
 var init_FileStatusSummary = __esm({
@@ -7857,6 +7972,7 @@ var init_simple_git_api = __esm({
     init_log();
     init_merge();
     init_push();
+    init_show();
     init_status();
     init_task();
     init_version();
@@ -7923,7 +8039,7 @@ var init_simple_git_api = __esm({
         return this._runTask(statusTask(getTrailingOptions(arguments)), trailingFunctionArgument(arguments));
       }
     };
-    Object.assign(SimpleGitApi.prototype, checkout_default(), commit_default(), config_default(), grep_default(), log_default(), version_default());
+    Object.assign(SimpleGitApi.prototype, checkout_default(), commit_default(), config_default(), grep_default(), log_default(), show_default(), version_default());
   }
 });
 
@@ -8856,9 +8972,6 @@ var require_git = __commonJS({
       const commands = ["rev-parse", ...getTrailingOptions2(arguments, true)];
       return this._runTask(straightThroughStringTask2(commands, true), trailingFunctionArgument2(arguments));
     };
-    Git2.prototype.show = function(options, then) {
-      return this._runTask(straightThroughStringTask2(["show", ...getTrailingOptions2(arguments, 1)]), trailingFunctionArgument2(arguments));
-    };
     Git2.prototype.clean = function(mode, options, then) {
       const usingCleanOptionsArray = isCleanOptionsArray2(mode);
       const cleanMode = usingCleanOptionsArray && mode.join("") || filterType2(mode, filterString2) || "";
@@ -8916,6 +9029,7 @@ function gitInstanceFactory(baseDir, options) {
     plugins.add(commandConfigPrefixingPlugin(config.config));
   }
   plugins.add(blockUnsafeOperationsPlugin(config.unsafe));
+  plugins.add(suffixPathsPlugin());
   plugins.add(completionDetectionPlugin(config.completion));
   config.abort && plugins.add(abortPlugin(config.abort));
   config.progress && plugins.add(progressMonitorPlugin(config.progress));
@@ -8930,6 +9044,7 @@ var init_git_factory = __esm({
   "src/lib/git-factory.ts"() {
     init_api();
     init_plugins();
+    init_suffix_paths_plugin();
     init_utils();
     Git = require_git();
   }
@@ -9086,23 +9201,32 @@ module.exports = Object.assign(simpleGit, { gitP: gitP2, simpleGit });
 "use strict";
 
 const os = __nccwpck_require__(2037);
+const tty = __nccwpck_require__(6224);
 const hasFlag = __nccwpck_require__(1621);
 
-const env = process.env;
+const {env} = process;
 
 let forceColor;
 if (hasFlag('no-color') ||
 	hasFlag('no-colors') ||
-	hasFlag('color=false')) {
-	forceColor = false;
+	hasFlag('color=false') ||
+	hasFlag('color=never')) {
+	forceColor = 0;
 } else if (hasFlag('color') ||
 	hasFlag('colors') ||
 	hasFlag('color=true') ||
 	hasFlag('color=always')) {
-	forceColor = true;
+	forceColor = 1;
 }
+
 if ('FORCE_COLOR' in env) {
-	forceColor = env.FORCE_COLOR.length === 0 || parseInt(env.FORCE_COLOR, 10) !== 0;
+	if (env.FORCE_COLOR === 'true') {
+		forceColor = 1;
+	} else if (env.FORCE_COLOR === 'false') {
+		forceColor = 0;
+	} else {
+		forceColor = env.FORCE_COLOR.length === 0 ? 1 : Math.min(parseInt(env.FORCE_COLOR, 10), 3);
+	}
 }
 
 function translateLevel(level) {
@@ -9118,8 +9242,8 @@ function translateLevel(level) {
 	};
 }
 
-function supportsColor(stream) {
-	if (forceColor === false) {
+function supportsColor(haveStream, streamIsTTY) {
+	if (forceColor === 0) {
 		return 0;
 	}
 
@@ -9133,22 +9257,21 @@ function supportsColor(stream) {
 		return 2;
 	}
 
-	if (stream && !stream.isTTY && forceColor !== true) {
+	if (haveStream && !streamIsTTY && forceColor === undefined) {
 		return 0;
 	}
 
-	const min = forceColor ? 1 : 0;
+	const min = forceColor || 0;
+
+	if (env.TERM === 'dumb') {
+		return min;
+	}
 
 	if (process.platform === 'win32') {
-		// Node.js 7.5.0 is the first version of Node.js to include a patch to
-		// libuv that enables 256 color output on Windows. Anything earlier and it
-		// won't work. However, here we target Node.js 8 at minimum as it is an LTS
-		// release, and Node.js 7 is not. Windows 10 build 10586 is the first Windows
-		// release that supports 256 colors. Windows 10 build 14931 is the first release
-		// that supports 16m/TrueColor.
+		// Windows 10 build 10586 is the first Windows release that supports 256 colors.
+		// Windows 10 build 14931 is the first release that supports 16m/TrueColor.
 		const osRelease = os.release().split('.');
 		if (
-			Number(process.versions.node.split('.')[0]) >= 8 &&
 			Number(osRelease[0]) >= 10 &&
 			Number(osRelease[2]) >= 10586
 		) {
@@ -9159,7 +9282,7 @@ function supportsColor(stream) {
 	}
 
 	if ('CI' in env) {
-		if (['TRAVIS', 'CIRCLECI', 'APPVEYOR', 'GITLAB_CI'].some(sign => sign in env) || env.CI_NAME === 'codeship') {
+		if (['TRAVIS', 'CIRCLECI', 'APPVEYOR', 'GITLAB_CI', 'GITHUB_ACTIONS', 'BUILDKITE'].some(sign => sign in env) || env.CI_NAME === 'codeship') {
 			return 1;
 		}
 
@@ -9198,22 +9321,18 @@ function supportsColor(stream) {
 		return 1;
 	}
 
-	if (env.TERM === 'dumb') {
-		return min;
-	}
-
 	return min;
 }
 
 function getSupportLevel(stream) {
-	const level = supportsColor(stream);
+	const level = supportsColor(stream, stream && stream.isTTY);
 	return translateLevel(level);
 }
 
 module.exports = {
 	supportsColor: getSupportLevel,
-	stdout: getSupportLevel(process.stdout),
-	stderr: getSupportLevel(process.stderr)
+	stdout: translateLevel(supportsColor(true, tty.isatty(1))),
+	stderr: translateLevel(supportsColor(true, tty.isatty(2)))
 };
 
 
@@ -10150,20 +10269,9 @@ exports["default"] = _default;
 
 "use strict";
 
-/**
- * Copyright (C) 2022, TomTom (http://tomtom.com).
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+/*
+ * SPDX-FileCopyrightText: 2022 TomTom <http://tomtom.com>
+ * SPDX-License-Identifier: Apache-2.0
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -10291,20 +10399,9 @@ program.parse();
 
 "use strict";
 
-/**
- * Copyright (C) 2022, TomTom (http://tomtom.com).
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+/*
+ * SPDX-FileCopyrightText: 2022 TomTom <http://tomtom.com>
+ * SPDX-License-Identifier: Apache-2.0
  */
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -10396,20 +10493,9 @@ exports.getCommitMessages = getCommitMessages;
 
 "use strict";
 
-/**
- * Copyright (C) 2022, TomTom (http://tomtom.com).
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+/*
+ * SPDX-FileCopyrightText: 2022 TomTom <http://tomtom.com>
+ * SPDX-License-Identifier: Apache-2.0
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -10618,20 +10704,9 @@ function stripMessage(message) {
 
 "use strict";
 
-/**
- * Copyright (C) 2022, TomTom (http://tomtom.com).
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+/*
+ * SPDX-FileCopyrightText: 2022 TomTom <http://tomtom.com>
+ * SPDX-License-Identifier: Apache-2.0
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -10963,20 +11038,9 @@ exports._testData = {
 
 "use strict";
 
-/**
- * Copyright (C) 2020-2022, TomTom (http://tomtom.com).
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+/*
+ * SPDX-FileCopyrightText: 2022 TomTom <http://tomtom.com>
+ * SPDX-License-Identifier: Apache-2.0
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BumpError = exports.FixupCommitError = exports.MergeCommitError = exports.ConventionalCommitError = void 0;
@@ -11018,20 +11082,9 @@ exports.BumpError = BumpError;
 
 "use strict";
 
-/**
- * Copyright (C) 2022, TomTom (http://tomtom.com).
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+/*
+ * SPDX-FileCopyrightText: 2022 TomTom <http://tomtom.com>
+ * SPDX-License-Identifier: Apache-2.0
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.LlvmWarning = exports.LlvmError = exports.LlvmMessage = exports.LlvmLevel = void 0;
@@ -11148,20 +11201,9 @@ exports.LlvmWarning = LlvmWarning;
 
 "use strict";
 
-/**
- * Copyright (C) 2022, TomTom (http://tomtom.com).
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+/*
+ * SPDX-FileCopyrightText: 2022 TomTom <http://tomtom.com>
+ * SPDX-License-Identifier: Apache-2.0
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -11869,20 +11911,9 @@ exports.getConventionalCommitRule = getConventionalCommitRule;
 
 "use strict";
 
-/**
- * Copyright (C) 2022, TomTom (http://tomtom.com).
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+/*
+ * SPDX-FileCopyrightText: 2022 TomTom <http://tomtom.com>
+ * SPDX-License-Identifier: Apache-2.0
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -15609,41 +15640,53 @@ exports.suggestSimilar = suggestSimilar;
 "use strict";
 
 
-var Node = __nccwpck_require__(1399);
+var identity = __nccwpck_require__(5589);
 var Scalar = __nccwpck_require__(9338);
+var YAMLMap = __nccwpck_require__(6011);
+var YAMLSeq = __nccwpck_require__(5161);
 var resolveBlockMap = __nccwpck_require__(2986);
 var resolveBlockSeq = __nccwpck_require__(2289);
 var resolveFlowCollection = __nccwpck_require__(45);
 
-function composeCollection(CN, ctx, token, tagToken, onError) {
-    let coll;
-    switch (token.type) {
-        case 'block-map': {
-            coll = resolveBlockMap.resolveBlockMap(CN, ctx, token, onError);
-            break;
-        }
-        case 'block-seq': {
-            coll = resolveBlockSeq.resolveBlockSeq(CN, ctx, token, onError);
-            break;
-        }
-        case 'flow-collection': {
-            coll = resolveFlowCollection.resolveFlowCollection(CN, ctx, token, onError);
-            break;
-        }
-    }
-    if (!tagToken)
-        return coll;
-    const tagName = ctx.directives.tagName(tagToken.source, msg => onError(tagToken, 'TAG_RESOLVE_FAILED', msg));
-    if (!tagName)
-        return coll;
-    // Cast needed due to: https://github.com/Microsoft/TypeScript/issues/3841
+function resolveCollection(CN, ctx, token, onError, tagName, tag) {
+    const coll = token.type === 'block-map'
+        ? resolveBlockMap.resolveBlockMap(CN, ctx, token, onError, tag)
+        : token.type === 'block-seq'
+            ? resolveBlockSeq.resolveBlockSeq(CN, ctx, token, onError, tag)
+            : resolveFlowCollection.resolveFlowCollection(CN, ctx, token, onError, tag);
     const Coll = coll.constructor;
+    // If we got a tagName matching the class, or the tag name is '!',
+    // then use the tagName from the node class used to create it.
     if (tagName === '!' || tagName === Coll.tagName) {
         coll.tag = Coll.tagName;
         return coll;
     }
-    const expType = Node.isMap(coll) ? 'map' : 'seq';
-    let tag = ctx.schema.tags.find(t => t.collection === expType && t.tag === tagName);
+    if (tagName)
+        coll.tag = tagName;
+    return coll;
+}
+function composeCollection(CN, ctx, token, tagToken, onError) {
+    const tagName = !tagToken
+        ? null
+        : ctx.directives.tagName(tagToken.source, msg => onError(tagToken, 'TAG_RESOLVE_FAILED', msg));
+    const expType = token.type === 'block-map'
+        ? 'map'
+        : token.type === 'block-seq'
+            ? 'seq'
+            : token.start.source === '{'
+                ? 'map'
+                : 'seq';
+    // shortcut: check if it's a generic YAMLMap or YAMLSeq
+    // before jumping into the custom tag logic.
+    if (!tagToken ||
+        !tagName ||
+        tagName === '!' ||
+        (tagName === YAMLMap.YAMLMap.tagName && expType === 'map') ||
+        (tagName === YAMLSeq.YAMLSeq.tagName && expType === 'seq') ||
+        !expType) {
+        return resolveCollection(CN, ctx, token, onError, tagName);
+    }
+    let tag = ctx.schema.tags.find(t => t.tag === tagName && t.collection === expType);
     if (!tag) {
         const kt = ctx.schema.knownTags[tagName];
         if (kt && kt.collection === expType) {
@@ -15651,13 +15694,18 @@ function composeCollection(CN, ctx, token, tagToken, onError) {
             tag = kt;
         }
         else {
-            onError(tagToken, 'TAG_RESOLVE_FAILED', `Unresolved tag: ${tagName}`, true);
-            coll.tag = tagName;
-            return coll;
+            if (kt?.collection) {
+                onError(tagToken, 'BAD_COLLECTION_TYPE', `${kt.tag} used for ${expType} collection, but expects ${kt.collection}`, true);
+            }
+            else {
+                onError(tagToken, 'TAG_RESOLVE_FAILED', `Unresolved tag: ${tagName}`, true);
+            }
+            return resolveCollection(CN, ctx, token, onError, tagName);
         }
     }
-    const res = tag.resolve(coll, msg => onError(tagToken, 'TAG_RESOLVE_FAILED', msg), ctx.options);
-    const node = Node.isNode(res)
+    const coll = resolveCollection(CN, ctx, token, onError, tagName, tag);
+    const res = tag.resolve?.(coll, msg => onError(tagToken, 'TAG_RESOLVE_FAILED', msg), ctx.options) ?? coll;
+    const node = identity.isNode(res)
         ? res
         : new Scalar.Scalar(res);
     node.range = coll.range;
@@ -15706,6 +15754,7 @@ function composeDoc(options, directives, { offset, start, value, end }, onError)
             !props.hasNewline)
             onError(props.end, 'MISSING_CHAR', 'Block collection cannot start on same line with directives-end marker');
     }
+    // @ts-expect-error If Contents is set, let's trust the user
     doc.contents = value
         ? composeNode.composeNode(ctx, value, props, onError)
         : composeNode.composeEmptyNode(ctx, props.end, start, null, props, onError);
@@ -15831,7 +15880,7 @@ exports.composeNode = composeNode;
 "use strict";
 
 
-var Node = __nccwpck_require__(1399);
+var identity = __nccwpck_require__(5589);
 var Scalar = __nccwpck_require__(9338);
 var resolveBlockScalar = __nccwpck_require__(9485);
 var resolveFlowScalar = __nccwpck_require__(7578);
@@ -15847,11 +15896,11 @@ function composeScalar(ctx, token, tagToken, onError) {
         ? findScalarTagByName(ctx.schema, value, tagName, tagToken, onError)
         : token.type === 'scalar'
             ? findScalarTagByTest(ctx, value, token, onError)
-            : ctx.schema[Node.SCALAR];
+            : ctx.schema[identity.SCALAR];
     let scalar;
     try {
         const res = tag.resolve(value, msg => onError(tagToken ?? token, 'TAG_RESOLVE_FAILED', msg), ctx.options);
-        scalar = Node.isScalar(res) ? res : new Scalar.Scalar(res);
+        scalar = identity.isScalar(res) ? res : new Scalar.Scalar(res);
     }
     catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
@@ -15872,7 +15921,7 @@ function composeScalar(ctx, token, tagToken, onError) {
 }
 function findScalarTagByName(schema, value, tagName, tagToken, onError) {
     if (tagName === '!')
-        return schema[Node.SCALAR]; // non-specific tag
+        return schema[identity.SCALAR]; // non-specific tag
     const matchWithTest = [];
     for (const tag of schema.tags) {
         if (!tag.collection && tag.tag === tagName) {
@@ -15893,13 +15942,13 @@ function findScalarTagByName(schema, value, tagName, tagToken, onError) {
         return kt;
     }
     onError(tagToken, 'TAG_RESOLVE_FAILED', `Unresolved tag: ${tagName}`, tagName !== 'tag:yaml.org,2002:str');
-    return schema[Node.SCALAR];
+    return schema[identity.SCALAR];
 }
 function findScalarTagByTest({ directives, schema }, value, token, onError) {
-    const tag = schema.tags.find(tag => tag.default && tag.test?.test(value)) || schema[Node.SCALAR];
+    const tag = schema.tags.find(tag => tag.default && tag.test?.test(value)) || schema[identity.SCALAR];
     if (schema.compat) {
         const compat = schema.compat.find(tag => tag.default && tag.test?.test(value)) ??
-            schema[Node.SCALAR];
+            schema[identity.SCALAR];
         if (tag.tag !== compat.tag) {
             const ts = directives.tagString(tag.tag);
             const cs = directives.tagString(compat.tag);
@@ -15924,7 +15973,7 @@ exports.composeScalar = composeScalar;
 var directives = __nccwpck_require__(5400);
 var Document = __nccwpck_require__(42);
 var errors = __nccwpck_require__(4236);
-var Node = __nccwpck_require__(1399);
+var identity = __nccwpck_require__(5589);
 var composeDoc = __nccwpck_require__(5050);
 var resolveEnd = __nccwpck_require__(1250);
 
@@ -16004,9 +16053,9 @@ class Composer {
             else if (afterEmptyLine || doc.directives.docStart || !dc) {
                 doc.commentBefore = comment;
             }
-            else if (Node.isCollection(dc) && !dc.flow && dc.items.length > 0) {
+            else if (identity.isCollection(dc) && !dc.flow && dc.items.length > 0) {
                 let it = dc.items[0];
-                if (Node.isPair(it))
+                if (identity.isPair(it))
                     it = it.key;
                 const cb = it.commentBefore;
                 it.commentBefore = cb ? `${comment}\n${cb}` : comment;
@@ -16158,8 +16207,9 @@ var utilFlowIndentCheck = __nccwpck_require__(3669);
 var utilMapIncludes = __nccwpck_require__(6899);
 
 const startColMsg = 'All mapping items must start at the same column';
-function resolveBlockMap({ composeNode, composeEmptyNode }, ctx, bm, onError) {
-    const map = new YAMLMap.YAMLMap(ctx.schema);
+function resolveBlockMap({ composeNode, composeEmptyNode }, ctx, bm, onError, tag) {
+    const NodeClass = tag?.nodeClass ?? YAMLMap.YAMLMap;
+    const map = new NodeClass(ctx.schema);
     if (ctx.atRoot)
         ctx.atRoot = false;
     let offset = bm.offset;
@@ -16478,8 +16528,9 @@ var YAMLSeq = __nccwpck_require__(5161);
 var resolveProps = __nccwpck_require__(6985);
 var utilFlowIndentCheck = __nccwpck_require__(3669);
 
-function resolveBlockSeq({ composeNode, composeEmptyNode }, ctx, bs, onError) {
-    const seq = new YAMLSeq.YAMLSeq(ctx.schema);
+function resolveBlockSeq({ composeNode, composeEmptyNode }, ctx, bs, onError, tag) {
+    const NodeClass = tag?.nodeClass ?? YAMLSeq.YAMLSeq;
+    const seq = new NodeClass(ctx.schema);
     if (ctx.atRoot)
         ctx.atRoot = false;
     let offset = bs.offset;
@@ -16576,7 +16627,7 @@ exports.resolveEnd = resolveEnd;
 "use strict";
 
 
-var Node = __nccwpck_require__(1399);
+var identity = __nccwpck_require__(5589);
 var Pair = __nccwpck_require__(246);
 var YAMLMap = __nccwpck_require__(6011);
 var YAMLSeq = __nccwpck_require__(5161);
@@ -16587,12 +16638,11 @@ var utilMapIncludes = __nccwpck_require__(6899);
 
 const blockMsg = 'Block collections are not allowed within flow collections';
 const isBlock = (token) => token && (token.type === 'block-map' || token.type === 'block-seq');
-function resolveFlowCollection({ composeNode, composeEmptyNode }, ctx, fc, onError) {
+function resolveFlowCollection({ composeNode, composeEmptyNode }, ctx, fc, onError, tag) {
     const isMap = fc.start.source === '{';
     const fcName = isMap ? 'flow map' : 'flow sequence';
-    const coll = isMap
-        ? new YAMLMap.YAMLMap(ctx.schema)
-        : new YAMLSeq.YAMLSeq(ctx.schema);
+    const NodeClass = (tag?.nodeClass ?? (isMap ? YAMLMap.YAMLMap : YAMLSeq.YAMLSeq));
+    const coll = new NodeClass(ctx.schema);
     coll.flow = true;
     const atRoot = ctx.atRoot;
     if (atRoot)
@@ -16651,7 +16701,7 @@ function resolveFlowCollection({ composeNode, composeEmptyNode }, ctx, fc, onErr
                 }
                 if (prevItemComment) {
                     let prev = coll.items[coll.items.length - 1];
-                    if (Node.isPair(prev))
+                    if (identity.isPair(prev))
                         prev = prev.value ?? prev.key;
                     if (prev.comment)
                         prev.comment += '\n' + prevItemComment;
@@ -17269,7 +17319,7 @@ exports.flowIndentCheck = flowIndentCheck;
 "use strict";
 
 
-var Node = __nccwpck_require__(1399);
+var identity = __nccwpck_require__(5589);
 
 function mapIncludes(ctx, items, search) {
     const { uniqueKeys } = ctx.options;
@@ -17278,8 +17328,8 @@ function mapIncludes(ctx, items, search) {
     const isEqual = typeof uniqueKeys === 'function'
         ? uniqueKeys
         : (a, b) => a === b ||
-            (Node.isScalar(a) &&
-                Node.isScalar(b) &&
+            (identity.isScalar(a) &&
+                identity.isScalar(b) &&
                 a.value === b.value &&
                 !(a.value === '<<' && ctx.schema.merge));
     return items.some(pair => isEqual(pair.key, search));
@@ -17298,11 +17348,10 @@ exports.mapIncludes = mapIncludes;
 
 var Alias = __nccwpck_require__(5639);
 var Collection = __nccwpck_require__(3466);
-var Node = __nccwpck_require__(1399);
+var identity = __nccwpck_require__(5589);
 var Pair = __nccwpck_require__(246);
 var toJS = __nccwpck_require__(2463);
 var Schema = __nccwpck_require__(6831);
-var stringify = __nccwpck_require__(8409);
 var stringifyDocument = __nccwpck_require__(5225);
 var anchors = __nccwpck_require__(8459);
 var applyReviver = __nccwpck_require__(3412);
@@ -17319,7 +17368,7 @@ class Document {
         this.errors = [];
         /** Warnings encountered during parsing. */
         this.warnings = [];
-        Object.defineProperty(this, Node.NODE_TYPE, { value: Node.DOC });
+        Object.defineProperty(this, identity.NODE_TYPE, { value: identity.DOC });
         let _replacer = null;
         if (typeof replacer === 'function' || Array.isArray(replacer)) {
             _replacer = replacer;
@@ -17347,11 +17396,9 @@ class Document {
         else
             this.directives = new directives.Directives({ version });
         this.setSchema(version, options);
-        if (value === undefined)
-            this.contents = null;
-        else {
-            this.contents = this.createNode(value, _replacer, options);
-        }
+        // @ts-expect-error We can't really know that this matches Contents.
+        this.contents =
+            value === undefined ? null : this.createNode(value, _replacer, options);
     }
     /**
      * Create a deep copy of this Document and its contents.
@@ -17360,7 +17407,7 @@ class Document {
      */
     clone() {
         const copy = Object.create(Document.prototype, {
-            [Node.NODE_TYPE]: { value: Node.DOC }
+            [identity.NODE_TYPE]: { value: identity.DOC }
         });
         copy.commentBefore = this.commentBefore;
         copy.comment = this.comment;
@@ -17370,7 +17417,8 @@ class Document {
         if (this.directives)
             copy.directives = this.directives.clone();
         copy.schema = this.schema.clone();
-        copy.contents = Node.isNode(this.contents)
+        // @ts-expect-error We can't really know that this matches Contents.
+        copy.contents = identity.isNode(this.contents)
             ? this.contents.clone(copy.schema)
             : this.contents;
         if (this.range)
@@ -17436,7 +17484,7 @@ class Document {
             sourceObjects
         };
         const node = createNode.createNode(value, tag, ctx);
-        if (flow && Node.isCollection(node))
+        if (flow && identity.isCollection(node))
             node.flow = true;
         setAnchors();
         return node;
@@ -17465,6 +17513,7 @@ class Document {
         if (Collection.isEmptyPath(path)) {
             if (this.contents == null)
                 return false;
+            // @ts-expect-error Presumed impossible if Strict extends false
             this.contents = null;
             return true;
         }
@@ -17478,7 +17527,7 @@ class Document {
      * `true` (collections are always returned intact).
      */
     get(key, keepScalar) {
-        return Node.isCollection(this.contents)
+        return identity.isCollection(this.contents)
             ? this.contents.get(key, keepScalar)
             : undefined;
     }
@@ -17489,10 +17538,10 @@ class Document {
      */
     getIn(path, keepScalar) {
         if (Collection.isEmptyPath(path))
-            return !keepScalar && Node.isScalar(this.contents)
+            return !keepScalar && identity.isScalar(this.contents)
                 ? this.contents.value
                 : this.contents;
-        return Node.isCollection(this.contents)
+        return identity.isCollection(this.contents)
             ? this.contents.getIn(path, keepScalar)
             : undefined;
     }
@@ -17500,7 +17549,7 @@ class Document {
      * Checks if the document includes a value with the key `key`.
      */
     has(key) {
-        return Node.isCollection(this.contents) ? this.contents.has(key) : false;
+        return identity.isCollection(this.contents) ? this.contents.has(key) : false;
     }
     /**
      * Checks if the document includes a value at `path`.
@@ -17508,7 +17557,7 @@ class Document {
     hasIn(path) {
         if (Collection.isEmptyPath(path))
             return this.contents !== undefined;
-        return Node.isCollection(this.contents) ? this.contents.hasIn(path) : false;
+        return identity.isCollection(this.contents) ? this.contents.hasIn(path) : false;
     }
     /**
      * Sets a value in this document. For `!!set`, `value` needs to be a
@@ -17516,6 +17565,7 @@ class Document {
      */
     set(key, value) {
         if (this.contents == null) {
+            // @ts-expect-error We can't really know that this matches Contents.
             this.contents = Collection.collectionFromPath(this.schema, [key], value);
         }
         else if (assertCollection(this.contents)) {
@@ -17527,9 +17577,12 @@ class Document {
      * boolean to add/remove the item from the set.
      */
     setIn(path, value) {
-        if (Collection.isEmptyPath(path))
+        if (Collection.isEmptyPath(path)) {
+            // @ts-expect-error We can't really know that this matches Contents.
             this.contents = value;
+        }
         else if (this.contents == null) {
+            // @ts-expect-error We can't really know that this matches Contents.
             this.contents = Collection.collectionFromPath(this.schema, Array.from(path), value);
         }
         else if (assertCollection(this.contents)) {
@@ -17589,8 +17642,7 @@ class Document {
             keep: !json,
             mapAsMap: mapAsMap === true,
             mapKeyWarned: false,
-            maxAliasCount: typeof maxAliasCount === 'number' ? maxAliasCount : 100,
-            stringify: stringify.stringify
+            maxAliasCount: typeof maxAliasCount === 'number' ? maxAliasCount : 100
         };
         const res = toJS.toJS(this.contents, jsonArg ?? '', ctx);
         if (typeof onAnchor === 'function')
@@ -17622,7 +17674,7 @@ class Document {
     }
 }
 function assertCollection(contents) {
-    if (Node.isCollection(contents))
+    if (identity.isCollection(contents))
         return true;
     throw new Error('Expected a YAML collection as document contents');
 }
@@ -17638,7 +17690,7 @@ exports.Document = Document;
 "use strict";
 
 
-var Node = __nccwpck_require__(1399);
+var identity = __nccwpck_require__(5589);
 var visit = __nccwpck_require__(6796);
 
 /**
@@ -17695,7 +17747,7 @@ function createNodeAnchors(doc, prefix) {
                 const ref = sourceObjects.get(source);
                 if (typeof ref === 'object' &&
                     ref.anchor &&
-                    (Node.isScalar(ref.node) || Node.isCollection(ref.node))) {
+                    (identity.isScalar(ref.node) || identity.isCollection(ref.node))) {
                     ref.node.anchor = ref.anchor;
                 }
                 else {
@@ -17788,7 +17840,7 @@ exports.applyReviver = applyReviver;
 
 
 var Alias = __nccwpck_require__(5639);
-var Node = __nccwpck_require__(1399);
+var identity = __nccwpck_require__(5589);
 var Scalar = __nccwpck_require__(9338);
 
 const defaultTagPrefix = 'tag:yaml.org,2002:';
@@ -17803,12 +17855,12 @@ function findTagObject(value, tagName, tags) {
     return tags.find(t => t.identify?.(value) && !t.format);
 }
 function createNode(value, tagName, ctx) {
-    if (Node.isDocument(value))
+    if (identity.isDocument(value))
         value = value.contents;
-    if (Node.isNode(value))
+    if (identity.isNode(value))
         return value;
-    if (Node.isPair(value)) {
-        const map = ctx.schema[Node.MAP].createNode?.(ctx.schema, null, ctx);
+    if (identity.isPair(value)) {
+        const map = ctx.schema[identity.MAP].createNode?.(ctx.schema, null, ctx);
         map.items.push(value);
         return map;
     }
@@ -17852,10 +17904,10 @@ function createNode(value, tagName, ctx) {
         }
         tagObj =
             value instanceof Map
-                ? schema[Node.MAP]
+                ? schema[identity.MAP]
                 : Symbol.iterator in Object(value)
-                    ? schema[Node.SEQ]
-                    : schema[Node.MAP];
+                    ? schema[identity.SEQ]
+                    : schema[identity.MAP];
     }
     if (onTagObj) {
         onTagObj(tagObj);
@@ -17863,9 +17915,13 @@ function createNode(value, tagName, ctx) {
     }
     const node = tagObj?.createNode
         ? tagObj.createNode(ctx.schema, value, ctx)
-        : new Scalar.Scalar(value);
+        : typeof tagObj?.nodeClass?.from === 'function'
+            ? tagObj.nodeClass.from(ctx.schema, value, ctx)
+            : new Scalar.Scalar(value);
     if (tagName)
         node.tag = tagName;
+    else if (!tagObj.default)
+        node.tag = tagObj.tag;
     if (ref)
         ref.node = node;
     return node;
@@ -17882,7 +17938,7 @@ exports.createNode = createNode;
 "use strict";
 
 
-var Node = __nccwpck_require__(1399);
+var identity = __nccwpck_require__(5589);
 var visit = __nccwpck_require__(6796);
 
 const escapeChars = {
@@ -18028,10 +18084,10 @@ class Directives {
             : [];
         const tagEntries = Object.entries(this.tags);
         let tagNames;
-        if (doc && tagEntries.length > 0 && Node.isNode(doc.contents)) {
+        if (doc && tagEntries.length > 0 && identity.isNode(doc.contents)) {
             const tags = {};
             visit.visit(doc.contents, (_key, node) => {
-                if (Node.isNode(node) && node.tag)
+                if (identity.isNode(node) && node.tag)
                     tags[node.tag] = true;
             });
             tagNames = Object.keys(tags);
@@ -18136,7 +18192,7 @@ var Document = __nccwpck_require__(42);
 var Schema = __nccwpck_require__(6831);
 var errors = __nccwpck_require__(4236);
 var Alias = __nccwpck_require__(5639);
-var Node = __nccwpck_require__(1399);
+var identity = __nccwpck_require__(5589);
 var Pair = __nccwpck_require__(246);
 var Scalar = __nccwpck_require__(9338);
 var YAMLMap = __nccwpck_require__(6011);
@@ -18157,14 +18213,14 @@ exports.YAMLError = errors.YAMLError;
 exports.YAMLParseError = errors.YAMLParseError;
 exports.YAMLWarning = errors.YAMLWarning;
 exports.Alias = Alias.Alias;
-exports.isAlias = Node.isAlias;
-exports.isCollection = Node.isCollection;
-exports.isDocument = Node.isDocument;
-exports.isMap = Node.isMap;
-exports.isNode = Node.isNode;
-exports.isPair = Node.isPair;
-exports.isScalar = Node.isScalar;
-exports.isSeq = Node.isSeq;
+exports.isAlias = identity.isAlias;
+exports.isCollection = identity.isCollection;
+exports.isDocument = identity.isDocument;
+exports.isMap = identity.isMap;
+exports.isNode = identity.isNode;
+exports.isPair = identity.isPair;
+exports.isScalar = identity.isScalar;
+exports.isSeq = identity.isSeq;
 exports.Pair = Pair.Pair;
 exports.Scalar = Scalar.Scalar;
 exports.YAMLMap = YAMLMap.YAMLMap;
@@ -18216,11 +18272,13 @@ exports.warn = warn;
 
 var anchors = __nccwpck_require__(8459);
 var visit = __nccwpck_require__(6796);
+var identity = __nccwpck_require__(5589);
 var Node = __nccwpck_require__(1399);
+var toJS = __nccwpck_require__(2463);
 
 class Alias extends Node.NodeBase {
     constructor(source) {
-        super(Node.ALIAS);
+        super(identity.ALIAS);
         this.source = source;
         Object.defineProperty(this, 'tag', {
             set() {
@@ -18253,7 +18311,12 @@ class Alias extends Node.NodeBase {
             const msg = `Unresolved alias (the anchor must be set before the alias): ${this.source}`;
             throw new ReferenceError(msg);
         }
-        const data = anchors.get(source);
+        let data = anchors.get(source);
+        if (!data) {
+            // Resolve anchors for Node.prototype.toJS()
+            toJS.toJS(source, null, ctx);
+            data = anchors.get(source);
+        }
         /* istanbul ignore if */
         if (!data || data.res === undefined) {
             const msg = 'This should not happen: Alias anchor was not resolved?';
@@ -18285,12 +18348,12 @@ class Alias extends Node.NodeBase {
     }
 }
 function getAliasCount(doc, node, anchors) {
-    if (Node.isAlias(node)) {
+    if (identity.isAlias(node)) {
         const source = node.resolve(doc);
         const anchor = anchors && source && anchors.get(source);
         return anchor ? anchor.count * anchor.aliasCount : 0;
     }
-    else if (Node.isCollection(node)) {
+    else if (identity.isCollection(node)) {
         let count = 0;
         for (const item of node.items) {
             const c = getAliasCount(doc, item, anchors);
@@ -18299,7 +18362,7 @@ function getAliasCount(doc, node, anchors) {
         }
         return count;
     }
-    else if (Node.isPair(node)) {
+    else if (identity.isPair(node)) {
         const kc = getAliasCount(doc, node.key, anchors);
         const vc = getAliasCount(doc, node.value, anchors);
         return Math.max(kc, vc);
@@ -18319,6 +18382,7 @@ exports.Alias = Alias;
 
 
 var createNode = __nccwpck_require__(9652);
+var identity = __nccwpck_require__(5589);
 var Node = __nccwpck_require__(1399);
 
 function collectionFromPath(schema, path, value) {
@@ -18367,7 +18431,7 @@ class Collection extends Node.NodeBase {
         const copy = Object.create(Object.getPrototypeOf(this), Object.getOwnPropertyDescriptors(this));
         if (schema)
             copy.schema = schema;
-        copy.items = copy.items.map(it => Node.isNode(it) || Node.isPair(it) ? it.clone(schema) : it);
+        copy.items = copy.items.map(it => identity.isNode(it) || identity.isPair(it) ? it.clone(schema) : it);
         if (this.range)
             copy.range = this.range.slice();
         return copy;
@@ -18383,7 +18447,7 @@ class Collection extends Node.NodeBase {
         else {
             const [key, ...rest] = path;
             const node = this.get(key, true);
-            if (Node.isCollection(node))
+            if (identity.isCollection(node))
                 node.addIn(rest, value);
             else if (node === undefined && this.schema)
                 this.set(key, collectionFromPath(this.schema, rest, value));
@@ -18400,7 +18464,7 @@ class Collection extends Node.NodeBase {
         if (rest.length === 0)
             return this.delete(key);
         const node = this.get(key, true);
-        if (Node.isCollection(node))
+        if (identity.isCollection(node))
             return node.deleteIn(rest);
         else
             throw new Error(`Expected YAML collection at ${key}. Remaining path: ${rest}`);
@@ -18414,18 +18478,18 @@ class Collection extends Node.NodeBase {
         const [key, ...rest] = path;
         const node = this.get(key, true);
         if (rest.length === 0)
-            return !keepScalar && Node.isScalar(node) ? node.value : node;
+            return !keepScalar && identity.isScalar(node) ? node.value : node;
         else
-            return Node.isCollection(node) ? node.getIn(rest, keepScalar) : undefined;
+            return identity.isCollection(node) ? node.getIn(rest, keepScalar) : undefined;
     }
     hasAllNullValues(allowScalar) {
         return this.items.every(node => {
-            if (!Node.isPair(node))
+            if (!identity.isPair(node))
                 return false;
             const n = node.value;
             return (n == null ||
                 (allowScalar &&
-                    Node.isScalar(n) &&
+                    identity.isScalar(n) &&
                     n.value == null &&
                     !n.commentBefore &&
                     !n.comment &&
@@ -18440,7 +18504,7 @@ class Collection extends Node.NodeBase {
         if (rest.length === 0)
             return this.has(key);
         const node = this.get(key, true);
-        return Node.isCollection(node) ? node.hasIn(rest) : false;
+        return identity.isCollection(node) ? node.hasIn(rest) : false;
     }
     /**
      * Sets a value in this collection. For `!!set`, `value` needs to be a
@@ -18453,7 +18517,7 @@ class Collection extends Node.NodeBase {
         }
         else {
             const node = this.get(key, true);
-            if (Node.isCollection(node))
+            if (identity.isCollection(node))
                 node.setIn(rest, value);
             else if (node === undefined && this.schema)
                 this.set(key, collectionFromPath(this.schema, rest, value));
@@ -18472,6 +18536,528 @@ exports.isEmptyPath = isEmptyPath;
 /***/ }),
 
 /***/ 1399:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+var applyReviver = __nccwpck_require__(3412);
+var identity = __nccwpck_require__(5589);
+var toJS = __nccwpck_require__(2463);
+
+class NodeBase {
+    constructor(type) {
+        Object.defineProperty(this, identity.NODE_TYPE, { value: type });
+    }
+    /** Create a copy of this node.  */
+    clone() {
+        const copy = Object.create(Object.getPrototypeOf(this), Object.getOwnPropertyDescriptors(this));
+        if (this.range)
+            copy.range = this.range.slice();
+        return copy;
+    }
+    /** A plain JavaScript representation of this node. */
+    toJS(doc, { mapAsMap, maxAliasCount, onAnchor, reviver } = {}) {
+        if (!identity.isDocument(doc))
+            throw new TypeError('A document argument is required');
+        const ctx = {
+            anchors: new Map(),
+            doc,
+            keep: true,
+            mapAsMap: mapAsMap === true,
+            mapKeyWarned: false,
+            maxAliasCount: typeof maxAliasCount === 'number' ? maxAliasCount : 100
+        };
+        const res = toJS.toJS(this, '', ctx);
+        if (typeof onAnchor === 'function')
+            for (const { count, res } of ctx.anchors.values())
+                onAnchor(res, count);
+        return typeof reviver === 'function'
+            ? applyReviver.applyReviver(reviver, { '': res }, '', res)
+            : res;
+    }
+}
+
+exports.NodeBase = NodeBase;
+
+
+/***/ }),
+
+/***/ 246:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+var createNode = __nccwpck_require__(9652);
+var stringifyPair = __nccwpck_require__(4875);
+var addPairToJSMap = __nccwpck_require__(4676);
+var identity = __nccwpck_require__(5589);
+
+function createPair(key, value, ctx) {
+    const k = createNode.createNode(key, undefined, ctx);
+    const v = createNode.createNode(value, undefined, ctx);
+    return new Pair(k, v);
+}
+class Pair {
+    constructor(key, value = null) {
+        Object.defineProperty(this, identity.NODE_TYPE, { value: identity.PAIR });
+        this.key = key;
+        this.value = value;
+    }
+    clone(schema) {
+        let { key, value } = this;
+        if (identity.isNode(key))
+            key = key.clone(schema);
+        if (identity.isNode(value))
+            value = value.clone(schema);
+        return new Pair(key, value);
+    }
+    toJSON(_, ctx) {
+        const pair = ctx?.mapAsMap ? new Map() : {};
+        return addPairToJSMap.addPairToJSMap(ctx, pair, this);
+    }
+    toString(ctx, onComment, onChompKeep) {
+        return ctx?.doc
+            ? stringifyPair.stringifyPair(this, ctx, onComment, onChompKeep)
+            : JSON.stringify(this);
+    }
+}
+
+exports.Pair = Pair;
+exports.createPair = createPair;
+
+
+/***/ }),
+
+/***/ 9338:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+var identity = __nccwpck_require__(5589);
+var Node = __nccwpck_require__(1399);
+var toJS = __nccwpck_require__(2463);
+
+const isScalarValue = (value) => !value || (typeof value !== 'function' && typeof value !== 'object');
+class Scalar extends Node.NodeBase {
+    constructor(value) {
+        super(identity.SCALAR);
+        this.value = value;
+    }
+    toJSON(arg, ctx) {
+        return ctx?.keep ? this.value : toJS.toJS(this.value, arg, ctx);
+    }
+    toString() {
+        return String(this.value);
+    }
+}
+Scalar.BLOCK_FOLDED = 'BLOCK_FOLDED';
+Scalar.BLOCK_LITERAL = 'BLOCK_LITERAL';
+Scalar.PLAIN = 'PLAIN';
+Scalar.QUOTE_DOUBLE = 'QUOTE_DOUBLE';
+Scalar.QUOTE_SINGLE = 'QUOTE_SINGLE';
+
+exports.Scalar = Scalar;
+exports.isScalarValue = isScalarValue;
+
+
+/***/ }),
+
+/***/ 6011:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+var stringifyCollection = __nccwpck_require__(2466);
+var addPairToJSMap = __nccwpck_require__(4676);
+var Collection = __nccwpck_require__(3466);
+var identity = __nccwpck_require__(5589);
+var Pair = __nccwpck_require__(246);
+var Scalar = __nccwpck_require__(9338);
+
+function findPair(items, key) {
+    const k = identity.isScalar(key) ? key.value : key;
+    for (const it of items) {
+        if (identity.isPair(it)) {
+            if (it.key === key || it.key === k)
+                return it;
+            if (identity.isScalar(it.key) && it.key.value === k)
+                return it;
+        }
+    }
+    return undefined;
+}
+class YAMLMap extends Collection.Collection {
+    static get tagName() {
+        return 'tag:yaml.org,2002:map';
+    }
+    constructor(schema) {
+        super(identity.MAP, schema);
+        this.items = [];
+    }
+    /**
+     * A generic collection parsing method that can be extended
+     * to other node classes that inherit from YAMLMap
+     */
+    static from(schema, obj, ctx) {
+        const { keepUndefined, replacer } = ctx;
+        const map = new this(schema);
+        const add = (key, value) => {
+            if (typeof replacer === 'function')
+                value = replacer.call(obj, key, value);
+            else if (Array.isArray(replacer) && !replacer.includes(key))
+                return;
+            if (value !== undefined || keepUndefined)
+                map.items.push(Pair.createPair(key, value, ctx));
+        };
+        if (obj instanceof Map) {
+            for (const [key, value] of obj)
+                add(key, value);
+        }
+        else if (obj && typeof obj === 'object') {
+            for (const key of Object.keys(obj))
+                add(key, obj[key]);
+        }
+        if (typeof schema.sortMapEntries === 'function') {
+            map.items.sort(schema.sortMapEntries);
+        }
+        return map;
+    }
+    /**
+     * Adds a value to the collection.
+     *
+     * @param overwrite - If not set `true`, using a key that is already in the
+     *   collection will throw. Otherwise, overwrites the previous value.
+     */
+    add(pair, overwrite) {
+        let _pair;
+        if (identity.isPair(pair))
+            _pair = pair;
+        else if (!pair || typeof pair !== 'object' || !('key' in pair)) {
+            // In TypeScript, this never happens.
+            _pair = new Pair.Pair(pair, pair?.value);
+        }
+        else
+            _pair = new Pair.Pair(pair.key, pair.value);
+        const prev = findPair(this.items, _pair.key);
+        const sortEntries = this.schema?.sortMapEntries;
+        if (prev) {
+            if (!overwrite)
+                throw new Error(`Key ${_pair.key} already set`);
+            // For scalars, keep the old node & its comments and anchors
+            if (identity.isScalar(prev.value) && Scalar.isScalarValue(_pair.value))
+                prev.value.value = _pair.value;
+            else
+                prev.value = _pair.value;
+        }
+        else if (sortEntries) {
+            const i = this.items.findIndex(item => sortEntries(_pair, item) < 0);
+            if (i === -1)
+                this.items.push(_pair);
+            else
+                this.items.splice(i, 0, _pair);
+        }
+        else {
+            this.items.push(_pair);
+        }
+    }
+    delete(key) {
+        const it = findPair(this.items, key);
+        if (!it)
+            return false;
+        const del = this.items.splice(this.items.indexOf(it), 1);
+        return del.length > 0;
+    }
+    get(key, keepScalar) {
+        const it = findPair(this.items, key);
+        const node = it?.value;
+        return (!keepScalar && identity.isScalar(node) ? node.value : node) ?? undefined;
+    }
+    has(key) {
+        return !!findPair(this.items, key);
+    }
+    set(key, value) {
+        this.add(new Pair.Pair(key, value), true);
+    }
+    /**
+     * @param ctx - Conversion context, originally set in Document#toJS()
+     * @param {Class} Type - If set, forces the returned collection type
+     * @returns Instance of Type, Map, or Object
+     */
+    toJSON(_, ctx, Type) {
+        const map = Type ? new Type() : ctx?.mapAsMap ? new Map() : {};
+        if (ctx?.onCreate)
+            ctx.onCreate(map);
+        for (const item of this.items)
+            addPairToJSMap.addPairToJSMap(ctx, map, item);
+        return map;
+    }
+    toString(ctx, onComment, onChompKeep) {
+        if (!ctx)
+            return JSON.stringify(this);
+        for (const item of this.items) {
+            if (!identity.isPair(item))
+                throw new Error(`Map items must all be pairs; found ${JSON.stringify(item)} instead`);
+        }
+        if (!ctx.allNullValues && this.hasAllNullValues(false))
+            ctx = Object.assign({}, ctx, { allNullValues: true });
+        return stringifyCollection.stringifyCollection(this, ctx, {
+            blockItemPrefix: '',
+            flowChars: { start: '{', end: '}' },
+            itemIndent: ctx.indent || '',
+            onChompKeep,
+            onComment
+        });
+    }
+}
+
+exports.YAMLMap = YAMLMap;
+exports.findPair = findPair;
+
+
+/***/ }),
+
+/***/ 5161:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+var createNode = __nccwpck_require__(9652);
+var stringifyCollection = __nccwpck_require__(2466);
+var Collection = __nccwpck_require__(3466);
+var identity = __nccwpck_require__(5589);
+var Scalar = __nccwpck_require__(9338);
+var toJS = __nccwpck_require__(2463);
+
+class YAMLSeq extends Collection.Collection {
+    static get tagName() {
+        return 'tag:yaml.org,2002:seq';
+    }
+    constructor(schema) {
+        super(identity.SEQ, schema);
+        this.items = [];
+    }
+    add(value) {
+        this.items.push(value);
+    }
+    /**
+     * Removes a value from the collection.
+     *
+     * `key` must contain a representation of an integer for this to succeed.
+     * It may be wrapped in a `Scalar`.
+     *
+     * @returns `true` if the item was found and removed.
+     */
+    delete(key) {
+        const idx = asItemIndex(key);
+        if (typeof idx !== 'number')
+            return false;
+        const del = this.items.splice(idx, 1);
+        return del.length > 0;
+    }
+    get(key, keepScalar) {
+        const idx = asItemIndex(key);
+        if (typeof idx !== 'number')
+            return undefined;
+        const it = this.items[idx];
+        return !keepScalar && identity.isScalar(it) ? it.value : it;
+    }
+    /**
+     * Checks if the collection includes a value with the key `key`.
+     *
+     * `key` must contain a representation of an integer for this to succeed.
+     * It may be wrapped in a `Scalar`.
+     */
+    has(key) {
+        const idx = asItemIndex(key);
+        return typeof idx === 'number' && idx < this.items.length;
+    }
+    /**
+     * Sets a value in this collection. For `!!set`, `value` needs to be a
+     * boolean to add/remove the item from the set.
+     *
+     * If `key` does not contain a representation of an integer, this will throw.
+     * It may be wrapped in a `Scalar`.
+     */
+    set(key, value) {
+        const idx = asItemIndex(key);
+        if (typeof idx !== 'number')
+            throw new Error(`Expected a valid index, not ${key}.`);
+        const prev = this.items[idx];
+        if (identity.isScalar(prev) && Scalar.isScalarValue(value))
+            prev.value = value;
+        else
+            this.items[idx] = value;
+    }
+    toJSON(_, ctx) {
+        const seq = [];
+        if (ctx?.onCreate)
+            ctx.onCreate(seq);
+        let i = 0;
+        for (const item of this.items)
+            seq.push(toJS.toJS(item, String(i++), ctx));
+        return seq;
+    }
+    toString(ctx, onComment, onChompKeep) {
+        if (!ctx)
+            return JSON.stringify(this);
+        return stringifyCollection.stringifyCollection(this, ctx, {
+            blockItemPrefix: '- ',
+            flowChars: { start: '[', end: ']' },
+            itemIndent: (ctx.indent || '') + '  ',
+            onChompKeep,
+            onComment
+        });
+    }
+    static from(schema, obj, ctx) {
+        const { replacer } = ctx;
+        const seq = new this(schema);
+        if (obj && Symbol.iterator in Object(obj)) {
+            let i = 0;
+            for (let it of obj) {
+                if (typeof replacer === 'function') {
+                    const key = obj instanceof Set ? it : String(i++);
+                    it = replacer.call(obj, key, it);
+                }
+                seq.items.push(createNode.createNode(it, undefined, ctx));
+            }
+        }
+        return seq;
+    }
+}
+function asItemIndex(key) {
+    let idx = identity.isScalar(key) ? key.value : key;
+    if (idx && typeof idx === 'string')
+        idx = Number(idx);
+    return typeof idx === 'number' && Number.isInteger(idx) && idx >= 0
+        ? idx
+        : null;
+}
+
+exports.YAMLSeq = YAMLSeq;
+
+
+/***/ }),
+
+/***/ 4676:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+var log = __nccwpck_require__(6909);
+var stringify = __nccwpck_require__(8409);
+var identity = __nccwpck_require__(5589);
+var Scalar = __nccwpck_require__(9338);
+var toJS = __nccwpck_require__(2463);
+
+const MERGE_KEY = '<<';
+function addPairToJSMap(ctx, map, { key, value }) {
+    if (ctx?.doc.schema.merge && isMergeKey(key)) {
+        value = identity.isAlias(value) ? value.resolve(ctx.doc) : value;
+        if (identity.isSeq(value))
+            for (const it of value.items)
+                mergeToJSMap(ctx, map, it);
+        else if (Array.isArray(value))
+            for (const it of value)
+                mergeToJSMap(ctx, map, it);
+        else
+            mergeToJSMap(ctx, map, value);
+    }
+    else {
+        const jsKey = toJS.toJS(key, '', ctx);
+        if (map instanceof Map) {
+            map.set(jsKey, toJS.toJS(value, jsKey, ctx));
+        }
+        else if (map instanceof Set) {
+            map.add(jsKey);
+        }
+        else {
+            const stringKey = stringifyKey(key, jsKey, ctx);
+            const jsValue = toJS.toJS(value, stringKey, ctx);
+            if (stringKey in map)
+                Object.defineProperty(map, stringKey, {
+                    value: jsValue,
+                    writable: true,
+                    enumerable: true,
+                    configurable: true
+                });
+            else
+                map[stringKey] = jsValue;
+        }
+    }
+    return map;
+}
+const isMergeKey = (key) => key === MERGE_KEY ||
+    (identity.isScalar(key) &&
+        key.value === MERGE_KEY &&
+        (!key.type || key.type === Scalar.Scalar.PLAIN));
+// If the value associated with a merge key is a single mapping node, each of
+// its key/value pairs is inserted into the current mapping, unless the key
+// already exists in it. If the value associated with the merge key is a
+// sequence, then this sequence is expected to contain mapping nodes and each
+// of these nodes is merged in turn according to its order in the sequence.
+// Keys in mapping nodes earlier in the sequence override keys specified in
+// later mapping nodes. -- http://yaml.org/type/merge.html
+function mergeToJSMap(ctx, map, value) {
+    const source = ctx && identity.isAlias(value) ? value.resolve(ctx.doc) : value;
+    if (!identity.isMap(source))
+        throw new Error('Merge sources must be maps or map aliases');
+    const srcMap = source.toJSON(null, ctx, Map);
+    for (const [key, value] of srcMap) {
+        if (map instanceof Map) {
+            if (!map.has(key))
+                map.set(key, value);
+        }
+        else if (map instanceof Set) {
+            map.add(key);
+        }
+        else if (!Object.prototype.hasOwnProperty.call(map, key)) {
+            Object.defineProperty(map, key, {
+                value,
+                writable: true,
+                enumerable: true,
+                configurable: true
+            });
+        }
+    }
+    return map;
+}
+function stringifyKey(key, jsKey, ctx) {
+    if (jsKey === null)
+        return '';
+    if (typeof jsKey !== 'object')
+        return String(jsKey);
+    if (identity.isNode(key) && ctx && ctx.doc) {
+        const strCtx = stringify.createStringifyContext(ctx.doc, {});
+        strCtx.anchors = new Set();
+        for (const node of ctx.anchors.keys())
+            strCtx.anchors.add(node.anchor);
+        strCtx.inFlow = true;
+        strCtx.inStringifyKey = true;
+        const strKey = key.toString(strCtx);
+        if (!ctx.mapKeyWarned) {
+            let jsonStr = JSON.stringify(strKey);
+            if (jsonStr.length > 40)
+                jsonStr = jsonStr.substring(0, 36) + '..."';
+            log.warn(ctx.doc.options.logLevel, `Keys with collection values will be stringified due to JS Object restrictions: ${jsonStr}. Set mapAsMap: true to use object keys.`);
+            ctx.mapKeyWarned = true;
+        }
+        return strKey;
+    }
+    return JSON.stringify(jsKey);
+}
+
+exports.addPairToJSMap = addPairToJSMap;
+
+
+/***/ }),
+
+/***/ 5589:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
@@ -18511,24 +19097,11 @@ function isNode(node) {
     return false;
 }
 const hasAnchor = (node) => (isScalar(node) || isCollection(node)) && !!node.anchor;
-class NodeBase {
-    constructor(type) {
-        Object.defineProperty(this, NODE_TYPE, { value: type });
-    }
-    /** Create a copy of this node.  */
-    clone() {
-        const copy = Object.create(Object.getPrototypeOf(this), Object.getOwnPropertyDescriptors(this));
-        if (this.range)
-            copy.range = this.range.slice();
-        return copy;
-    }
-}
 
 exports.ALIAS = ALIAS;
 exports.DOC = DOC;
 exports.MAP = MAP;
 exports.NODE_TYPE = NODE_TYPE;
-exports.NodeBase = NodeBase;
 exports.PAIR = PAIR;
 exports.SCALAR = SCALAR;
 exports.SEQ = SEQ;
@@ -18545,442 +19118,13 @@ exports.isSeq = isSeq;
 
 /***/ }),
 
-/***/ 246:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-var createNode = __nccwpck_require__(9652);
-var stringifyPair = __nccwpck_require__(4875);
-var addPairToJSMap = __nccwpck_require__(4676);
-var Node = __nccwpck_require__(1399);
-
-function createPair(key, value, ctx) {
-    const k = createNode.createNode(key, undefined, ctx);
-    const v = createNode.createNode(value, undefined, ctx);
-    return new Pair(k, v);
-}
-class Pair {
-    constructor(key, value = null) {
-        Object.defineProperty(this, Node.NODE_TYPE, { value: Node.PAIR });
-        this.key = key;
-        this.value = value;
-    }
-    clone(schema) {
-        let { key, value } = this;
-        if (Node.isNode(key))
-            key = key.clone(schema);
-        if (Node.isNode(value))
-            value = value.clone(schema);
-        return new Pair(key, value);
-    }
-    toJSON(_, ctx) {
-        const pair = ctx?.mapAsMap ? new Map() : {};
-        return addPairToJSMap.addPairToJSMap(ctx, pair, this);
-    }
-    toString(ctx, onComment, onChompKeep) {
-        return ctx?.doc
-            ? stringifyPair.stringifyPair(this, ctx, onComment, onChompKeep)
-            : JSON.stringify(this);
-    }
-}
-
-exports.Pair = Pair;
-exports.createPair = createPair;
-
-
-/***/ }),
-
-/***/ 9338:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-var Node = __nccwpck_require__(1399);
-var toJS = __nccwpck_require__(2463);
-
-const isScalarValue = (value) => !value || (typeof value !== 'function' && typeof value !== 'object');
-class Scalar extends Node.NodeBase {
-    constructor(value) {
-        super(Node.SCALAR);
-        this.value = value;
-    }
-    toJSON(arg, ctx) {
-        return ctx?.keep ? this.value : toJS.toJS(this.value, arg, ctx);
-    }
-    toString() {
-        return String(this.value);
-    }
-}
-Scalar.BLOCK_FOLDED = 'BLOCK_FOLDED';
-Scalar.BLOCK_LITERAL = 'BLOCK_LITERAL';
-Scalar.PLAIN = 'PLAIN';
-Scalar.QUOTE_DOUBLE = 'QUOTE_DOUBLE';
-Scalar.QUOTE_SINGLE = 'QUOTE_SINGLE';
-
-exports.Scalar = Scalar;
-exports.isScalarValue = isScalarValue;
-
-
-/***/ }),
-
-/***/ 6011:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-var stringifyCollection = __nccwpck_require__(2466);
-var addPairToJSMap = __nccwpck_require__(4676);
-var Collection = __nccwpck_require__(3466);
-var Node = __nccwpck_require__(1399);
-var Pair = __nccwpck_require__(246);
-var Scalar = __nccwpck_require__(9338);
-
-function findPair(items, key) {
-    const k = Node.isScalar(key) ? key.value : key;
-    for (const it of items) {
-        if (Node.isPair(it)) {
-            if (it.key === key || it.key === k)
-                return it;
-            if (Node.isScalar(it.key) && it.key.value === k)
-                return it;
-        }
-    }
-    return undefined;
-}
-class YAMLMap extends Collection.Collection {
-    static get tagName() {
-        return 'tag:yaml.org,2002:map';
-    }
-    constructor(schema) {
-        super(Node.MAP, schema);
-        this.items = [];
-    }
-    /**
-     * Adds a value to the collection.
-     *
-     * @param overwrite - If not set `true`, using a key that is already in the
-     *   collection will throw. Otherwise, overwrites the previous value.
-     */
-    add(pair, overwrite) {
-        let _pair;
-        if (Node.isPair(pair))
-            _pair = pair;
-        else if (!pair || typeof pair !== 'object' || !('key' in pair)) {
-            // In TypeScript, this never happens.
-            _pair = new Pair.Pair(pair, pair?.value);
-        }
-        else
-            _pair = new Pair.Pair(pair.key, pair.value);
-        const prev = findPair(this.items, _pair.key);
-        const sortEntries = this.schema?.sortMapEntries;
-        if (prev) {
-            if (!overwrite)
-                throw new Error(`Key ${_pair.key} already set`);
-            // For scalars, keep the old node & its comments and anchors
-            if (Node.isScalar(prev.value) && Scalar.isScalarValue(_pair.value))
-                prev.value.value = _pair.value;
-            else
-                prev.value = _pair.value;
-        }
-        else if (sortEntries) {
-            const i = this.items.findIndex(item => sortEntries(_pair, item) < 0);
-            if (i === -1)
-                this.items.push(_pair);
-            else
-                this.items.splice(i, 0, _pair);
-        }
-        else {
-            this.items.push(_pair);
-        }
-    }
-    delete(key) {
-        const it = findPair(this.items, key);
-        if (!it)
-            return false;
-        const del = this.items.splice(this.items.indexOf(it), 1);
-        return del.length > 0;
-    }
-    get(key, keepScalar) {
-        const it = findPair(this.items, key);
-        const node = it?.value;
-        return (!keepScalar && Node.isScalar(node) ? node.value : node) ?? undefined;
-    }
-    has(key) {
-        return !!findPair(this.items, key);
-    }
-    set(key, value) {
-        this.add(new Pair.Pair(key, value), true);
-    }
-    /**
-     * @param ctx - Conversion context, originally set in Document#toJS()
-     * @param {Class} Type - If set, forces the returned collection type
-     * @returns Instance of Type, Map, or Object
-     */
-    toJSON(_, ctx, Type) {
-        const map = Type ? new Type() : ctx?.mapAsMap ? new Map() : {};
-        if (ctx?.onCreate)
-            ctx.onCreate(map);
-        for (const item of this.items)
-            addPairToJSMap.addPairToJSMap(ctx, map, item);
-        return map;
-    }
-    toString(ctx, onComment, onChompKeep) {
-        if (!ctx)
-            return JSON.stringify(this);
-        for (const item of this.items) {
-            if (!Node.isPair(item))
-                throw new Error(`Map items must all be pairs; found ${JSON.stringify(item)} instead`);
-        }
-        if (!ctx.allNullValues && this.hasAllNullValues(false))
-            ctx = Object.assign({}, ctx, { allNullValues: true });
-        return stringifyCollection.stringifyCollection(this, ctx, {
-            blockItemPrefix: '',
-            flowChars: { start: '{', end: '}' },
-            itemIndent: ctx.indent || '',
-            onChompKeep,
-            onComment
-        });
-    }
-}
-
-exports.YAMLMap = YAMLMap;
-exports.findPair = findPair;
-
-
-/***/ }),
-
-/***/ 5161:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-var stringifyCollection = __nccwpck_require__(2466);
-var Collection = __nccwpck_require__(3466);
-var Node = __nccwpck_require__(1399);
-var Scalar = __nccwpck_require__(9338);
-var toJS = __nccwpck_require__(2463);
-
-class YAMLSeq extends Collection.Collection {
-    static get tagName() {
-        return 'tag:yaml.org,2002:seq';
-    }
-    constructor(schema) {
-        super(Node.SEQ, schema);
-        this.items = [];
-    }
-    add(value) {
-        this.items.push(value);
-    }
-    /**
-     * Removes a value from the collection.
-     *
-     * `key` must contain a representation of an integer for this to succeed.
-     * It may be wrapped in a `Scalar`.
-     *
-     * @returns `true` if the item was found and removed.
-     */
-    delete(key) {
-        const idx = asItemIndex(key);
-        if (typeof idx !== 'number')
-            return false;
-        const del = this.items.splice(idx, 1);
-        return del.length > 0;
-    }
-    get(key, keepScalar) {
-        const idx = asItemIndex(key);
-        if (typeof idx !== 'number')
-            return undefined;
-        const it = this.items[idx];
-        return !keepScalar && Node.isScalar(it) ? it.value : it;
-    }
-    /**
-     * Checks if the collection includes a value with the key `key`.
-     *
-     * `key` must contain a representation of an integer for this to succeed.
-     * It may be wrapped in a `Scalar`.
-     */
-    has(key) {
-        const idx = asItemIndex(key);
-        return typeof idx === 'number' && idx < this.items.length;
-    }
-    /**
-     * Sets a value in this collection. For `!!set`, `value` needs to be a
-     * boolean to add/remove the item from the set.
-     *
-     * If `key` does not contain a representation of an integer, this will throw.
-     * It may be wrapped in a `Scalar`.
-     */
-    set(key, value) {
-        const idx = asItemIndex(key);
-        if (typeof idx !== 'number')
-            throw new Error(`Expected a valid index, not ${key}.`);
-        const prev = this.items[idx];
-        if (Node.isScalar(prev) && Scalar.isScalarValue(value))
-            prev.value = value;
-        else
-            this.items[idx] = value;
-    }
-    toJSON(_, ctx) {
-        const seq = [];
-        if (ctx?.onCreate)
-            ctx.onCreate(seq);
-        let i = 0;
-        for (const item of this.items)
-            seq.push(toJS.toJS(item, String(i++), ctx));
-        return seq;
-    }
-    toString(ctx, onComment, onChompKeep) {
-        if (!ctx)
-            return JSON.stringify(this);
-        return stringifyCollection.stringifyCollection(this, ctx, {
-            blockItemPrefix: '- ',
-            flowChars: { start: '[', end: ']' },
-            itemIndent: (ctx.indent || '') + '  ',
-            onChompKeep,
-            onComment
-        });
-    }
-}
-function asItemIndex(key) {
-    let idx = Node.isScalar(key) ? key.value : key;
-    if (idx && typeof idx === 'string')
-        idx = Number(idx);
-    return typeof idx === 'number' && Number.isInteger(idx) && idx >= 0
-        ? idx
-        : null;
-}
-
-exports.YAMLSeq = YAMLSeq;
-
-
-/***/ }),
-
-/***/ 4676:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-var log = __nccwpck_require__(6909);
-var stringify = __nccwpck_require__(8409);
-var Node = __nccwpck_require__(1399);
-var Scalar = __nccwpck_require__(9338);
-var toJS = __nccwpck_require__(2463);
-
-const MERGE_KEY = '<<';
-function addPairToJSMap(ctx, map, { key, value }) {
-    if (ctx?.doc.schema.merge && isMergeKey(key)) {
-        value = Node.isAlias(value) ? value.resolve(ctx.doc) : value;
-        if (Node.isSeq(value))
-            for (const it of value.items)
-                mergeToJSMap(ctx, map, it);
-        else if (Array.isArray(value))
-            for (const it of value)
-                mergeToJSMap(ctx, map, it);
-        else
-            mergeToJSMap(ctx, map, value);
-    }
-    else {
-        const jsKey = toJS.toJS(key, '', ctx);
-        if (map instanceof Map) {
-            map.set(jsKey, toJS.toJS(value, jsKey, ctx));
-        }
-        else if (map instanceof Set) {
-            map.add(jsKey);
-        }
-        else {
-            const stringKey = stringifyKey(key, jsKey, ctx);
-            const jsValue = toJS.toJS(value, stringKey, ctx);
-            if (stringKey in map)
-                Object.defineProperty(map, stringKey, {
-                    value: jsValue,
-                    writable: true,
-                    enumerable: true,
-                    configurable: true
-                });
-            else
-                map[stringKey] = jsValue;
-        }
-    }
-    return map;
-}
-const isMergeKey = (key) => key === MERGE_KEY ||
-    (Node.isScalar(key) &&
-        key.value === MERGE_KEY &&
-        (!key.type || key.type === Scalar.Scalar.PLAIN));
-// If the value associated with a merge key is a single mapping node, each of
-// its key/value pairs is inserted into the current mapping, unless the key
-// already exists in it. If the value associated with the merge key is a
-// sequence, then this sequence is expected to contain mapping nodes and each
-// of these nodes is merged in turn according to its order in the sequence.
-// Keys in mapping nodes earlier in the sequence override keys specified in
-// later mapping nodes. -- http://yaml.org/type/merge.html
-function mergeToJSMap(ctx, map, value) {
-    const source = ctx && Node.isAlias(value) ? value.resolve(ctx.doc) : value;
-    if (!Node.isMap(source))
-        throw new Error('Merge sources must be maps or map aliases');
-    const srcMap = source.toJSON(null, ctx, Map);
-    for (const [key, value] of srcMap) {
-        if (map instanceof Map) {
-            if (!map.has(key))
-                map.set(key, value);
-        }
-        else if (map instanceof Set) {
-            map.add(key);
-        }
-        else if (!Object.prototype.hasOwnProperty.call(map, key)) {
-            Object.defineProperty(map, key, {
-                value,
-                writable: true,
-                enumerable: true,
-                configurable: true
-            });
-        }
-    }
-    return map;
-}
-function stringifyKey(key, jsKey, ctx) {
-    if (jsKey === null)
-        return '';
-    if (typeof jsKey !== 'object')
-        return String(jsKey);
-    if (Node.isNode(key) && ctx && ctx.doc) {
-        const strCtx = stringify.createStringifyContext(ctx.doc, {});
-        strCtx.anchors = new Set();
-        for (const node of ctx.anchors.keys())
-            strCtx.anchors.add(node.anchor);
-        strCtx.inFlow = true;
-        strCtx.inStringifyKey = true;
-        const strKey = key.toString(strCtx);
-        if (!ctx.mapKeyWarned) {
-            let jsonStr = JSON.stringify(strKey);
-            if (jsonStr.length > 40)
-                jsonStr = jsonStr.substring(0, 36) + '..."';
-            log.warn(ctx.doc.options.logLevel, `Keys with collection values will be stringified due to JS Object restrictions: ${jsonStr}. Set mapAsMap: true to use object keys.`);
-            ctx.mapKeyWarned = true;
-        }
-        return strKey;
-    }
-    return JSON.stringify(jsKey);
-}
-
-exports.addPairToJSMap = addPairToJSMap;
-
-
-/***/ }),
-
 /***/ 2463:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var Node = __nccwpck_require__(1399);
+var identity = __nccwpck_require__(5589);
 
 /**
  * Recursively convert any node or its contents to native JavaScript
@@ -18998,7 +19142,7 @@ function toJS(value, arg, ctx) {
         return value.map((v, i) => toJS(v, String(i), ctx));
     if (value && typeof value.toJSON === 'function') {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-        if (!ctx || !Node.hasAnchor(value))
+        if (!ctx || !identity.hasAnchor(value))
             return value.toJSON(arg, ctx);
         const data = { aliasCount: 0, count: 1, res: undefined };
         ctx.anchors.set(value, data);
@@ -21385,7 +21529,7 @@ exports.stringify = stringify;
 "use strict";
 
 
-var Node = __nccwpck_require__(1399);
+var identity = __nccwpck_require__(5589);
 var map = __nccwpck_require__(83);
 var seq = __nccwpck_require__(1693);
 var string = __nccwpck_require__(2201);
@@ -21404,9 +21548,9 @@ class Schema {
         this.knownTags = resolveKnownTags ? tags.coreKnownTags : {};
         this.tags = tags.getTags(customTags, this.name);
         this.toStringOptions = toStringDefaults ?? null;
-        Object.defineProperty(this, Node.MAP, { value: map.map });
-        Object.defineProperty(this, Node.SCALAR, { value: string.string });
-        Object.defineProperty(this, Node.SEQ, { value: seq.seq });
+        Object.defineProperty(this, identity.MAP, { value: map.map });
+        Object.defineProperty(this, identity.SCALAR, { value: string.string });
+        Object.defineProperty(this, identity.SEQ, { value: seq.seq });
         // Used by createMap()
         this.sortMapEntries =
             typeof sortMapEntries === 'function'
@@ -21433,45 +21577,20 @@ exports.Schema = Schema;
 "use strict";
 
 
-var Node = __nccwpck_require__(1399);
-var Pair = __nccwpck_require__(246);
+var identity = __nccwpck_require__(5589);
 var YAMLMap = __nccwpck_require__(6011);
 
-function createMap(schema, obj, ctx) {
-    const { keepUndefined, replacer } = ctx;
-    const map = new YAMLMap.YAMLMap(schema);
-    const add = (key, value) => {
-        if (typeof replacer === 'function')
-            value = replacer.call(obj, key, value);
-        else if (Array.isArray(replacer) && !replacer.includes(key))
-            return;
-        if (value !== undefined || keepUndefined)
-            map.items.push(Pair.createPair(key, value, ctx));
-    };
-    if (obj instanceof Map) {
-        for (const [key, value] of obj)
-            add(key, value);
-    }
-    else if (obj && typeof obj === 'object') {
-        for (const key of Object.keys(obj))
-            add(key, obj[key]);
-    }
-    if (typeof schema.sortMapEntries === 'function') {
-        map.items.sort(schema.sortMapEntries);
-    }
-    return map;
-}
 const map = {
     collection: 'map',
-    createNode: createMap,
     default: true,
     nodeClass: YAMLMap.YAMLMap,
     tag: 'tag:yaml.org,2002:map',
     resolve(map, onError) {
-        if (!Node.isMap(map))
+        if (!identity.isMap(map))
             onError('Expected a mapping for this tag');
         return map;
-    }
+    },
+    createNode: (schema, obj, ctx) => YAMLMap.YAMLMap.from(schema, obj, ctx)
 };
 
 exports.map = map;
@@ -21510,36 +21629,20 @@ exports.nullTag = nullTag;
 "use strict";
 
 
-var createNode = __nccwpck_require__(9652);
-var Node = __nccwpck_require__(1399);
+var identity = __nccwpck_require__(5589);
 var YAMLSeq = __nccwpck_require__(5161);
 
-function createSeq(schema, obj, ctx) {
-    const { replacer } = ctx;
-    const seq = new YAMLSeq.YAMLSeq(schema);
-    if (obj && Symbol.iterator in Object(obj)) {
-        let i = 0;
-        for (let it of obj) {
-            if (typeof replacer === 'function') {
-                const key = obj instanceof Set ? it : String(i++);
-                it = replacer.call(obj, key, it);
-            }
-            seq.items.push(createNode.createNode(it, undefined, ctx));
-        }
-    }
-    return seq;
-}
 const seq = {
     collection: 'seq',
-    createNode: createSeq,
     default: true,
     nodeClass: YAMLSeq.YAMLSeq,
     tag: 'tag:yaml.org,2002:seq',
     resolve(seq, onError) {
-        if (!Node.isSeq(seq))
+        if (!identity.isSeq(seq))
             onError('Expected a sequence for this tag');
         return seq;
-    }
+    },
+    createNode: (schema, obj, ctx) => YAMLSeq.YAMLSeq.from(schema, obj, ctx)
 };
 
 exports.seq = seq;
@@ -22165,10 +22268,10 @@ exports.intOct = intOct;
 "use strict";
 
 
-var YAMLSeq = __nccwpck_require__(5161);
+var identity = __nccwpck_require__(5589);
 var toJS = __nccwpck_require__(2463);
-var Node = __nccwpck_require__(1399);
 var YAMLMap = __nccwpck_require__(6011);
+var YAMLSeq = __nccwpck_require__(5161);
 var pairs = __nccwpck_require__(9841);
 
 class YAMLOMap extends YAMLSeq.YAMLSeq {
@@ -22193,7 +22296,7 @@ class YAMLOMap extends YAMLSeq.YAMLSeq {
             ctx.onCreate(map);
         for (const pair of this.items) {
             let key, value;
-            if (Node.isPair(pair)) {
+            if (identity.isPair(pair)) {
                 key = toJS.toJS(pair.key, '', ctx);
                 value = toJS.toJS(pair.value, key, ctx);
             }
@@ -22205,6 +22308,12 @@ class YAMLOMap extends YAMLSeq.YAMLSeq {
             map.set(key, value);
         }
         return map;
+    }
+    static from(schema, iterable, ctx) {
+        const pairs$1 = pairs.createPairs(schema, iterable, ctx);
+        const omap = new this();
+        omap.items = pairs$1.items;
+        return omap;
     }
 }
 YAMLOMap.tag = 'tag:yaml.org,2002:omap';
@@ -22218,7 +22327,7 @@ const omap = {
         const pairs$1 = pairs.resolvePairs(seq, onError);
         const seenKeys = [];
         for (const { key } of pairs$1.items) {
-            if (Node.isScalar(key)) {
+            if (identity.isScalar(key)) {
                 if (seenKeys.includes(key.value)) {
                     onError(`Ordered maps must not include duplicate keys: ${key.value}`);
                 }
@@ -22229,12 +22338,7 @@ const omap = {
         }
         return Object.assign(new YAMLOMap(), pairs$1);
     },
-    createNode(schema, iterable, ctx) {
-        const pairs$1 = pairs.createPairs(schema, iterable, ctx);
-        const omap = new YAMLOMap();
-        omap.items = pairs$1.items;
-        return omap;
-    }
+    createNode: (schema, iterable, ctx) => YAMLOMap.from(schema, iterable, ctx)
 };
 
 exports.YAMLOMap = YAMLOMap;
@@ -22249,18 +22353,18 @@ exports.omap = omap;
 "use strict";
 
 
-var Node = __nccwpck_require__(1399);
+var identity = __nccwpck_require__(5589);
 var Pair = __nccwpck_require__(246);
 var Scalar = __nccwpck_require__(9338);
 var YAMLSeq = __nccwpck_require__(5161);
 
 function resolvePairs(seq, onError) {
-    if (Node.isSeq(seq)) {
+    if (identity.isSeq(seq)) {
         for (let i = 0; i < seq.items.length; ++i) {
             let item = seq.items[i];
-            if (Node.isPair(item))
+            if (identity.isPair(item))
                 continue;
-            else if (Node.isMap(item)) {
+            else if (identity.isMap(item)) {
                 if (item.items.length > 1)
                     onError('Each pair must have its own sequence indicator');
                 const pair = item.items[0] || new Pair.Pair(new Scalar.Scalar(null));
@@ -22276,7 +22380,7 @@ function resolvePairs(seq, onError) {
                 }
                 item = pair;
             }
-            seq.items[i] = Node.isPair(item) ? item : new Pair.Pair(item);
+            seq.items[i] = identity.isPair(item) ? item : new Pair.Pair(item);
         }
     }
     else
@@ -22385,7 +22489,7 @@ exports.schema = schema;
 "use strict";
 
 
-var Node = __nccwpck_require__(1399);
+var identity = __nccwpck_require__(5589);
 var Pair = __nccwpck_require__(246);
 var YAMLMap = __nccwpck_require__(6011);
 
@@ -22396,7 +22500,7 @@ class YAMLSet extends YAMLMap.YAMLMap {
     }
     add(key) {
         let pair;
-        if (Node.isPair(key))
+        if (identity.isPair(key))
             pair = key;
         else if (key &&
             typeof key === 'object' &&
@@ -22416,8 +22520,8 @@ class YAMLSet extends YAMLMap.YAMLMap {
      */
     get(key, keepPair) {
         const pair = YAMLMap.findPair(this.items, key);
-        return !keepPair && Node.isPair(pair)
-            ? Node.isScalar(pair.key)
+        return !keepPair && identity.isPair(pair)
+            ? identity.isScalar(pair.key)
                 ? pair.key.value
                 : pair.key
             : pair;
@@ -22444,6 +22548,17 @@ class YAMLSet extends YAMLMap.YAMLMap {
         else
             throw new Error('Set items must all have null values');
     }
+    static from(schema, iterable, ctx) {
+        const { replacer } = ctx;
+        const set = new this(schema);
+        if (iterable && Symbol.iterator in Object(iterable))
+            for (let value of iterable) {
+                if (typeof replacer === 'function')
+                    value = replacer.call(iterable, value, value);
+                set.items.push(Pair.createPair(value, null, ctx));
+            }
+        return set;
+    }
 }
 YAMLSet.tag = 'tag:yaml.org,2002:set';
 const set = {
@@ -22452,8 +22567,9 @@ const set = {
     nodeClass: YAMLSet,
     default: false,
     tag: 'tag:yaml.org,2002:set',
+    createNode: (schema, iterable, ctx) => YAMLSet.from(schema, iterable, ctx),
     resolve(map, onError) {
-        if (Node.isMap(map)) {
+        if (identity.isMap(map)) {
             if (map.hasAllNullValues(true))
                 return Object.assign(new YAMLSet(), map);
             else
@@ -22462,17 +22578,6 @@ const set = {
         else
             onError('Expected a mapping for this tag');
         return map;
-    },
-    createNode(schema, iterable, ctx) {
-        const { replacer } = ctx;
-        const set = new YAMLSet(schema);
-        if (iterable && Symbol.iterator in Object(iterable))
-            for (let value of iterable) {
-                if (typeof replacer === 'function')
-                    value = replacer.call(iterable, value, value);
-                set.items.push(Pair.createPair(value, null, ctx));
-            }
-        return set;
     }
 };
 
@@ -22533,7 +22638,7 @@ function stringifySexagesimal(node) {
     }
     return (sign +
         parts
-            .map(n => (n < 10 ? '0' + String(n) : String(n)))
+            .map(n => String(n).padStart(2, '0'))
             .join(':')
             .replace(/000000\d*$/, '') // % 60 may introduce error
     );
@@ -22750,7 +22855,7 @@ exports.foldFlowLines = foldFlowLines;
 
 
 var anchors = __nccwpck_require__(8459);
-var Node = __nccwpck_require__(1399);
+var identity = __nccwpck_require__(5589);
 var stringifyComment = __nccwpck_require__(5182);
 var stringifyString = __nccwpck_require__(6226);
 
@@ -22803,7 +22908,7 @@ function getTagObject(tags, item) {
     }
     let tagObj = undefined;
     let obj;
-    if (Node.isScalar(item)) {
+    if (identity.isScalar(item)) {
         obj = item.value;
         const match = tags.filter(t => t.identify?.(obj));
         tagObj =
@@ -22824,7 +22929,7 @@ function stringifyProps(node, tagObj, { anchors: anchors$1, doc }) {
     if (!doc.directives)
         return '';
     const props = [];
-    const anchor = (Node.isScalar(node) || Node.isCollection(node)) && node.anchor;
+    const anchor = (identity.isScalar(node) || identity.isCollection(node)) && node.anchor;
     if (anchor && anchors.anchorIsValid(anchor)) {
         anchors$1.add(anchor);
         props.push(`&${anchor}`);
@@ -22835,9 +22940,9 @@ function stringifyProps(node, tagObj, { anchors: anchors$1, doc }) {
     return props.join(' ');
 }
 function stringify(item, ctx, onComment, onChompKeep) {
-    if (Node.isPair(item))
+    if (identity.isPair(item))
         return item.toString(ctx, onComment, onChompKeep);
-    if (Node.isAlias(item)) {
+    if (identity.isAlias(item)) {
         if (ctx.doc.directives)
             return item.toString(ctx);
         if (ctx.resolvedAliases?.has(item)) {
@@ -22852,7 +22957,7 @@ function stringify(item, ctx, onComment, onChompKeep) {
         }
     }
     let tagObj = undefined;
-    const node = Node.isNode(item)
+    const node = identity.isNode(item)
         ? item
         : ctx.doc.createNode(item, { onTagObj: o => (tagObj = o) });
     if (!tagObj)
@@ -22862,12 +22967,12 @@ function stringify(item, ctx, onComment, onChompKeep) {
         ctx.indentAtStart = (ctx.indentAtStart ?? 0) + props.length + 1;
     const str = typeof tagObj.stringify === 'function'
         ? tagObj.stringify(node, ctx, onComment, onChompKeep)
-        : Node.isScalar(node)
+        : identity.isScalar(node)
             ? stringifyString.stringifyString(node, ctx, onComment, onChompKeep)
             : node.toString(ctx, onComment, onChompKeep);
     if (!props)
         return str;
-    return Node.isScalar(node) || str[0] === '{' || str[0] === '['
+    return identity.isScalar(node) || str[0] === '{' || str[0] === '['
         ? `${props} ${str}`
         : `${props}\n${ctx.indent}${str}`;
 }
@@ -22885,7 +22990,7 @@ exports.stringify = stringify;
 
 
 var Collection = __nccwpck_require__(3466);
-var Node = __nccwpck_require__(1399);
+var identity = __nccwpck_require__(5589);
 var stringify = __nccwpck_require__(8409);
 var stringifyComment = __nccwpck_require__(5182);
 
@@ -22902,15 +23007,15 @@ function stringifyBlockCollection({ comment, items }, ctx, { blockItemPrefix, fl
     for (let i = 0; i < items.length; ++i) {
         const item = items[i];
         let comment = null;
-        if (Node.isNode(item)) {
+        if (identity.isNode(item)) {
             if (!chompKeep && item.spaceBefore)
                 lines.push('');
             addCommentBefore(ctx, lines, item.commentBefore, chompKeep);
             if (item.comment)
                 comment = item.comment;
         }
-        else if (Node.isPair(item)) {
-            const ik = Node.isNode(item.key) ? item.key : null;
+        else if (identity.isPair(item)) {
+            const ik = identity.isNode(item.key) ? item.key : null;
             if (ik) {
                 if (!chompKeep && ik.spaceBefore)
                     lines.push('');
@@ -22959,15 +23064,15 @@ function stringifyFlowCollection({ comment, items }, ctx, { flowChars, itemInden
     for (let i = 0; i < items.length; ++i) {
         const item = items[i];
         let comment = null;
-        if (Node.isNode(item)) {
+        if (identity.isNode(item)) {
             if (item.spaceBefore)
                 lines.push('');
             addCommentBefore(ctx, lines, item.commentBefore, false);
             if (item.comment)
                 comment = item.comment;
         }
-        else if (Node.isPair(item)) {
-            const ik = Node.isNode(item.key) ? item.key : null;
+        else if (identity.isPair(item)) {
+            const ik = identity.isNode(item.key) ? item.key : null;
             if (ik) {
                 if (ik.spaceBefore)
                     lines.push('');
@@ -22975,7 +23080,7 @@ function stringifyFlowCollection({ comment, items }, ctx, { flowChars, itemInden
                 if (ik.comment)
                     reqNewline = true;
             }
-            const iv = Node.isNode(item.value) ? item.value : null;
+            const iv = identity.isNode(item.value) ? item.value : null;
             if (iv) {
                 if (iv.comment)
                     comment = iv.comment;
@@ -23077,7 +23182,7 @@ exports.stringifyComment = stringifyComment;
 "use strict";
 
 
-var Node = __nccwpck_require__(1399);
+var identity = __nccwpck_require__(5589);
 var stringify = __nccwpck_require__(8409);
 var stringifyComment = __nccwpck_require__(5182);
 
@@ -23106,7 +23211,7 @@ function stringifyDocument(doc, options) {
     let chompKeep = false;
     let contentComment = null;
     if (doc.contents) {
-        if (Node.isNode(doc.contents)) {
+        if (identity.isNode(doc.contents)) {
             if (doc.contents.spaceBefore && hasDirectives)
                 lines.push('');
             if (doc.contents.commentBefore) {
@@ -23206,19 +23311,19 @@ exports.stringifyNumber = stringifyNumber;
 "use strict";
 
 
-var Node = __nccwpck_require__(1399);
+var identity = __nccwpck_require__(5589);
 var Scalar = __nccwpck_require__(9338);
 var stringify = __nccwpck_require__(8409);
 var stringifyComment = __nccwpck_require__(5182);
 
 function stringifyPair({ key, value }, ctx, onComment, onChompKeep) {
     const { allNullValues, doc, indent, indentStep, options: { commentString, indentSeq, simpleKeys } } = ctx;
-    let keyComment = (Node.isNode(key) && key.comment) || null;
+    let keyComment = (identity.isNode(key) && key.comment) || null;
     if (simpleKeys) {
         if (keyComment) {
             throw new Error('With simple keys, key nodes cannot have comments');
         }
-        if (Node.isCollection(key)) {
+        if (identity.isCollection(key)) {
             const msg = 'With simple keys, collection cannot be used as a key value';
             throw new Error(msg);
         }
@@ -23226,8 +23331,8 @@ function stringifyPair({ key, value }, ctx, onComment, onChompKeep) {
     let explicitKey = !simpleKeys &&
         (!key ||
             (keyComment && value == null && !ctx.inFlow) ||
-            Node.isCollection(key) ||
-            (Node.isScalar(key)
+            identity.isCollection(key) ||
+            (identity.isScalar(key)
                 ? key.type === Scalar.Scalar.BLOCK_FOLDED || key.type === Scalar.Scalar.BLOCK_LITERAL
                 : typeof key === 'object'));
     ctx = Object.assign({}, ctx, {
@@ -23272,7 +23377,7 @@ function stringifyPair({ key, value }, ctx, onComment, onChompKeep) {
             str += stringifyComment.lineComment(str, ctx.indent, commentString(keyComment));
     }
     let vsb, vcb, valueComment;
-    if (Node.isNode(value)) {
+    if (identity.isNode(value)) {
         vsb = !!value.spaceBefore;
         vcb = value.commentBefore;
         valueComment = value.comment;
@@ -23285,14 +23390,14 @@ function stringifyPair({ key, value }, ctx, onComment, onChompKeep) {
             value = doc.createNode(value);
     }
     ctx.implicitKey = false;
-    if (!explicitKey && !keyComment && Node.isScalar(value))
+    if (!explicitKey && !keyComment && identity.isScalar(value))
         ctx.indentAtStart = str.length + 1;
     chompKeep = false;
     if (!indentSeq &&
         indentStep.length >= 2 &&
         !ctx.inFlow &&
         !explicitKey &&
-        Node.isSeq(value) &&
+        identity.isSeq(value) &&
         !value.flow &&
         !value.tag &&
         !value.anchor) {
@@ -23316,7 +23421,7 @@ function stringifyPair({ key, value }, ctx, onComment, onChompKeep) {
             ws += `\n${ctx.indent}`;
         }
     }
-    else if (!explicitKey && Node.isCollection(value)) {
+    else if (!explicitKey && identity.isCollection(value)) {
         const vs0 = valueStr[0];
         const nl0 = valueStr.indexOf('\n');
         const hasNewline = nl0 !== -1;
@@ -23514,6 +23619,15 @@ function quotedString(value, ctx) {
     }
     return qs(value, ctx);
 }
+// The negative lookbehind avoids a polynomial search,
+// but isn't supported yet on Safari: https://caniuse.com/js-regexp-lookbehind
+let blockEndNewlines;
+try {
+    blockEndNewlines = new RegExp('(^|(?<!\n))\n+(?!\n|$)', 'g');
+}
+catch {
+    blockEndNewlines = /\n+(?!\n|$)/g;
+}
 function blockString({ comment, type, value }, ctx, onComment, onChompKeep) {
     const { blockQuote, commentString, lineWidth } = ctx.options;
     // 1. Block can't end in whitespace unless the last line is non-empty.
@@ -23557,7 +23671,7 @@ function blockString({ comment, type, value }, ctx, onComment, onChompKeep) {
         value = value.slice(0, -end.length);
         if (end[end.length - 1] === '\n')
             end = end.slice(0, -1);
-        end = end.replace(/\n+(?!\n|$)/g, `$&${indent}`);
+        end = end.replace(blockEndNewlines, `$&${indent}`);
     }
     // determine indent indicator from whitespace at value start
     let startWithSpace = false;
@@ -23695,7 +23809,7 @@ exports.stringifyString = stringifyString;
 "use strict";
 
 
-var Node = __nccwpck_require__(1399);
+var identity = __nccwpck_require__(5589);
 
 const BREAK = Symbol('break visit');
 const SKIP = Symbol('skip children');
@@ -23732,7 +23846,7 @@ const REMOVE = Symbol('remove node');
  */
 function visit(node, visitor) {
     const visitor_ = initVisitor(visitor);
-    if (Node.isDocument(node)) {
+    if (identity.isDocument(node)) {
         const cd = visit_(null, node.contents, visitor_, Object.freeze([node]));
         if (cd === REMOVE)
             node.contents = null;
@@ -23751,12 +23865,12 @@ visit.SKIP = SKIP;
 visit.REMOVE = REMOVE;
 function visit_(key, node, visitor, path) {
     const ctrl = callVisitor(key, node, visitor, path);
-    if (Node.isNode(ctrl) || Node.isPair(ctrl)) {
+    if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
         replaceNode(key, path, ctrl);
         return visit_(key, ctrl, visitor, path);
     }
     if (typeof ctrl !== 'symbol') {
-        if (Node.isCollection(node)) {
+        if (identity.isCollection(node)) {
             path = Object.freeze(path.concat(node));
             for (let i = 0; i < node.items.length; ++i) {
                 const ci = visit_(i, node.items[i], visitor, path);
@@ -23770,7 +23884,7 @@ function visit_(key, node, visitor, path) {
                 }
             }
         }
-        else if (Node.isPair(node)) {
+        else if (identity.isPair(node)) {
             path = Object.freeze(path.concat(node));
             const ck = visit_('key', node.key, visitor, path);
             if (ck === BREAK)
@@ -23819,7 +23933,7 @@ function visit_(key, node, visitor, path) {
  */
 async function visitAsync(node, visitor) {
     const visitor_ = initVisitor(visitor);
-    if (Node.isDocument(node)) {
+    if (identity.isDocument(node)) {
         const cd = await visitAsync_(null, node.contents, visitor_, Object.freeze([node]));
         if (cd === REMOVE)
             node.contents = null;
@@ -23838,12 +23952,12 @@ visitAsync.SKIP = SKIP;
 visitAsync.REMOVE = REMOVE;
 async function visitAsync_(key, node, visitor, path) {
     const ctrl = await callVisitor(key, node, visitor, path);
-    if (Node.isNode(ctrl) || Node.isPair(ctrl)) {
+    if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
         replaceNode(key, path, ctrl);
         return visitAsync_(key, ctrl, visitor, path);
     }
     if (typeof ctrl !== 'symbol') {
-        if (Node.isCollection(node)) {
+        if (identity.isCollection(node)) {
             path = Object.freeze(path.concat(node));
             for (let i = 0; i < node.items.length; ++i) {
                 const ci = await visitAsync_(i, node.items[i], visitor, path);
@@ -23857,7 +23971,7 @@ async function visitAsync_(key, node, visitor, path) {
                 }
             }
         }
-        else if (Node.isPair(node)) {
+        else if (identity.isPair(node)) {
             path = Object.freeze(path.concat(node));
             const ck = await visitAsync_('key', node.key, visitor, path);
             if (ck === BREAK)
@@ -23895,34 +24009,34 @@ function initVisitor(visitor) {
 function callVisitor(key, node, visitor, path) {
     if (typeof visitor === 'function')
         return visitor(key, node, path);
-    if (Node.isMap(node))
+    if (identity.isMap(node))
         return visitor.Map?.(key, node, path);
-    if (Node.isSeq(node))
+    if (identity.isSeq(node))
         return visitor.Seq?.(key, node, path);
-    if (Node.isPair(node))
+    if (identity.isPair(node))
         return visitor.Pair?.(key, node, path);
-    if (Node.isScalar(node))
+    if (identity.isScalar(node))
         return visitor.Scalar?.(key, node, path);
-    if (Node.isAlias(node))
+    if (identity.isAlias(node))
         return visitor.Alias?.(key, node, path);
     return undefined;
 }
 function replaceNode(key, path, node) {
     const parent = path[path.length - 1];
-    if (Node.isCollection(parent)) {
+    if (identity.isCollection(parent)) {
         parent.items[key] = node;
     }
-    else if (Node.isPair(parent)) {
+    else if (identity.isPair(parent)) {
         if (key === 'key')
             parent.key = node;
         else
             parent.value = node;
     }
-    else if (Node.isDocument(parent)) {
+    else if (identity.isDocument(parent)) {
         parent.contents = node;
     }
     else {
-        const pt = Node.isAlias(parent) ? 'alias' : 'scalar';
+        const pt = identity.isAlias(parent) ? 'alias' : 'scalar';
         throw new Error(`Cannot replace node with ${pt} parent`);
     }
 }

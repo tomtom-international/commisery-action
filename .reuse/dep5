@@ -1,0 +1,13 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: commisery-action
+Upstream-Contact: TomTom <http://tomtom.com>
+Source: https://github.com/tomtom-international/commisery-action
+
+Files: .eslintrc.json
+       .prettierrc.json
+       jest.config.js
+       package-lock.json
+       package.json
+       tsconfig.json
+Copyright: 2023 TomTom <http://tomtom.com>
+License: CC0-1.0

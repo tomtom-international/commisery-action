@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: 2023 TomTom <http://tomtom.com>
+SPDX-License-Identifier: Apache-2.0
+-->
+
 # Configuration
 
 You can configure `commisery-action` using a YAML-based configuration file:

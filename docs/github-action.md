@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: 2023 TomTom <http://tomtom.com>
+SPDX-License-Identifier: Apache-2.0
+-->
+
 # GitHub Actions integration
 
 ## Permissions

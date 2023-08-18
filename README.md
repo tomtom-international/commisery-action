@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: 2023 TomTom <http://tomtom.com>
+SPDX-License-Identifier: Apache-2.0
+-->
+
 # Conventional Commit Messages
 [![Download](https://img.shields.io/badge/Download-Linux%20x64-blue)](https://github.com/tomtom-international/commisery-action/releases/latest/download/commisery-linux-x64) [![Download](https://img.shields.io/badge/Download-MacOS%20arm64-blue)](https://github.com/tomtom-international/commisery-action/releases/latest/download/commisery-macos-arm64) [![Download](https://img.shields.io/badge/Download-MacOS%20x64-blue)](https://github.com/tomtom-international/commisery-action/releases/latest/download/commisery-macos-x64)
 
