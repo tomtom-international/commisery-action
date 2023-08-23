@@ -642,7 +642,8 @@ function getNextSdkVer(
       if (currentIsRc) {
         // We need to keep the pre intact (undefined), but the post needs to be
         // cleared, as that contains the commit hash of the previous dev version.
-        nextVersion = currentVersion.nextPrerelease(undefined, "");
+        // Also zero pad to at least two digits.
+        nextVersion = currentVersion.nextPrerelease(undefined, "", 2);
         if (!nextVersion) {
           fatal(
             `Unable to bump RC version for: ${currentVersion.toString()}; ` +
@@ -707,8 +708,8 @@ function getNextSdkVer(
         nextVersion = bumpOrError(releaseBump);
         nextVersion.prerelease = `${devPrereleaseText}001`;
       } else {
-        // Keep prefix, clear postfix
-        nextVersion = currentVersion.nextPrerelease(undefined, "");
+        // Keep prefix, clear postfix, zero pad to at least three digits
+        nextVersion = currentVersion.nextPrerelease(undefined, "", 3);
         if (!nextVersion) {
           // This can only happen if the current version is something
           // unexpected and invalid, like a prerelease without a number, e.g.:
