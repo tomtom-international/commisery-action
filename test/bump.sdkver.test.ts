@@ -189,6 +189,8 @@ const testSuiteDefinitions = [
     suite: "Dev bumps on main branch",
     tests: [
      // [ test description      , version      ,  bump  , latest draft       , branch         , breaking?, expected version ]
+        ["from dev-draft-nopad" , "1.1.0"      , "dev"  , "1.2.0-dev1+abc12" , "master"       , false    , `1.2.0-dev002.${U.HEAD_SHA_ABBREV_8}` ],
+        ["from long-pad-dev"    , "1.1.0"      , "dev"  , "1.2.0-dev00001+ab", "master"       , false    , `1.2.0-dev00002.${U.HEAD_SHA_ABBREV_8}` ],
         ["from dev-draft"       , "1.1.0"      , "dev"  , "1.2.0-dev001.123" , "master"       , false    , `1.2.0-dev002.${U.HEAD_SHA_ABBREV_8}` ],
         ["from dev"             , "1.1.0"      , "dev"  , undefined          , "master"       , false    , `1.2.0-dev001.${U.HEAD_SHA_ABBREV_8}` ],
         ["from rc"              , "1.2.0-rc01" , "dev"  , undefined          , "master"       , false    , `1.3.0-dev001.${U.HEAD_SHA_ABBREV_8}` ],
@@ -200,8 +202,9 @@ const testSuiteDefinitions = [
     tests: [
      // [ test description      , version      ,  bump  , latest draft       , branch         , breaking?, expected version ]
         ["from dev"             , "1.1.0"      , "dev"  , "1.2.0-dev001.234" , "release/1.2.0", false    , "1.1.1"          ], // <-- note that the branch name
-        ["from rc"              , "1.2.0-rc01" , "dev"  , "1.2.0-dev001.345" , "release/1.2.0", false    , "1.2.0-rc02"     ], //     is not considered as any
-        ["from release"         , "1.2.0"      , "dev"  , undefined          , "release/1.2.0", false    , "1.2.1"          ], //     sort of versioning input
+        ["from rc nopad"        , "1.2.0-rc1"  , "dev"  , "1.2.0-dev001.345" , "release/1.2.0", false    , "1.2.0-rc02"     ], //     is not considered as any
+        ["from rc"              , "1.2.0-rc01" , "dev"  , "1.2.0-dev001.345" , "release/1.2.0", false    , "1.2.0-rc02"     ], //     sort of versioning input
+        ["from release"         , "1.2.0"      , "dev"  , undefined          , "release/1.2.0", false    , "1.2.1"          ],
         ["from rel + HEADisTag" , "1.2.0"      , "dev"  , undefined          , "release/1.2.0", false    , undefined        ],
     ],
   },

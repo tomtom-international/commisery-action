@@ -12086,7 +12086,8 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
             if (currentIsRc) {
                 // We need to keep the pre intact (undefined), but the post needs to be
                 // cleared, as that contains the commit hash of the previous dev version.
-                nextVersion = currentVersion.nextPrerelease(undefined, "");
+                // Also zero pad to at least two digits.
+                nextVersion = currentVersion.nextPrerelease(undefined, "", 2);
                 if (!nextVersion) {
                     fatal(`Unable to bump RC version for: ${currentVersion.toString()}; ` +
                         `make sure it contains an index number.`);
@@ -12157,8 +12158,8 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
                 nextVersion.prerelease = `${devPrereleaseText}001`;
             }
             else {
-                // Keep prefix, clear postfix
-                nextVersion = currentVersion.nextPrerelease(undefined, "");
+                // Keep prefix, clear postfix, zero pad to at least three digits
+                nextVersion = currentVersion.nextPrerelease(undefined, "", 3);
                 if (!nextVersion) {
                     // This can only happen if the current version is something
                     // unexpected and invalid, like a prerelease without a number, e.g.:
@@ -14776,18 +14777,22 @@ class SemVer {
      * Attempts to increment the first number encountered in the
      * `prerelease` field, optionally overriding string before and
      * after said number.
+     * `zeroPadToMinimum` can be provided to zero-pad the number in
+     * the `prerelease` field to the specified minimum amount of digits.
      *
      * Returns new SemVer object or `null` if unsuccessful.
      */
-    nextPrerelease(pre, post) {
+    nextPrerelease(pre, post, zeroPadToMinimum) {
         const match = /(?<pre>\D*)(?<nr>\d+)(?<post>.*)/.exec(this.prerelease);
         if (match == null || match.groups == null) {
             return null;
         }
-        // We need to keep the same amount of characters in the 'nr' group, so pad it with zeroes as needed.
+        // We need to either keep the same amount of characters in the 'nr' group, or respect the provided
+        // `zeroPadToMinimum`, so pad it with zeroes as needed.
         const incrementAndZeroPad = (inputNr) => {
+            const targetLength = Math.max(zeroPadToMinimum !== null && zeroPadToMinimum !== void 0 ? zeroPadToMinimum : 0, inputNr.length);
             let incremented = `${+inputNr + 1}`;
-            while (incremented.length < inputNr.length) {
+            while (incremented.length < targetLength) {
                 incremented = `0${incremented}`;
             }
             return incremented;
