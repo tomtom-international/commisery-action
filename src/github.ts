@@ -130,13 +130,6 @@ export async function createRelease(
   });
 }
 
-function sortVersionPrereleases(
-  releaseList: { id: number; name: string }[],
-  nameStartsWith
-): { id: number; name: string }[] {
-  return releaseList.sort((lhs, rhs) => SemVer.sortSemVer(lhs.name, rhs.name));
-}
-
 /**
  * Gets the name and ID of the existing (draft) release with the
  * most precedence of which the tag name starts with the provided parameter.
@@ -418,9 +411,8 @@ export async function getAssociatedPullRequests(
     });
 
     return prs;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
-    if (error.message !== "Resource not accessible by integration") {
+  } catch (error: unknown) {
+    if ((error as Error).message !== "Resource not accessible by integration") {
       throw error;
     }
 
@@ -465,12 +457,11 @@ export async function updateLabels(labels: string[]): Promise<void> {
         labels,
       });
     }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
-    if (error.message !== "Resource not accessible by integration") {
+  } catch (error: unknown) {
+    if ((error as Error).message !== "Resource not accessible by integration") {
       throw error;
     }
+
     core.warning(
       "Unable to update Pull Request labels, did you provide the `write` permission for `issues` and `pull-requests`?"
     );
@@ -491,8 +482,7 @@ export async function getContent(path: string): Promise<string | undefined> {
     if ("content" in response.data) {
       return Buffer.from(response.data.content, "base64").toString("utf8");
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
+  } catch (error: unknown) {
     core.debug((error as Error).message);
   }
 }

@@ -17,14 +17,12 @@
 import dedent from "dedent";
 
 import * as github from "../src/github";
+import * as githubActions from "@actions/github";
 
 import { ConventionalCommitMessage } from "../src/commit";
 import { generateChangelog, generateChangelogForCommits } from "../src/changelog";
 import { IVersionBumpTypeAndMessages, ICommit } from "../src/interfaces";
 import { SemVer, SemVerType } from "../src/semver";
-const githubActions = require("@actions/github");
-
-import * as core from "@actions/core";
 
 // We need to wrap this in a mock to be able to spy on it later
 jest.mock("../src/github");
@@ -56,11 +54,10 @@ describe("Generate Changelog", () => {
         },
       };
     });
-
     jest
       .spyOn(github, "getAssociatedPullRequests")
-      // @ts-ignore
-      .mockResolvedValue([{ number: "123", labels: [] }]);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .mockResolvedValue([{ number: 123, labels: [] } as any]);
   });
 
   test("All types of changes", async () => {

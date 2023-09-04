@@ -15,14 +15,15 @@
  */
 
 import dedent from "dedent";
+
 import * as core from "@actions/core";
+import * as fs from "fs";
 
 import { ConventionalCommitMessage } from "../src/commit";
 import { Configuration, _testData } from "../src/config";
 import { SemVerType } from "../src/semver";
 import { ConventionalCommitError } from "../src/errors";
 
-const fs = require("fs");
 jest.mock("fs", () => ({
   promises: {
     access: jest.fn(),
@@ -73,9 +74,9 @@ describe("Configurable options", () => {
       "C024",
     ];
     withConfig("", config => {
-      const enabledRules = Object.entries(config.rules)
-        .filter(item => (item[1] as Object)["enabled"])
-        .map(item => item[0]);
+      const enabledRules = Object.keys(config.rules)
+        .filter(rule => config.rules[rule]?.enabled)
+        .map(rule => rule);
       expect(enabledRules).toEqual(expectedRules);
     });
   });
@@ -83,9 +84,9 @@ describe("Configurable options", () => {
   test("Default disabled ruleset", () => {
     const expectedRules = ["C026"];
     withConfig("", config => {
-      const disabledRules = Object.entries(config.rules)
-        .filter(item => !(item[1] as Object)["enabled"])
-        .map(item => item[0]);
+      const disabledRules = Object.keys(config.rules)
+        .filter(rule => !config.rules[rule]?.enabled)
+        .map(rule => rule);
       expect(disabledRules).toEqual(expectedRules);
     });
   });
@@ -160,7 +161,7 @@ describe("Configurable options", () => {
           - XYZZY0123
           - C002
         `),
-      config => {
+      _config => {
         expect(coreWarning).toHaveBeenCalledTimes(1);
       }
     );
@@ -240,7 +241,7 @@ describe("Configurable options", () => {
   test("Type configuration overwriting defaults", () => {
     // With the default config, "chore" should be accepted
     expect(() => {
-      const msg1 = new ConventionalCommitMessage("chore: add something chore-ish");
+      new ConventionalCommitMessage("chore: add something chore-ish");
     }).not.toThrow(ConventionalCommitError);
 
     withConfig(
@@ -254,7 +255,7 @@ describe("Configurable options", () => {
       config => {
         // Types are overwritten, so expect "chore" not to be acceptable
         expect(() => {
-          const msg2 = new ConventionalCommitMessage("chore: add something chore-ish", undefined, config);
+          new ConventionalCommitMessage("chore: add something chore-ish", undefined, config);
         }).toThrow(ConventionalCommitError);
       }
     );

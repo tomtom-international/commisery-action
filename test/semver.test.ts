@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-import dedent from "dedent";
-
 import { SemVer, SemVerType } from "../src/semver";
 
 describe("Semantic Version parsing correct input", () => {

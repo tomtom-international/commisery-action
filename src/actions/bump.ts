@@ -17,7 +17,7 @@
 import * as core from "@actions/core";
 
 import { context } from "@actions/github";
-import { bumpDraftRelease, bumpSdkVer, bumpSemVer, getVersionBumpTypeAndMessages, printNonCompliance } from "../bump";
+import { bumpSdkVer, bumpSemVer, getVersionBumpTypeAndMessages, printNonCompliance } from "../bump";
 import { Configuration } from "../config";
 import { getConfig } from "../github";
 import { IVersionBumpTypeAndMessages, ReleaseMode, SdkVerBumpType } from "../interfaces";

@@ -11504,7 +11504,7 @@ function run() {
                 // Validating the PR title bump level implies validating the title itself
             }
             else if (core.getBooleanInput("validate-pull-request")) {
-                const ok = (yield (0, validate_1.validatePrTitle)(config)) !== undefined;
+                const ok = (yield (0, validate_1.validatePrTitle)()) !== undefined;
                 compliant && (compliant = ok);
             }
             core.info(""); // add vertical whitespace
@@ -11687,7 +11687,6 @@ exports.getVersionBumpType = getVersionBumpType;
  */
 function getVersionBumpTypeAndMessages(prefix, targetSha, config) {
     return __awaiter(this, void 0, void 0, function* () {
-        const nonConventionalCommits = [];
         core.debug(`Fetching last ${PAGE_SIZE} tags from ${targetSha}..`);
         const tags = yield (0, github_1.getLatestTags)(PAGE_SIZE);
         core.debug("Fetch complete");
@@ -11750,7 +11749,6 @@ exports.getVersionBumpTypeAndMessages = getVersionBumpTypeAndMessages;
  */
 function tryUpdateDraftRelease(cv, changelog, sha) {
     return __awaiter(this, void 0, void 0, function* () {
-        const preStem = cv.prerelease ? `-${cv.prerelease.replace(/(.+?)\d.*/, "$1")}` : "";
         const latestDraftRelease = yield (0, github_1.getRelease)({
             prefixToMatch: cv.prefix,
             draftOnly: true,
@@ -12626,7 +12624,6 @@ function getConventionalCommitMetadata(message) {
     let hasBreakingChange = false;
     if (message.length > 1) {
         let endOfBody = 1;
-        // eslint-disable-next-line github/array-foreach
         message.slice(1).forEach((line, index) => {
             var _a;
             const matches = (_a = line.match(FOOTER_REGEX)) === null || _a === void 0 ? void 0 : _a.groups;
@@ -12870,11 +12867,7 @@ const VERSION_SCHEMES = ["semver", "sdkver"];
 /**
  * This function takes two values and throws when their types don't match.
  */
-function verifyTypeMatches(name, 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-typeToTest, 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-typeItShouldBe) {
+function verifyTypeMatches(name, typeToTest, typeItShouldBe) {
     if (typeof typeToTest !== typeof typeItShouldBe) {
         throw new Error(`Incorrect type '${typeof typeToTest}' for '${name}', must be '${typeof typeItShouldBe}'`);
     }
@@ -13321,9 +13314,6 @@ function createRelease(tagName, commitish, body, draft, prerelease) {
     });
 }
 exports.createRelease = createRelease;
-function sortVersionPrereleases(releaseList, nameStartsWith) {
-    return releaseList.sort((lhs, rhs) => semver_1.SemVer.sortSemVer(lhs.name, rhs.name));
-}
 /**
  * Gets the name and ID of the existing (draft) release with the
  * most precedence of which the tag name starts with the provided parameter.
@@ -13548,7 +13538,6 @@ function getAssociatedPullRequests(sha) {
         try {
             const { data: prs } = yield getOctokit().rest.repos.listPullRequestsAssociatedWithCommit(Object.assign(Object.assign({}, github.context.repo), { commit_sha: sha }));
             return prs;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }
         catch (error) {
             if (error.message !== "Resource not accessible by integration") {
@@ -13584,7 +13573,6 @@ function updateLabels(labels) {
                 // Add new label if it does not yet exist
                 yield getOctokit().rest.issues.addLabels(Object.assign(Object.assign({}, github.context.repo), { issue_number: issueId, labels }));
             }
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }
         catch (error) {
             if (error.message !== "Resource not accessible by integration") {
@@ -13605,7 +13593,6 @@ function getContent(path) {
             if ("content" in response.data) {
                 return Buffer.from(response.data.content, "base64").toString("utf8");
             }
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }
         catch (error) {
             core.debug(error.message);
@@ -13875,9 +13862,9 @@ const logging_1 = __nccwpck_require__(1517);
  */
 function validateRules(message, config) {
     const errors = [];
-    const disabledRules = Object.entries(config.rules)
-        .filter(item => !item[1]["enabled"])
-        .map(item => item[0]);
+    const disabledRules = Object.keys(config.rules)
+        .filter(rule => { var _a; return !((_a = config.rules[rule]) === null || _a === void 0 ? void 0 : _a.enabled); })
+        .map(rule => rule);
     for (const rule of exports.ALL_RULES) {
         try {
             if (!disabledRules.includes(rule.id)) {
@@ -14410,7 +14397,6 @@ class BreakingChangeMustBeFirstGitTrailer {
         this.default = true;
     }
     validate(message, _) {
-        // eslint-disable-next-line github/array-foreach
         message.footers.forEach((item, index) => {
             if (item.token === "BREAKING-CHANGE") {
                 if (index === 0) {
@@ -14432,7 +14418,7 @@ class GitTrailerNeedAColon {
         this.description = "A colon is required in git-trailers";
         this.default = true;
     }
-    validate(message, config) {
+    validate(message, _config) {
         const trailerFormats = [
             /^Addresses:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
             /^Closes:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
@@ -14489,7 +14475,7 @@ class FooterContainsTicketReference {
         this.description = "A ticket reference is required in at least one footer value";
         this.default = false;
     }
-    validate(message, config) {
+    validate(message, _config) {
         if (!message.footers.some(footer => ISSUE_REGEX.exec(footer.value))) {
             throw new logging_1.LlvmError({
                 message: `[${this.id}] ${this.description}`,
@@ -14955,7 +14941,6 @@ function processCommits(commits, config) {
     const results = [];
     for (const commit of commits) {
         const message = commit.message;
-        const sha = commit.sha;
         try {
             const cc = new commit_1.ConventionalCommitMessage(message, undefined, config);
             results.push({ input: commit, message: cc, errors: [] });
@@ -14982,7 +14967,6 @@ exports.processCommits = processCommits;
 function validateCommitsInCurrentPR(config) {
     var _a;
     return __awaiter(this, void 0, void 0, function* () {
-        const conventionalCommitMessages = [];
         const commits = yield (0, github_1.getCommitsInPR)((0, github_1.getPullRequestId)());
         const results = processCommits(commits, config);
         const passResults = results.filter(c => c.errors.length === 0);
@@ -15012,7 +14996,7 @@ exports.validateCommitsInCurrentPR = validateCommitsInCurrentPR;
  * Validates the pull request title and, if compliant, returns it as a
  * ConventionalCommitMessage object.
  */
-function validatePrTitle(config) {
+function validatePrTitle() {
     return __awaiter(this, void 0, void 0, function* () {
         const prTitleText = yield (0, github_1.getPullRequestTitle)();
         let errors = [];
@@ -15059,7 +15043,7 @@ function validatePrTitleBump(config) {
     return __awaiter(this, void 0, void 0, function* () {
         const prTitleText = yield (0, github_1.getPullRequestTitle)();
         const commits = yield (0, github_1.getCommitsInPR)((0, github_1.getPullRequestId)());
-        const prTitle = yield validatePrTitle(config);
+        const prTitle = yield validatePrTitle();
         const baseError = "Cannot validate the consistency of bump levels between PR title and PR commits";
         if (prTitle === undefined) {
             core.warning(`${baseError}, as PR title is not a valid Conventional Commits message.`);

@@ -70,7 +70,7 @@ async function run(): Promise<void> {
 
       // Validating the PR title bump level implies validating the title itself
     } else if (core.getBooleanInput("validate-pull-request")) {
-      const ok = (await validatePrTitle(config)) !== undefined;
+      const ok = (await validatePrTitle()) !== undefined;
       compliant &&= ok;
     }
 

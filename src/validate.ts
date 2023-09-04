@@ -94,7 +94,6 @@ export function processCommits(commits: ICommit[], config: Configuration): IVali
   const results: IValidationResult[] = [];
   for (const commit of commits) {
     const message = commit.message;
-    const sha = commit.sha;
 
     try {
       const cc = new ConventionalCommitMessage(message, undefined, config);
@@ -118,7 +117,6 @@ export function processCommits(commits: ICommit[], config: Configuration): IVali
  * Validates all commit messages in the current pull request.
  */
 export async function validateCommitsInCurrentPR(config: Configuration): Promise<ValidationResult> {
-  const conventionalCommitMessages: ConventionalCommitMessage[] = [];
   const commits: ICommit[] = await getCommitsInPR(getPullRequestId());
   const results: IValidationResult[] = processCommits(commits, config);
 
@@ -153,7 +151,7 @@ export async function validateCommitsInCurrentPR(config: Configuration): Promise
  * Validates the pull request title and, if compliant, returns it as a
  * ConventionalCommitMessage object.
  */
-export async function validatePrTitle(config: Configuration): Promise<ConventionalCommitMessage | undefined> {
+export async function validatePrTitle(): Promise<ConventionalCommitMessage | undefined> {
   const prTitleText = await getPullRequestTitle();
   let errors: LlvmError[] = [];
   let conventionalCommitMessage: ConventionalCommitMessage | undefined;
@@ -193,7 +191,7 @@ export async function validatePrTitle(config: Configuration): Promise<Convention
 export async function validatePrTitleBump(config: Configuration): Promise<boolean> {
   const prTitleText = await getPullRequestTitle();
   const commits = await getCommitsInPR(getPullRequestId());
-  const prTitle = await validatePrTitle(config);
+  const prTitle = await validatePrTitle();
   const baseError = "Cannot validate the consistency of bump levels between PR title and PR commits";
 
   if (prTitle === undefined) {

@@ -75,13 +75,7 @@ const VERSION_SCHEMES = ["semver", "sdkver"];
 /**
  * This function takes two values and throws when their types don't match.
  */
-function verifyTypeMatches(
-  name: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  typeToTest: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  typeItShouldBe: any
-): void {
+function verifyTypeMatches(name: string, typeToTest: unknown, typeItShouldBe: unknown): void {
   if (typeof typeToTest !== typeof typeItShouldBe) {
     throw new Error(`Incorrect type '${typeof typeToTest}' for '${name}', must be '${typeof typeItShouldBe}'`);
   }

@@ -73,7 +73,6 @@ export function getConventionalCommitMetadata(message: string[]): ConventionalCo
 
   if (message.length > 1) {
     let endOfBody = 1;
-    // eslint-disable-next-line github/array-foreach
     message.slice(1).forEach((line, index) => {
       const matches = line.match(FOOTER_REGEX)?.groups;
       if (matches) {

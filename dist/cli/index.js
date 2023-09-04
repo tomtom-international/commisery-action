@@ -10364,7 +10364,6 @@ function getCommitMessages(target) {
         for (const hash of commitHashes) {
             try {
                 messages.push(yield getCommitMessage(hash));
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
             }
             catch (error) {
                 continue;
@@ -10457,7 +10456,6 @@ function getConventionalCommitMetadata(message) {
     let hasBreakingChange = false;
     if (message.length > 1) {
         let endOfBody = 1;
-        // eslint-disable-next-line github/array-foreach
         message.slice(1).forEach((line, index) => {
             var _a;
             const matches = (_a = line.match(FOOTER_REGEX)) === null || _a === void 0 ? void 0 : _a.groups;
@@ -10701,11 +10699,7 @@ const VERSION_SCHEMES = ["semver", "sdkver"];
 /**
  * This function takes two values and throws when their types don't match.
  */
-function verifyTypeMatches(name, 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-typeToTest, 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-typeItShouldBe) {
+function verifyTypeMatches(name, typeToTest, typeItShouldBe) {
     if (typeof typeToTest !== typeof typeItShouldBe) {
         throw new Error(`Incorrect type '${typeof typeToTest}' for '${name}', must be '${typeof typeItShouldBe}'`);
     }
@@ -11173,9 +11167,9 @@ const logging_1 = __nccwpck_require__(1517);
  */
 function validateRules(message, config) {
     const errors = [];
-    const disabledRules = Object.entries(config.rules)
-        .filter(item => !item[1]["enabled"])
-        .map(item => item[0]);
+    const disabledRules = Object.keys(config.rules)
+        .filter(rule => { var _a; return !((_a = config.rules[rule]) === null || _a === void 0 ? void 0 : _a.enabled); })
+        .map(rule => rule);
     for (const rule of exports.ALL_RULES) {
         try {
             if (!disabledRules.includes(rule.id)) {
@@ -11708,7 +11702,6 @@ class BreakingChangeMustBeFirstGitTrailer {
         this.default = true;
     }
     validate(message, _) {
-        // eslint-disable-next-line github/array-foreach
         message.footers.forEach((item, index) => {
             if (item.token === "BREAKING-CHANGE") {
                 if (index === 0) {
@@ -11730,7 +11723,7 @@ class GitTrailerNeedAColon {
         this.description = "A colon is required in git-trailers";
         this.default = true;
     }
-    validate(message, config) {
+    validate(message, _config) {
         const trailerFormats = [
             /^Addresses:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
             /^Closes:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
@@ -11787,7 +11780,7 @@ class FooterContainsTicketReference {
         this.description = "A ticket reference is required in at least one footer value";
         this.default = false;
     }
-    validate(message, config) {
+    validate(message, _config) {
         if (!message.footers.some(footer => ISSUE_REGEX.exec(footer.value))) {
             throw new logging_1.LlvmError({
                 message: `[${this.id}] ${this.description}`,

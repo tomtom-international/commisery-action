@@ -35,6 +35,7 @@ jest.mock("@actions/github");
 jest.mock("../src/github");
 jest.mock("../src/changelog");
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore - run() is called on inclusion of the module
 gh.context = { ref: "refs/heads/main", sha: U.HEAD_SHA };
 
@@ -152,7 +153,7 @@ describe("Releases and tags", () => {
   ];
 
   test.each(relTests)("$desc", async ({ rel, tag }) => {
-    jest.spyOn(core, "getBooleanInput").mockImplementation((setting, options?) => {
+    jest.spyOn(core, "getBooleanInput").mockImplementation((setting, _options?) => {
       switch (setting) {
         case "create-release":
           return rel;
@@ -374,7 +375,7 @@ describe("Create changelog", () => {
   });
 
   test.each(createChangelogInput)("$desc", async ({ createChangelog }) => {
-    jest.spyOn(core, "getBooleanInput").mockImplementation((setting, options?) => {
+    jest.spyOn(core, "getBooleanInput").mockImplementation((setting, _options?) => {
       switch (setting) {
         case "create-release":
           return true;

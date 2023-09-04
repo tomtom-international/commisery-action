@@ -34,9 +34,9 @@ export interface IConventionalCommitRule {
 export function validateRules(message: ConventionalCommitMetadata, config: Configuration): LlvmError[] {
   const errors: LlvmError[] = [];
 
-  const disabledRules = Object.entries(config.rules)
-    .filter(item => !(item[1] as Object)["enabled"])
-    .map(item => item[0]);
+  const disabledRules = Object.keys(config.rules)
+    .filter(rule => !config.rules[rule]?.enabled)
+    .map(rule => rule);
 
   for (const rule of ALL_RULES) {
     try {
@@ -576,7 +576,6 @@ class BreakingChangeMustBeFirstGitTrailer implements IConventionalCommitRule {
   default = true;
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
-    // eslint-disable-next-line github/array-foreach
     message.footers.forEach((item, index) => {
       if (item.token === "BREAKING-CHANGE") {
         if (index === 0) {
@@ -598,7 +597,7 @@ class GitTrailerNeedAColon implements IConventionalCommitRule {
   description = "A colon is required in git-trailers";
   default = true;
 
-  validate(message: ConventionalCommitMetadata, config: Configuration): void {
+  validate(message: ConventionalCommitMetadata, _config: Configuration): void {
     const trailerFormats = [
       /^Addresses:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
       /^Closes:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
@@ -657,7 +656,7 @@ class FooterContainsTicketReference implements IConventionalCommitRule {
   description = "A ticket reference is required in at least one footer value";
   default = false;
 
-  validate(message: ConventionalCommitMetadata, config: Configuration): void {
+  validate(message: ConventionalCommitMetadata, _config: Configuration): void {
     if (!message.footers.some(footer => ISSUE_REGEX.exec(footer.value))) {
       throw new LlvmError({
         message: `[${this.id}] ${this.description}`,

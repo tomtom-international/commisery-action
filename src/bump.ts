@@ -35,15 +35,8 @@ import {
 } from "./github";
 import { ConventionalCommitMessage } from "./commit";
 import { SemVer, SemVerType } from "./semver";
-import { BumpError, ConventionalCommitError, FixupCommitError, MergeCommitError } from "./errors";
-import {
-  ICommit,
-  IGitTag,
-  IValidationResult,
-  IVersionBumpTypeAndMessages,
-  ReleaseMode,
-  SdkVerBumpType,
-} from "./interfaces";
+import { BumpError } from "./errors";
+import { ICommit, IValidationResult, IVersionBumpTypeAndMessages, ReleaseMode, SdkVerBumpType } from "./interfaces";
 import { outputCommitListErrors, processCommits } from "./validate";
 
 const PAGE_SIZE = 100;
@@ -161,8 +154,6 @@ export async function getVersionBumpTypeAndMessages(
   targetSha: string,
   config: Configuration
 ): Promise<IVersionBumpTypeAndMessages> {
-  const nonConventionalCommits: string[] = [];
-
   core.debug(`Fetching last ${PAGE_SIZE} tags from ${targetSha}..`);
   const tags = await getLatestTags(PAGE_SIZE);
   core.debug("Fetch complete");
@@ -225,7 +216,6 @@ export async function getVersionBumpTypeAndMessages(
  * `undefined` otherwise.
  */
 async function tryUpdateDraftRelease(cv: SemVer, changelog: string, sha: string): Promise<string | undefined> {
-  const preStem = cv.prerelease ? `-${cv.prerelease.replace(/(.+?)\d.*/, "$1")}` : "";
   const latestDraftRelease = await getRelease({
     prefixToMatch: cv.prefix,
     draftOnly: true,

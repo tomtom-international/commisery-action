@@ -47,7 +47,7 @@ export const DEFAULT_COMMIT_LIST = [
   BASE_COMMIT, // order matters; newest first, base last
 ];
 
-export const mockGetInput = (setting, options?) => {
+export const mockGetInput = (setting, _options?) => {
   switch (setting) {
     case "version-prefix":
       return "*";
@@ -61,7 +61,7 @@ export const mockGetInput = (setting, options?) => {
   throw new Error(`getInput("${setting}") not mocked`);
 };
 
-export const mockGetBooleanInput = (setting, options?) => {
+export const mockGetBooleanInput = (setting, _options?) => {
   switch (setting) {
     case "create-release":
       return true;

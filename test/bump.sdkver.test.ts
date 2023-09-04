@@ -19,7 +19,6 @@ import * as gh from "@actions/github";
 import * as github from "../src/github";
 import * as bumpaction from "../src/actions/bump";
 import * as changelog from "../src/changelog";
-import { Configuration } from "../src/config";
 
 import * as fs from "fs";
 import { SemVer } from "../src/semver";
@@ -35,13 +34,14 @@ jest.mock("@actions/github");
 jest.mock("../src/github");
 jest.mock("../src/changelog");
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore - run() is called on inclusion of the module
 gh.context = { ref: "refs/heads/main", sha: U.HEAD_SHA };
 
 const CONFIG_SDKVER = `version-scheme: "sdkver"\nprereleases: "dev"`;
 
 const setInputSpyWith = (a: { [b: string]: string }): void => {
-  jest.spyOn(core, "getInput").mockImplementation((setting, options?) => {
+  jest.spyOn(core, "getInput").mockImplementation((setting, _options?) => {
     if (a[setting]) return a[setting];
     switch (setting) {
       case "version-prefix":
@@ -62,7 +62,6 @@ beforeEach(() => {
   jest.spyOn(github, "createRelease").mockResolvedValue();
   jest.spyOn(github, "getCommitsBetweenRefs").mockResolvedValue([]);
 
-  const releaseTypeInput = core.getInput("release-type");
   jest.spyOn(core, "getBooleanInput").mockImplementation(U.mockGetBooleanInput);
 
   jest.spyOn(changelog, "generateChangelog").mockResolvedValue(U.CHANGELOG_PLACEHOLDER);
@@ -101,7 +100,7 @@ interface SdkBumpTestParameters {
   expectedVersion: string;
 }
 const generateTests = (paramListList): SdkBumpTestParameters[] => {
-  let testList = new Array() as SdkBumpTestParameters[];
+  const testList: SdkBumpTestParameters[] = [];
   for (const paramList of paramListList) {
     testList.push({
       testDescription: paramList[0],
@@ -109,7 +108,7 @@ const generateTests = (paramListList): SdkBumpTestParameters[] => {
       bumpType: paramList[2],
       latestDraftRelease: paramList[3],
       branch: paramList[4],
-      breaking: paramList[5] as any as boolean,
+      breaking: paramList[5],
       expectedVersion: paramList[6],
     });
   }
@@ -370,7 +369,7 @@ describe("Create changelog", () => {
   });
 
   test.each(createChangelogInput)("$desc", async ({ createChangelog }) => {
-    jest.spyOn(core, "getBooleanInput").mockImplementation((setting, options?) => {
+    jest.spyOn(core, "getBooleanInput").mockImplementation((setting, _options?) => {
       switch (setting) {
         case "create-release":
           return true;

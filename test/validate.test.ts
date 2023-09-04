@@ -64,7 +64,7 @@ describe("Valid cases", () => {
     },
   ];
 
-  test.each(successMessagesAndPrTitleTestCases)("$testDescription", ({ testDescription, messages, prTitle }) => {
+  test.each(successMessagesAndPrTitleTestCases)("$testDescription", ({ messages, prTitle }) => {
     jest.spyOn(github, "getCommitsInPR").mockResolvedValue(messages);
     jest.spyOn(github, "getPullRequestTitle").mockResolvedValue(prTitle);
 
@@ -95,7 +95,7 @@ describe("Warning cases", () => {
   ];
   test.each(warningMessagesAndPrTitleTestCases)(
     "$testDescription",
-    ({ testDescription, messages, prTitle, warningMessages, alsoFail }) => {
+    ({ messages, prTitle, warningMessages, alsoFail }) => {
       jest.spyOn(github, "getCommitsInPR").mockResolvedValue(messages);
       jest.spyOn(github, "getPullRequestTitle").mockResolvedValue(prTitle);
 
@@ -152,21 +152,18 @@ describe("Error cases", () => {
     },
   ];
 
-  test.each(failMessagesAndPrTitleTestCases)(
-    "$testDescription",
-    ({ testDescription, messages, prTitle, failureMessages }) => {
-      jest.spyOn(github, "getCommitsInPR").mockResolvedValue(messages);
-      jest.spyOn(github, "getPullRequestTitle").mockResolvedValue(prTitle);
+  test.each(failMessagesAndPrTitleTestCases)("$testDescription", ({ messages, prTitle, failureMessages }) => {
+    jest.spyOn(github, "getCommitsInPR").mockResolvedValue(messages);
+    jest.spyOn(github, "getPullRequestTitle").mockResolvedValue(prTitle);
 
-      validate.exportedForTesting.run().then(() => {
-        expect(core.setFailed).toHaveBeenCalled();
+    validate.exportedForTesting.run().then(() => {
+      expect(core.setFailed).toHaveBeenCalled();
 
-        for (const msg of failureMessages) {
-          expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining(msg));
-        }
-      });
-    }
-  );
+      for (const msg of failureMessages) {
+        expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining(msg));
+      }
+    });
+  });
 });
 
 describe("Update labels", () => {

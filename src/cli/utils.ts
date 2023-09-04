@@ -66,8 +66,7 @@ export async function getCommitMessages(target: string[]): Promise<string[]> {
   for (const hash of commitHashes) {
     try {
       messages.push(await getCommitMessage(hash));
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
+    } catch (error: unknown) {
       continue;
     }
   }

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import assert from "assert";
 import dedent from "dedent";
 
 import { ConventionalCommitMessage } from "../src/commit";
@@ -30,10 +31,11 @@ function assertRuleValidationError(
   try {
     const msg = new ConventionalCommitMessage(message, undefined, config);
     expect(msg).not.toBeDefined();
-  } catch (error: any) {
+  } catch (error: unknown) {
     let foundError = false;
 
     expect(error).toBeInstanceOf(ConventionalCommitError);
+    assert(error instanceof ConventionalCommitError);
     for (const err of error.errors) {
       if (err.message && err.message.startsWith(`[${type.id}]`)) {
         foundError = true;
@@ -53,10 +55,11 @@ function assertRuleNoValidationError(
   try {
     const msg = new ConventionalCommitMessage(message, undefined, config);
     expect(msg).toBeDefined();
-  } catch (error: any) {
+  } catch (error: unknown) {
     let foundError = false;
 
     expect(error).toBeInstanceOf(ConventionalCommitError);
+    assert(error instanceof ConventionalCommitError);
     for (const err of error.errors) {
       if (err.message && err.message.startsWith(`[${type.id}]`)) {
         foundError = true;
