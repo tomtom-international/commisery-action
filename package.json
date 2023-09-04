@@ -23,7 +23,7 @@
     "build:validate": "ncc build -o dist/validate src/actions/validate.ts",
     "build:bump": "ncc build -o dist/bump src/actions/bump.ts",
     "test": "jest",
-    "lint": "eslint src/**/*.ts",
+    "lint": "eslint **/*.ts",
     "format": "prettier --write **/*.ts && prettier --write **/**/*.ts",
     "package": "pkg ."
   },
