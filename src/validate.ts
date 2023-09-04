@@ -18,19 +18,11 @@ import * as core from "@actions/core";
 
 import { ConventionalCommitMessage } from "./commit";
 import { Configuration } from "./config";
-import {
-  getCommitsInPR,
-  getPullRequestId,
-  getPullRequestTitle,
-} from "./github";
+import { getCommitsInPR, getPullRequestId, getPullRequestTitle } from "./github";
 import { LlvmError } from "./logging";
 import { SemVerType } from "./semver";
 import { ICommit, IValidationResult } from "./interfaces";
-import {
-  ConventionalCommitError,
-  FixupCommitError,
-  MergeCommitError,
-} from "./errors";
+import { ConventionalCommitError, FixupCommitError, MergeCommitError } from "./errors";
 
 interface ValidationResult {
   compliant: boolean;
@@ -69,9 +61,7 @@ function outputCommitErrors(
     }
     const outputFunc = useErrorLevel ? core.error : core.warning;
     outputFunc(error.message, {
-      title: isPullRequestTitle
-        ? `(PR title) ${message}`
-        : `(Commit ${sha.slice(0, 8)}) ${message}`,
+      title: isPullRequestTitle ? `(PR title) ${message}` : `(Commit ${sha.slice(0, 8)}) ${message}`,
     });
     const indicatorMaybe = error.indicator();
     if (indicatorMaybe) {
@@ -87,10 +77,7 @@ function outputCommitErrors(
  * When `useErrorLevel` is set to `true`, the commit errors are printed
  * the on error level (when `false`, the warning level).
  */
-export function outputCommitListErrors(
-  validationResults: IValidationResult[],
-  useErrorLevel
-): void {
+export function outputCommitListErrors(validationResults: IValidationResult[], useErrorLevel): void {
   for (const c of validationResults) {
     if (c.errors.length > 0) {
       outputCommitErrors(c.input.message, c.errors, c.input.sha, useErrorLevel);
@@ -103,10 +90,7 @@ export function outputCommitListErrors(
  * This contains the input, ConventionalCommitMessage object if compliant,
  * and any errors relating to the message if not.
  */
-export function processCommits(
-  commits: ICommit[],
-  config: Configuration
-): IValidationResult[] {
+export function processCommits(commits: ICommit[], config: Configuration): IValidationResult[] {
   const results: IValidationResult[] = [];
   for (const commit of commits) {
     const message = commit.message;
@@ -122,10 +106,7 @@ export function processCommits(
           message: undefined,
           errors: error.errors,
         });
-      } else if (
-        error instanceof MergeCommitError ||
-        error instanceof FixupCommitError
-      ) {
+      } else if (error instanceof MergeCommitError || error instanceof FixupCommitError) {
         continue;
       }
     }
@@ -136,9 +117,7 @@ export function processCommits(
 /**
  * Validates all commit messages in the current pull request.
  */
-export async function validateCommitsInCurrentPR(
-  config: Configuration
-): Promise<ValidationResult> {
+export async function validateCommitsInCurrentPR(config: Configuration): Promise<ValidationResult> {
   const conventionalCommitMessages: ConventionalCommitMessage[] = [];
   const commits: ICommit[] = await getCommitsInPR(getPullRequestId());
   const results: IValidationResult[] = processCommits(commits, config);
@@ -152,18 +131,14 @@ export async function validateCommitsInCurrentPR(
         ` of the pull request's commits are valid Conventional Commits`
     );
     for (const c of passResults) {
-      core.startGroup(
-        `✅ Commit (${c.input.sha.slice(0, 8)}): ${c.message?.subject}`
-      );
+      core.startGroup(`✅ Commit (${c.input.sha.slice(0, 8)}): ${c.message?.subject}`);
       core.info(c.input.message);
       core.endGroup();
     }
   }
   if (failResults.length > 0) {
     core.info(""); // for vertical whitespace
-    core.setFailed(
-      `${failResults.length} of the pull request's commits are not valid Conventional Commits`
-    );
+    core.setFailed(`${failResults.length} of the pull request's commits are not valid Conventional Commits`);
 
     outputCommitListErrors(failResults, true);
   }
@@ -178,17 +153,13 @@ export async function validateCommitsInCurrentPR(
  * Validates the pull request title and, if compliant, returns it as a
  * ConventionalCommitMessage object.
  */
-export async function validatePrTitle(
-  config: Configuration
-): Promise<ConventionalCommitMessage | undefined> {
+export async function validatePrTitle(config: Configuration): Promise<ConventionalCommitMessage | undefined> {
   const prTitleText = await getPullRequestTitle();
   let errors: LlvmError[] = [];
   let conventionalCommitMessage: ConventionalCommitMessage | undefined;
 
   core.info(""); // for vertical whitespace
-  let errorMessage =
-    "The pull request title is not compliant " +
-    "with the Conventional Commits specification";
+  let errorMessage = "The pull request title is not compliant " + "with the Conventional Commits specification";
   try {
     conventionalCommitMessage = new ConventionalCommitMessage(prTitleText);
   } catch (error) {
@@ -208,9 +179,7 @@ export async function validatePrTitle(
     core.setFailed(errorMessage);
     outputCommitErrors(prTitleText, errors, undefined, true);
   } else {
-    core.startGroup(
-      `✅ The pull request title is compliant with the Conventional Commits specification`
-    );
+    core.startGroup(`✅ The pull request title is compliant with the Conventional Commits specification`);
     core.info(prTitleText);
     core.endGroup();
   }
@@ -221,19 +190,14 @@ export async function validatePrTitle(
  * Validates bump level consistency between the PR title and its commits.
  * This implies that the PR title must comply with the Conventional Commits spec.
  */
-export async function validatePrTitleBump(
-  config: Configuration
-): Promise<boolean> {
+export async function validatePrTitleBump(config: Configuration): Promise<boolean> {
   const prTitleText = await getPullRequestTitle();
   const commits = await getCommitsInPR(getPullRequestId());
   const prTitle = await validatePrTitle(config);
-  const baseError =
-    "Cannot validate the consistency of bump levels between PR title and PR commits";
+  const baseError = "Cannot validate the consistency of bump levels between PR title and PR commits";
 
   if (prTitle === undefined) {
-    core.warning(
-      `${baseError}, as PR title is not a valid Conventional Commits message.`
-    );
+    core.warning(`${baseError}, as PR title is not a valid Conventional Commits message.`);
     return false;
   }
 
@@ -262,9 +226,7 @@ export async function validatePrTitleBump(
     }).message?.bump ?? SemVerType.NONE;
 
   if (highestBump !== prTitle.bump) {
-    const commitSubjects = results
-      .map(r => r.message?.subject)
-      .filter(x => x !== undefined);
+    const commitSubjects = results.map(r => r.message?.subject).filter(x => x !== undefined);
 
     core.setFailed(
       "The PR title's bump level is not consistent with its commits.\n" +
@@ -277,9 +239,7 @@ export async function validatePrTitleBump(
 
     return false;
   } else {
-    core.info(
-      `✅ The pull request title's bump level is consistent with the PR's commits`
-    );
+    core.info(`✅ The pull request title's bump level is consistent with the PR's commits`);
     return true;
   }
 }

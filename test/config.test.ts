@@ -37,9 +37,7 @@ afterEach(() => {
 
 function withConfig(contents: string, func) {
   const exists = jest.spyOn(fs, "existsSync").mockImplementation(() => true);
-  const read = jest
-    .spyOn(fs, "readFileSync")
-    .mockImplementation(() => contents);
+  const read = jest.spyOn(fs, "readFileSync").mockImplementation(() => contents);
   func(new Configuration());
   exists.mockRestore();
   read.mockRestore();
@@ -105,11 +103,7 @@ describe("Configurable options", () => {
         expect(config.rules["C016"].enabled).toEqual(false);
 
         expect(() => {
-          new ConventionalCommitMessage(
-            "fix: updated testing",
-            undefined,
-            config
-          );
+          new ConventionalCommitMessage("fix: updated testing", undefined, config);
         }).not.toThrow(ConventionalCommitError);
       }
     );
@@ -187,9 +181,7 @@ describe("Configurable options", () => {
 
   test("Default tags", () => {
     withConfig("", config => {
-      for (const [key, value] of Object.entries(
-        _testData.DEFAULT_ACCEPTED_TAGS
-      )) {
+      for (const [key, value] of Object.entries(_testData.DEFAULT_ACCEPTED_TAGS)) {
         expect(config.tags[key]).not.toBeUndefined();
         expect(config.tags[key].bump).toEqual(value.bump);
       }
@@ -207,11 +199,7 @@ describe("Configurable options", () => {
           - C001
         `),
       config => {
-        const msg = new ConventionalCommitMessage(
-          "typeA: do something requiring a custom type",
-          undefined,
-          config
-        );
+        const msg = new ConventionalCommitMessage("typeA: do something requiring a custom type", undefined, config);
         expect(msg.bump).toBe(SemVerType.PATCH);
       }
     );
@@ -227,11 +215,7 @@ describe("Configurable options", () => {
         `),
       config => {
         expect(() => {
-          new ConventionalCommitMessage(
-            "typeA: do something requiring a custom type",
-            undefined,
-            config
-          );
+          new ConventionalCommitMessage("typeA: do something requiring a custom type", undefined, config);
         }).toThrow(ConventionalCommitError);
       }
     );
@@ -247,11 +231,7 @@ describe("Configurable options", () => {
           - C001
         `),
       config => {
-        const msg = new ConventionalCommitMessage(
-          "typeA: do something requiring a custom type",
-          undefined,
-          config
-        );
+        const msg = new ConventionalCommitMessage("typeA: do something requiring a custom type", undefined, config);
         expect(msg.bump).toBe(SemVerType.NONE);
       }
     );
@@ -260,9 +240,7 @@ describe("Configurable options", () => {
   test("Type configuration overwriting defaults", () => {
     // With the default config, "chore" should be accepted
     expect(() => {
-      const msg1 = new ConventionalCommitMessage(
-        "chore: add something chore-ish"
-      );
+      const msg1 = new ConventionalCommitMessage("chore: add something chore-ish");
     }).not.toThrow(ConventionalCommitError);
 
     withConfig(
@@ -276,11 +254,7 @@ describe("Configurable options", () => {
       config => {
         // Types are overwritten, so expect "chore" not to be acceptable
         expect(() => {
-          const msg2 = new ConventionalCommitMessage(
-            "chore: add something chore-ish",
-            undefined,
-            config
-          );
+          const msg2 = new ConventionalCommitMessage("chore: add something chore-ish", undefined, config);
         }).toThrow(ConventionalCommitError);
       }
     );
@@ -297,9 +271,7 @@ describe("Configurable options", () => {
         const acceptedTypes = Object.keys(config.tags);
 
         expect(acceptedTypes).toHaveLength(3);
-        expect(acceptedTypes).toEqual(
-          expect.arrayContaining(["feat", "fix", "perf"])
-        );
+        expect(acceptedTypes).toEqual(expect.arrayContaining(["feat", "fix", "perf"]));
       }
     );
   });
@@ -314,9 +286,7 @@ describe("Configurable options", () => {
             bump: true
         `),
       config => {
-        expect(config.tags["perf"].description).toEqual(
-          _testData.DEFAULT_ACCEPTED_TAGS["perf"].description
-        );
+        expect(config.tags["perf"].description).toEqual(_testData.DEFAULT_ACCEPTED_TAGS["perf"].description);
       }
     );
   });
@@ -352,27 +322,18 @@ describe("Configurable options", () => {
   });
 
   test("Boolean defaults", () => {
-    withConfig(
-      "version-scheme: sdkver\nsdkver-create-release-branches: true",
-      config => {
-        expect(config.sdkverCreateReleaseBranches).toBe("release/");
-      }
-    );
-    withConfig(
-      "version-scheme: sdkver\nsdkver-create-release-branches: false",
-      config => {
-        expect(config.sdkverCreateReleaseBranches).toBe(undefined);
-      }
-    );
+    withConfig("version-scheme: sdkver\nsdkver-create-release-branches: true", config => {
+      expect(config.sdkverCreateReleaseBranches).toBe("release/");
+    });
+    withConfig("version-scheme: sdkver\nsdkver-create-release-branches: false", config => {
+      expect(config.sdkverCreateReleaseBranches).toBe(undefined);
+    });
   });
 
   test("String values", () => {
-    withConfig(
-      "version-scheme: sdkver\nsdkver-create-release-branches: some-release-prefix-",
-      config => {
-        expect(config.sdkverCreateReleaseBranches).toBe("some-release-prefix-");
-      }
-    );
+    withConfig("version-scheme: sdkver\nsdkver-create-release-branches: some-release-prefix-", config => {
+      expect(config.sdkverCreateReleaseBranches).toBe("some-release-prefix-");
+    });
   });
 
   test("Enable SdkVer create release branches on non-SdkVer", () => {
@@ -382,12 +343,9 @@ describe("Configurable options", () => {
       expect(arg).toContain("sdkver-create-release-branches");
       expect(arg).toContain("version-scheme");
     });
-    withConfig(
-      "version-scheme: semver\nsdkver-create-release-branches: true",
-      config => {
-        expect(config.sdkverCreateReleaseBranches).toBe("release/");
-      }
-    );
+    withConfig("version-scheme: semver\nsdkver-create-release-branches: true", config => {
+      expect(config.sdkverCreateReleaseBranches).toBe("release/");
+    });
     expect(core.warning).toHaveBeenCalledTimes(1);
   });
 });

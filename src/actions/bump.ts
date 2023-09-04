@@ -17,20 +17,10 @@
 import * as core from "@actions/core";
 
 import { context } from "@actions/github";
-import {
-  bumpDraftRelease,
-  bumpSdkVer,
-  bumpSemVer,
-  getVersionBumpTypeAndMessages,
-  printNonCompliance,
-} from "../bump";
+import { bumpDraftRelease, bumpSdkVer, bumpSemVer, getVersionBumpTypeAndMessages, printNonCompliance } from "../bump";
 import { Configuration } from "../config";
 import { getConfig } from "../github";
-import {
-  IVersionBumpTypeAndMessages,
-  ReleaseMode,
-  SdkVerBumpType,
-} from "../interfaces";
+import { IVersionBumpTypeAndMessages, ReleaseMode, SdkVerBumpType } from "../interfaces";
 
 /**
  * Bump action entrypoint
@@ -52,21 +42,16 @@ async function run(): Promise<void> {
 
   if (context.ref.startsWith("refs/heads/")) {
     try {
-      isBranchAllowedToPublish = new RegExp(config.allowedBranches).test(
-        branchName
-      );
+      isBranchAllowedToPublish = new RegExp(config.allowedBranches).test(branchName);
     } catch (e) {
-      core.startGroup(
-        "❌ Configuration error - invalid 'allowed-branches' RegEx"
-      );
+      core.startGroup("❌ Configuration error - invalid 'allowed-branches' RegEx");
       core.setFailed((e as Error).message);
       core.endGroup();
     }
     if (!isBranchAllowedToPublish) {
       core.startGroup(`ℹ️ Branch ${branchName} is not allowed to publish`);
       core.info(
-        `Only branches that match the following ECMA-262 regular expression` +
-          `may publish:\n${config.allowedBranches}`
+        `Only branches that match the following ECMA-262 regular expression` + `may publish:\n${config.allowedBranches}`
       );
     }
   }
@@ -85,8 +70,7 @@ async function run(): Promise<void> {
     }
 
     core.startGroup("🔍 Finding latest topological tag..");
-    const bumpInfo: IVersionBumpTypeAndMessages =
-      await getVersionBumpTypeAndMessages(prefix, context.sha, config);
+    const bumpInfo: IVersionBumpTypeAndMessages = await getVersionBumpTypeAndMessages(prefix, context.sha, config);
 
     if (!bumpInfo.foundVersion) {
       // We haven't found a (matching) SemVer tag in the commit and tag list
@@ -97,11 +81,7 @@ async function run(): Promise<void> {
       return;
     } else {
       const currentVersion = bumpInfo.foundVersion.toString();
-      core.info(
-        `ℹ️ Found ${
-          config.versionScheme === "semver" ? "SemVer" : "SdkVer"
-        } tag: ${currentVersion}`
-      );
+      core.info(`ℹ️ Found ${config.versionScheme === "semver" ? "SemVer" : "SdkVer"} tag: ${currentVersion}`);
       core.setOutput("current-version", currentVersion);
     }
     core.endGroup();
@@ -124,9 +104,7 @@ async function run(): Promise<void> {
 
     if (config.versionScheme === "semver") {
       if (releaseTypeInput !== "") {
-        core.warning(
-          "The input value 'release-type' has no effect when using SemVer as the version scheme."
-        );
+        core.warning("The input value 'release-type' has no effect when using SemVer as the version scheme.");
       }
       core.startGroup("🔍 Determining SemVer bump");
       await bumpSemVer(
@@ -140,13 +118,9 @@ async function run(): Promise<void> {
       );
     } else if (config.versionScheme === "sdkver") {
       if (!["rel", "rc", "dev", ""].includes(releaseTypeInput)) {
-        throw new Error(
-          "The input value 'release-type' must be one of: [rel, rc, dev]"
-        );
+        throw new Error("The input value 'release-type' must be one of: [rel, rc, dev]");
       }
-      const releaseType = (
-        releaseTypeInput !== "" ? releaseTypeInput : "dev"
-      ) as SdkVerBumpType;
+      const releaseType = (releaseTypeInput !== "" ? releaseTypeInput : "dev") as SdkVerBumpType;
       core.startGroup("🔍 Determining SdkVer bump");
       // For non-release branches, a flow similar to SemVer can be followed,
       // but release branches get linear increments.
@@ -161,9 +135,7 @@ async function run(): Promise<void> {
         createChangelog
       );
     } else {
-      throw new Error(
-        `Unimplemented 'version-scheme': ${config.versionScheme}`
-      );
+      throw new Error(`Unimplemented 'version-scheme': ${config.versionScheme}`);
     }
   } catch (ex) {
     core.startGroup("❌ Exception");

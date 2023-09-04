@@ -34,16 +34,11 @@ const green = "\x1b[92m";
 const yellow = "\x1b[93m";
 const reset = "\x1b[0m";
 
-program
-  .name("commisery")
-  .description("Commisery Conventional Commit Message Manager")
-  .option("-c, --config <string>");
+program.name("commisery").description("Commisery Conventional Commit Message Manager").option("-c, --config <string>");
 
 program
   .command("check")
-  .description(
-    "Checks whether commit messages adhere to the Conventional Commits standard."
-  )
+  .description("Checks whether commit messages adhere to the Conventional Commits standard.")
   .argument(
     "[TARGET...]",
     `The \`TARGET\` can be:
@@ -81,9 +76,7 @@ program
 
 program
   .command("overview")
-  .description(
-    "Lists the accepted Conventional Commit types and Rules (including description)"
-  )
+  .description("Lists the accepted Conventional Commit types and Rules (including description)")
   .action(() => {
     const config = new Configuration(program.opts().config);
 
@@ -94,13 +87,8 @@ program
     );
 
     for (const key in config.tags) {
-      const bumps: string =
-        config.tags[key].bump && key !== "fix"
-          ? ` ${yellow}(bumps patch)${reset}`
-          : "";
-      core.info(
-        `${key}: ${gray}${config.tags[key].description}${reset}${bumps}`
-      );
+      const bumps: string = config.tags[key].bump && key !== "fix" ? ` ${yellow}(bumps patch)${reset}` : "";
+      core.info(`${key}: ${gray}${config.tags[key].description}${reset}${bumps}`);
     }
 
     core.info(os.EOL);
@@ -116,12 +104,8 @@ program
     core.info(os.EOL);
 
     for (const rule in config.rules) {
-      const status: string = config.rules[rule].enabled
-        ? `${green}o${reset}`
-        : `${red}x${reset}`;
-      core.info(
-        `[${status}] ${rule}: ${gray}${config.rules[rule].description}${reset}`
-      );
+      const status: string = config.rules[rule].enabled ? `${green}o${reset}` : `${red}x${reset}`;
+      core.info(`[${status}] ${rule}: ${gray}${config.rules[rule].description}${reset}`);
     }
   });
 

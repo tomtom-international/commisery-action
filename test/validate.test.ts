@@ -37,8 +37,7 @@ const OK_1 = toICommit("ci: valid commit");
 const OK_2 = toICommit("chore: valid commit");
 const OK_3 = toICommit("ci: valid commit\n\nWith body.\n\nAnd-Also: trailer");
 const LONG_OK = toICommit(
-  "perf: write a message that is getting very long, but is " +
-    "still technically valid" // 79 chars, if you're wondering
+  "perf: write a message that is getting very long, but is " + "still technically valid" // 79 chars, if you're wondering
 );
 
 describe("Valid cases", () => {
@@ -60,29 +59,21 @@ describe("Valid cases", () => {
     },
     {
       testDescription: "very long but still valid commit message",
-      messages: [
-        toICommit(
-          "ci: write a message that is getting very long, " +
-            "but is still technically valid"
-        ),
-      ],
+      messages: [toICommit("ci: write a message that is getting very long, " + "but is still technically valid")],
       prTitle: "ci: proper title",
     },
   ];
 
-  test.each(successMessagesAndPrTitleTestCases)(
-    "$testDescription",
-    ({ testDescription, messages, prTitle }) => {
-      jest.spyOn(github, "getCommitsInPR").mockResolvedValue(messages);
-      jest.spyOn(github, "getPullRequestTitle").mockResolvedValue(prTitle);
+  test.each(successMessagesAndPrTitleTestCases)("$testDescription", ({ testDescription, messages, prTitle }) => {
+    jest.spyOn(github, "getCommitsInPR").mockResolvedValue(messages);
+    jest.spyOn(github, "getPullRequestTitle").mockResolvedValue(prTitle);
 
-      validate.exportedForTesting.run().then(() => {
-        expect(core.info).toHaveBeenCalled();
-        expect(core.warning).not.toHaveBeenCalled();
-        expect(core.setFailed).not.toHaveBeenCalled();
-      });
-    }
-  );
+    validate.exportedForTesting.run().then(() => {
+      expect(core.info).toHaveBeenCalled();
+      expect(core.warning).not.toHaveBeenCalled();
+      expect(core.setFailed).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe("Warning cases", () => {
@@ -111,9 +102,7 @@ describe("Warning cases", () => {
       validate.exportedForTesting.run().then(() => {
         expect(core.warning).toHaveBeenCalled();
         for (const msg of warningMessages) {
-          expect(core.warning).toHaveBeenCalledWith(
-            expect.stringContaining(msg)
-          );
+          expect(core.warning).toHaveBeenCalledWith(expect.stringContaining(msg));
         }
         if (alsoFail) {
           expect(core.setFailed).toHaveBeenCalled();
@@ -153,10 +142,7 @@ describe("Error cases", () => {
       testDescription: "invalid commit and incorrect PR title",
       messages: [NOK_1],
       prTitle: "Ci : Invalid pr title!",
-      failureMessages: [
-        INVALID_CONVENTIONAL_COMMIT_MSG,
-        PR_TITLE_NOT_COMPLIANT_MSG,
-      ],
+      failureMessages: [INVALID_CONVENTIONAL_COMMIT_MSG, PR_TITLE_NOT_COMPLIANT_MSG],
     },
     {
       testDescription: "bump level of PR title does not match",
@@ -176,9 +162,7 @@ describe("Error cases", () => {
         expect(core.setFailed).toHaveBeenCalled();
 
         for (const msg of failureMessages) {
-          expect(core.setFailed).toHaveBeenCalledWith(
-            expect.stringContaining(msg)
-          );
+          expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining(msg));
         }
       });
     }
@@ -223,30 +207,23 @@ describe("Update labels", () => {
       initialDevelopment: false,
     },
   ];
-  test.each(labelTests)(
-    "Bump $expectedLabel",
-    ({ messages, prTitle, expectedLabel, initialDevelopment }) => {
-      jest.spyOn(github, "getCommitsInPR").mockResolvedValue(messages);
-      jest.spyOn(github, "getPullRequestTitle").mockResolvedValue(prTitle);
-      jest.spyOn(github, "updateLabels");
-      jest
-        .spyOn(Configuration.prototype, "initialDevelopment", "get")
-        .mockReturnValue(initialDevelopment);
+  test.each(labelTests)("Bump $expectedLabel", ({ messages, prTitle, expectedLabel, initialDevelopment }) => {
+    jest.spyOn(github, "getCommitsInPR").mockResolvedValue(messages);
+    jest.spyOn(github, "getPullRequestTitle").mockResolvedValue(prTitle);
+    jest.spyOn(github, "updateLabels");
+    jest.spyOn(Configuration.prototype, "initialDevelopment", "get").mockReturnValue(initialDevelopment);
 
-      validate.exportedForTesting.run().then(() => {
-        expect(core.info).toHaveBeenCalled();
-        expect(core.setFailed).not.toHaveBeenCalled();
-        expect(core.warning).not.toHaveBeenCalled();
+    validate.exportedForTesting.run().then(() => {
+      expect(core.info).toHaveBeenCalled();
+      expect(core.setFailed).not.toHaveBeenCalled();
+      expect(core.warning).not.toHaveBeenCalled();
 
-        expect(github.updateLabels).toHaveBeenCalledTimes(1);
-        let expectedLabels = [`bump:${expectedLabel}`];
-        if (initialDevelopment) {
-          expectedLabels = ["initial development"].concat(expectedLabels);
-        }
-        expect(github.updateLabels).toHaveBeenCalledWith(
-          expectedLabel ? expectedLabels : []
-        );
-      });
-    }
-  );
+      expect(github.updateLabels).toHaveBeenCalledTimes(1);
+      let expectedLabels = [`bump:${expectedLabel}`];
+      if (initialDevelopment) {
+        expectedLabels = ["initial development"].concat(expectedLabels);
+      }
+      expect(github.updateLabels).toHaveBeenCalledWith(expectedLabel ? expectedLabels : []);
+    });
+  });
 });

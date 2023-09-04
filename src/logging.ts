@@ -119,43 +119,29 @@ export class LlvmMessage {
     let message = "";
 
     if (this.filePath) {
-      message = `${this.filePath}:${this.lineNumber.start}:${
-        this.columnNumber.start + 1
-      }: `;
+      message = `${this.filePath}:${this.lineNumber.start}:${this.columnNumber.start + 1}: `;
     }
 
-    return formatString(
-      `${message}${formatLevel(this.level)}: ${this.message}`,
-      TextFormat.BOLD
-    );
+    return formatString(`${message}${formatLevel(this.level)}: ${this.message}`, TextFormat.BOLD);
   }
 
   indicator(): string | undefined {
     if (this.line === undefined) {
       return undefined;
     }
-    const indicatorColor = this.expectations
-      ? TextFormat.LIGHT_GREEN
-      : TextFormat.RED;
+    const indicatorColor = this.expectations ? TextFormat.LIGHT_GREEN : TextFormat.RED;
 
     let indicator =
-      this.line.trimEnd() +
-      EOL +
-      " ".repeat(this.columnNumber.start - 1) +
-      formatString("^", indicatorColor);
+      this.line.trimEnd() + EOL + " ".repeat(this.columnNumber.start - 1) + formatString("^", indicatorColor);
 
     if (this.columnNumber.range !== undefined) {
       if (this.columnNumber.range > 1) {
-        indicator += formatString(
-          "~".repeat(this.columnNumber.range - 1),
-          indicatorColor
-        );
+        indicator += formatString("~".repeat(this.columnNumber.range - 1), indicatorColor);
       }
     }
 
     if (this.expectations !== undefined) {
-      indicator +=
-        EOL + " ".repeat(this.columnNumber.start - 1) + this.expectations;
+      indicator += EOL + " ".repeat(this.columnNumber.start - 1) + this.expectations;
     }
     return indicator;
   }

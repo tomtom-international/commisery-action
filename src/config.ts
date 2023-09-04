@@ -15,11 +15,7 @@
  */
 
 import { ALL_RULES } from "./rules";
-import {
-  IRuleConfigItem,
-  IConfigurationRules,
-  IConfiguration,
-} from "./interfaces";
+import { IRuleConfigItem, IConfigurationRules, IConfiguration } from "./interfaces";
 
 import * as core from "@actions/core";
 import * as fs from "fs";
@@ -87,9 +83,7 @@ function verifyTypeMatches(
   typeItShouldBe: any
 ): void {
   if (typeof typeToTest !== typeof typeItShouldBe) {
-    throw new Error(
-      `Incorrect type '${typeof typeToTest}' for '${name}', must be '${typeof typeItShouldBe}'`
-    );
+    throw new Error(`Incorrect type '${typeof typeToTest}' for '${name}', must be '${typeof typeItShouldBe}'`);
   }
 }
 
@@ -137,17 +131,11 @@ export class Configuration {
               if (item in this.rules) {
                 this.rules[item].enabled = key === "enable";
               } else {
-                core.warning(
-                  `Rule "${item}" is unknown; enabling or disabling it has no effect.`
-                );
+                core.warning(`Rule "${item}" is unknown; enabling or disabling it has no effect.`);
               }
             }
           } else {
-            throw new Error(
-              `Incorrect type '${typeof data[
-                key
-              ]} for ${key}, must be '${typeof []}`
-            );
+            throw new Error(`Incorrect type '${typeof data[key]} for ${key}, must be '${typeof []}`);
           }
           break;
 
@@ -159,9 +147,7 @@ export class Configuration {
             this.maxSubjectLength = data[key];
           } else {
             throw new Error(
-              `Incorrect type '${typeof data[
-                key
-              ]}' for '${key}', must be '${typeof this.maxSubjectLength}'!`
+              `Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.maxSubjectLength}'!`
             );
           }
           break;
@@ -189,24 +175,14 @@ export class Configuration {
                 for (const entry of Object.keys(typeValue)) {
                   if (["description", "bump"].includes(entry)) {
                     if (entry === "description") {
-                      verifyTypeMatches(
-                        `${typ}.${entry}`,
-                        typeValue[entry],
-                        ""
-                      );
+                      verifyTypeMatches(`${typ}.${entry}`, typeValue[entry], "");
                     } else if (entry === "bump") {
-                      verifyTypeMatches(
-                        `${typ}.${entry}`,
-                        typeValue[entry],
-                        true
-                      );
+                      verifyTypeMatches(`${typ}.${entry}`, typeValue[entry], true);
                     }
                     this.tags[typ] = this.tags[typ] ? this.tags[typ] : {};
                     this.tags[typ][entry] = typeValue[entry];
                   } else {
-                    core.info(
-                      `Warning: "${key}.${typ}.${entry}" is unknown and has no effect.`
-                    );
+                    core.info(`Warning: "${key}.${typ}.${entry}" is unknown and has no effect.`);
                   }
                 }
                 break;
@@ -243,9 +219,7 @@ export class Configuration {
             this.allowedBranches = data[key];
           } else {
             throw new Error(
-              `Incorrect type '${typeof data[
-                key
-              ]}' for '${key}', must be '${typeof this.allowedBranches}'!`
+              `Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.allowedBranches}'!`
             );
           }
           break;
@@ -259,18 +233,12 @@ export class Configuration {
               this.versionScheme = data[key];
             } else {
               throw new Error(
-                `Incorrect value '${
-                  data[key]
-                }' for '${key}', must be one of: '${VERSION_SCHEMES.join(
-                  '", "'
-                )}'`
+                `Incorrect value '${data[key]}' for '${key}', must be one of: '${VERSION_SCHEMES.join('", "')}'`
               );
             }
           } else {
             throw new Error(
-              `Incorrect type '${typeof data[
-                key
-              ]}' for '${key}', must be '${typeof this.versionScheme}'!`
+              `Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.versionScheme}'!`
             );
           }
           break;
@@ -282,9 +250,7 @@ export class Configuration {
             this.releaseBranches = data[key];
           } else {
             throw new Error(
-              `Incorrect type '${typeof data[
-                key
-              ]}' for '${key}', must be '${typeof this.releaseBranches}'!`
+              `Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.releaseBranches}'!`
             );
           }
           break;
@@ -297,9 +263,7 @@ export class Configuration {
             this.initialDevelopment = data[key];
           } else {
             throw new Error(
-              `Incorrect type '${typeof data[
-                key
-              ]}' for '${key}', must be '${typeof this.initialDevelopment}'!`
+              `Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.initialDevelopment}'!`
             );
           }
           break;
@@ -313,9 +277,7 @@ export class Configuration {
             this.prereleasePrefix = data[key];
           } else {
             throw new Error(
-              `Incorrect type '${typeof data[
-                key
-              ]}' for '${key}', must be '${typeof this.prereleasePrefix}'!`
+              `Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.prereleasePrefix}'!`
             );
           }
           break;
@@ -326,25 +288,16 @@ export class Configuration {
            *   sdkver-create-release-branches: "rel-"
            */
           if (typeof data[key] === "boolean") {
-            this.sdkverCreateReleaseBranches = data[key]
-              ? "release/"
-              : undefined;
+            this.sdkverCreateReleaseBranches = data[key] ? "release/" : undefined;
           } else if (typeof data[key] === "string") {
             this.sdkverCreateReleaseBranches = data[key];
           } else {
-            throw new Error(
-              `Incorrect type '${typeof data[
-                key
-              ]}' for '${key}', must be either "boolean" or "string"!`
-            );
+            throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be either "boolean" or "string"!`);
           }
           break;
       }
     }
-    if (
-      this.sdkverCreateReleaseBranches !== undefined &&
-      this.versionScheme !== "sdkver"
-    ) {
+    if (this.sdkverCreateReleaseBranches !== undefined && this.versionScheme !== "sdkver") {
       core.warning(
         "The configuration option `sdkver-create-release-branches` is only relevant " +
           'when the `version-scheme` is set to `"sdkver"`.'

@@ -22,11 +22,7 @@ import { Configuration } from "../config";
 import { getConfig, isPullRequestEvent, updateLabels } from "../github";
 import * as Label from "../label";
 import { SemVerType } from "../semver";
-import {
-  validateCommitsInCurrentPR,
-  validatePrTitle,
-  validatePrTitleBump,
-} from "../validate";
+import { validateCommitsInCurrentPR, validatePrTitle, validatePrTitleBump } from "../validate";
 
 /**
  * Determine labels to add based on the provided conventional commits
@@ -54,9 +50,7 @@ async function determineLabels(
 async function run(): Promise<void> {
   try {
     if (!isPullRequestEvent()) {
-      core.warning(
-        "Conventional Commit Message validation requires a workflow using the `pull_request` trigger!"
-      );
+      core.warning("Conventional Commit Message validation requires a workflow using the `pull_request` trigger!");
       return;
     }
     await getConfig(core.getInput("config"));

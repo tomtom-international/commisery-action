@@ -65,12 +65,8 @@ beforeEach(() => {
   const releaseTypeInput = core.getInput("release-type");
   jest.spyOn(core, "getBooleanInput").mockImplementation(U.mockGetBooleanInput);
 
-  jest
-    .spyOn(changelog, "generateChangelog")
-    .mockResolvedValue(U.CHANGELOG_PLACEHOLDER);
-  jest
-    .spyOn(changelog, "generateChangelogForCommits")
-    .mockResolvedValue(U.CHANGELOG_PLACEHOLDER);
+  jest.spyOn(changelog, "generateChangelog").mockResolvedValue(U.CHANGELOG_PLACEHOLDER);
+  jest.spyOn(changelog, "generateChangelogForCommits").mockResolvedValue(U.CHANGELOG_PLACEHOLDER);
 
   jest.spyOn(github, "getLatestTags").mockResolvedValue([
     {
@@ -81,10 +77,7 @@ beforeEach(() => {
   jest.spyOn(github, "getPullRequestTitle").mockResolvedValue(U.PRTITLE("ci"));
   jest
     .spyOn(github, "matchTagsToCommits")
-    .mockResolvedValue([
-      SemVer.fromString(U.INITIAL_VERSION),
-      U.DEFAULT_COMMIT_LIST,
-    ]);
+    .mockResolvedValue([SemVer.fromString(U.INITIAL_VERSION), U.DEFAULT_COMMIT_LIST]);
   const MOCKLOG = 0;
   if (MOCKLOG) {
     jest.spyOn(core, "debug").mockImplementation(console.log);
@@ -124,9 +117,7 @@ const generateTests = (paramListList): SdkBumpTestParameters[] => {
 };
 
 const testFunction = async (p: SdkBumpTestParameters) => {
-  const messages = (p.breaking ? [U.MAJOR_MSG] : []).concat(
-    U.DEFAULT_COMMIT_LIST
-  );
+  const messages = (p.breaking ? [U.MAJOR_MSG] : []).concat(U.DEFAULT_COMMIT_LIST);
   const prTitle = U.PRTITLE("chore");
   setInputSpyWith({ "release-type": p.bumpType });
   jest.spyOn(github, "getLatestTags").mockResolvedValue([
@@ -135,30 +126,20 @@ const testFunction = async (p: SdkBumpTestParameters) => {
       commitSha: U.BASE_COMMIT.sha,
     },
   ]);
-  jest
-    .spyOn(github, "currentHeadMatchesTag")
-    .mockResolvedValue(p.testDescription.includes("HEADisTag"));
+  jest.spyOn(github, "currentHeadMatchesTag").mockResolvedValue(p.testDescription.includes("HEADisTag"));
   jest
     .spyOn(github, "getRelease")
-    .mockResolvedValue(
-      p.latestDraftRelease ? { id: 1, name: p.latestDraftRelease } : undefined
-    );
+    .mockResolvedValue(p.latestDraftRelease ? { id: 1, name: p.latestDraftRelease } : undefined);
   gh.context.ref = `refs/heads/${p.branch}`;
 
   jest.spyOn(github, "getPullRequestTitle").mockResolvedValue(prTitle);
-  jest
-    .spyOn(github, "matchTagsToCommits")
-    .mockResolvedValue([SemVer.fromString(p.initialVersion), messages]);
+  jest.spyOn(github, "matchTagsToCommits").mockResolvedValue([SemVer.fromString(p.initialVersion), messages]);
 
   await bumpaction.exportedForTesting.run();
-  expect(core.info).toHaveBeenCalledWith(
-    expect.stringContaining(`Found SdkVer tag: ${p.initialVersion}`)
-  );
+  expect(core.info).toHaveBeenCalledWith(expect.stringContaining(`Found SdkVer tag: ${p.initialVersion}`));
   expect(github.createTag).not.toHaveBeenCalled();
   if (p.expectedVersion) {
-    expect(core.info).toHaveBeenCalledWith(
-      expect.stringContaining(`Current version: ${p.initialVersion}`)
-    );
+    expect(core.info).toHaveBeenCalledWith(expect.stringContaining(`Current version: ${p.initialVersion}`));
     expect(github.createRelease).toHaveBeenCalledTimes(1);
     expect(github.createRelease).toHaveBeenCalledWith(
       p.expectedVersion,
@@ -323,21 +304,14 @@ const testSuiteDefinitions = [
 
 for (const definition of testSuiteDefinitions) {
   describe(definition.suite, () => {
-    test.each(generateTests(definition.tests))(
-      "$testDescription",
-      testFunction
-    );
+    test.each(generateTests(definition.tests))("$testDescription", testFunction);
   });
 }
 
 describe("Create release branch", () => {
   beforeEach(() => {
     jest.spyOn(fs, "existsSync").mockReturnValue(true);
-    jest
-      .spyOn(fs, "readFileSync")
-      .mockReturnValue(
-        `version-scheme: "sdkver"\nsdkver-create-release-branches: true`
-      );
+    jest.spyOn(fs, "readFileSync").mockReturnValue(`version-scheme: "sdkver"\nsdkver-create-release-branches: true`);
     setInputSpyWith({ "release-type": "rc" });
   });
 
@@ -355,10 +329,7 @@ describe("Create release branch", () => {
     await bumpaction.exportedForTesting.run();
 
     if (branch === "main" && ["rel", "rc"].includes(bumpType)) {
-      expect(github.createBranch).toHaveBeenCalledWith(
-        "refs/heads/release/1.3",
-        U.HEAD_SHA
-      );
+      expect(github.createBranch).toHaveBeenCalledWith("refs/heads/release/1.3", U.HEAD_SHA);
     } else {
       expect(github.createBranch).not.toHaveBeenCalled();
     }
@@ -373,30 +344,16 @@ describe("Create release branch", () => {
 
   it("uses the default branch prefix when boolean 'true' is configured", async () => {
     gh.context.ref = "refs/heads/main";
-    jest
-      .spyOn(fs, "readFileSync")
-      .mockReturnValue(
-        `version-scheme: "sdkver"\nsdkver-create-release-branches: true`
-      );
+    jest.spyOn(fs, "readFileSync").mockReturnValue(`version-scheme: "sdkver"\nsdkver-create-release-branches: true`);
     await bumpaction.exportedForTesting.run();
-    expect(github.createBranch).toHaveBeenCalledWith(
-      "refs/heads/release/1.3",
-      "baaaadb0b"
-    );
+    expect(github.createBranch).toHaveBeenCalledWith("refs/heads/release/1.3", "baaaadb0b");
   });
 
   it("correctly uses string configuration values as branch prefix", async () => {
     gh.context.ref = "refs/heads/main";
-    jest
-      .spyOn(fs, "readFileSync")
-      .mockReturnValue(
-        `version-scheme: "sdkver"\nsdkver-create-release-branches: "rel-"`
-      );
+    jest.spyOn(fs, "readFileSync").mockReturnValue(`version-scheme: "sdkver"\nsdkver-create-release-branches: "rel-"`);
     await bumpaction.exportedForTesting.run();
-    expect(github.createBranch).toHaveBeenCalledWith(
-      "refs/heads/rel-1.3",
-      "baaaadb0b"
-    );
+    expect(github.createBranch).toHaveBeenCalledWith("refs/heads/rel-1.3", "baaaadb0b");
   });
 });
 
@@ -409,26 +366,21 @@ describe("Create changelog", () => {
   beforeEach(() => {
     jest
       .spyOn(github, "matchTagsToCommits")
-      .mockResolvedValue([
-        SemVer.fromString(U.INITIAL_VERSION),
-        [U.toICommit("fix: valid message")],
-      ]);
+      .mockResolvedValue([SemVer.fromString(U.INITIAL_VERSION), [U.toICommit("fix: valid message")]]);
   });
 
   test.each(createChangelogInput)("$desc", async ({ createChangelog }) => {
-    jest
-      .spyOn(core, "getBooleanInput")
-      .mockImplementation((setting, options?) => {
-        switch (setting) {
-          case "create-release":
-            return true;
-          case "create-tag":
-            return false;
-          case "create-changelog":
-            return createChangelog;
-        }
-        return false;
-      });
+    jest.spyOn(core, "getBooleanInput").mockImplementation((setting, options?) => {
+      switch (setting) {
+        case "create-release":
+          return true;
+        case "create-tag":
+          return false;
+        case "create-changelog":
+          return createChangelog;
+      }
+      return false;
+    });
     setInputSpyWith({ "release-type": "rel" });
 
     await bumpaction.exportedForTesting.run();
@@ -445,13 +397,7 @@ describe("Create changelog", () => {
     } else {
       expect(changelog.generateChangelog).not.toHaveBeenCalled();
       expect(github.createRelease).toHaveBeenCalledTimes(1);
-      expect(github.createRelease).toHaveBeenCalledWith(
-        U.MINOR_BUMPED_VERSION,
-        U.HEAD_SHA,
-        "",
-        false,
-        false
-      );
+      expect(github.createRelease).toHaveBeenCalledWith(U.MINOR_BUMPED_VERSION, U.HEAD_SHA, "", false, false);
     }
   });
 });

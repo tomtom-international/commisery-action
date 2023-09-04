@@ -45,12 +45,7 @@ async function getCommitHashes(target: string[]): Promise<string[]> {
  * Retrieve the full commit message for the provided target
  */
 async function getCommitMessage(target: string): Promise<string> {
-  return await simpleGit(await getRootPath()).show([
-    "-q",
-    "--format=%B",
-    target,
-    "--",
-  ]);
+  return await simpleGit(await getRootPath()).show(["-q", "--format=%B", target, "--"]);
 }
 
 /**
@@ -61,13 +56,8 @@ export async function getCommitMessages(target: string[]): Promise<string[]> {
   const git = simpleGit(await getRootPath());
   let commitHashes: string[] = [];
 
-  if (
-    /^[0-9a-fA-F]{40}$/.test(target.join(" ")) === false &&
-    (await getCommitHashes(target)).length > 1
-  ) {
-    commitHashes = (
-      await git.raw(["rev-list"].concat(target).concat(["--"]))
-    ).split("\n");
+  if (/^[0-9a-fA-F]{40}$/.test(target.join(" ")) === false && (await getCommitHashes(target)).length > 1) {
+    commitHashes = (await git.raw(["rev-list"].concat(target).concat(["--"]))).split("\n");
   } else {
     commitHashes.push(target[0]);
   }

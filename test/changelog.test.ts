@@ -19,10 +19,7 @@ import dedent from "dedent";
 import * as github from "../src/github";
 
 import { ConventionalCommitMessage } from "../src/commit";
-import {
-  generateChangelog,
-  generateChangelogForCommits,
-} from "../src/changelog";
+import { generateChangelog, generateChangelogForCommits } from "../src/changelog";
 import { IVersionBumpTypeAndMessages, ICommit } from "../src/interfaces";
 import { SemVer, SemVerType } from "../src/semver";
 const githubActions = require("@actions/github");
@@ -101,9 +98,7 @@ describe("Generate Changelog", () => {
     const bump: IVersionBumpTypeAndMessages = {
       foundVersion: new SemVer({ major: 1, minor: 0, patch: 0 }),
       requiredBump: SemVerType.MINOR,
-      processedCommits: createMessages([
-        { message: "feat: add pull request reference", sha: "0x123abc" },
-      ]),
+      processedCommits: createMessages([{ message: "feat: add pull request reference", sha: "0x123abc" }]),
       initialDevelopment: false,
     };
     const changelog = await generateChangelog(bump);
@@ -123,9 +118,7 @@ describe("Generate Changelog", () => {
     const bump: IVersionBumpTypeAndMessages = {
       foundVersion: new SemVer({ major: 1, minor: 0, patch: 0 }),
       requiredBump: SemVerType.MINOR,
-      processedCommits: createMessages([
-        { message: "feat: add pull request reference (#1)", sha: "0x123abc" },
-      ]),
+      processedCommits: createMessages([{ message: "feat: add pull request reference (#1)", sha: "0x123abc" }]),
       initialDevelopment: false,
     };
     const changelog = await generateChangelog(bump);
@@ -147,18 +140,15 @@ describe("Generate Changelog", () => {
       requiredBump: SemVerType.MINOR,
       processedCommits: createMessages([
         {
-          message:
-            "feat: add pull request reference\n\nThis is the body\n\nImplements: TEST-123",
+          message: "feat: add pull request reference\n\nThis is the body\n\nImplements: TEST-123",
           sha: "17e57c03317",
         },
         {
-          message:
-            "feat: do GitHub things\n\nThis is the body\n\nImplements #42",
+          message: "feat: do GitHub things\n\nThis is the body\n\nImplements #42",
           sha: "27e57c03317",
         },
         {
-          message:
-            "feat: make GitHub stuff\n\nThis is the body\n\nImplements: #51",
+          message: "feat: make GitHub stuff\n\nThis is the body\n\nImplements: #51",
           sha: "37e57c03317",
         },
       ]),
@@ -185,13 +175,11 @@ describe("Generate Changelog", () => {
       requiredBump: SemVerType.MINOR,
       processedCommits: createMessages([
         {
-          message:
-            "feat!: add pull request reference\n\nThis is the body\n\nImplements: TEST-123",
+          message: "feat!: add pull request reference\n\nThis is the body\n\nImplements: TEST-123",
           sha: "17e57c03317",
         },
         {
-          message:
-            "feat: do GitHub things\n\nThis is the body\n\nImplements #42",
+          message: "feat: do GitHub things\n\nThis is the body\n\nImplements #42",
           sha: "27e57c03317",
         },
       ]),
@@ -233,13 +221,11 @@ describe("Generate Changelog", () => {
       requiredBump: SemVerType.MINOR,
       processedCommits: createMessages([
         {
-          message:
-            "feat!: this should be in all changes\n\nThis is the body\n\nImplements: TEST-123",
+          message: "feat!: this should be in all changes\n\nThis is the body\n\nImplements: TEST-123",
           sha: "17e57c03317",
         },
         {
-          message:
-            "feat: do GitHub things\n\nThis is the body\n\nImplements #42",
+          message: "feat: do GitHub things\n\nThis is the body\n\nImplements #42",
           sha: "27e57c03317",
         },
       ]),
@@ -286,13 +272,11 @@ describe("Generate Changelog", () => {
       requiredBump: SemVerType.MINOR,
       processedCommits: createMessages([
         {
-          message:
-            "feat!: add pull request reference\n\nThis is the body\n\nImplements: TEST-123",
+          message: "feat!: add pull request reference\n\nThis is the body\n\nImplements: TEST-123",
           sha: "17e57c03317",
         },
         {
-          message:
-            "feat: do GitHub things\n\nThis is the body\n\nImplements #42",
+          message: "feat: do GitHub things\n\nThis is the body\n\nImplements #42",
           sha: "27e57c03317",
         },
       ]),
@@ -331,13 +315,11 @@ describe("Generate Changelog", () => {
       requiredBump: SemVerType.MINOR,
       processedCommits: createMessages([
         {
-          message:
-            "feat(Search)!: add pull request reference\n\nThis is the body\n\nImplements: TEST-123",
+          message: "feat(Search)!: add pull request reference\n\nThis is the body\n\nImplements: TEST-123",
           sha: "17e57c03317",
         },
         {
-          message:
-            "docs: do GitHub things\n\nThis is the body\n\nImplements #42",
+          message: "docs: do GitHub things\n\nThis is the body\n\nImplements #42",
           sha: "27e57c03317",
         },
       ]),
@@ -382,23 +364,19 @@ describe("Generate Changelog", () => {
       requiredBump: SemVerType.MINOR,
       processedCommits: createMessages([
         {
-          message:
-            "docs: this has no scope\n\nThis is the body\n\nImplements #42",
+          message: "docs: this has no scope\n\nThis is the body\n\nImplements #42",
           sha: "27e57c03317",
         },
         {
-          message:
-            "feat(Search)!: add pull request reference\n\nThis is the body\n\nImplements: TEST-123",
+          message: "feat(Search)!: add pull request reference\n\nThis is the body\n\nImplements: TEST-123",
           sha: "17e57c03317",
         },
         {
-          message:
-            "feat(Search)!: remove `doIt(...)` API\n\nThis is the body\n\nImplements: TEST-123",
+          message: "feat(Search)!: remove `doIt(...)` API\n\nThis is the body\n\nImplements: TEST-123",
           sha: "17e57c03317",
         },
         {
-          message:
-            "docs(Search): do GitHub things\n\nThis is the body\n\nImplements #42",
+          message: "docs(Search): do GitHub things\n\nThis is the body\n\nImplements #42",
           sha: "27e57c03317",
         },
       ]),
@@ -443,11 +421,9 @@ describe("Generate Changelog", () => {
   });
 
   test("Commit range", async () => {
-    const changelog = await generateChangelogForCommits(
-      "123456789a",
-      "a987654321",
-      [new ConventionalCommitMessage("docs: add manual for X", "123456789abc")]
-    );
+    const changelog = await generateChangelogForCommits("123456789a", "a987654321", [
+      new ConventionalCommitMessage("docs: add manual for X", "123456789abc"),
+    ]);
     expect(changelog).toContain(
       `*Diff since last release: [123456789a...a987654321]` +
         `(https://github.com/tomtom-international/commisery-action/compare/123456789a...a987654321)*`

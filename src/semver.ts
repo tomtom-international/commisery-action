@@ -50,14 +50,7 @@ export class SemVer {
   prefix: string;
   private _build!: string;
 
-  constructor({
-    major,
-    minor,
-    patch,
-    prerelease = "",
-    build = "",
-    prefix = "",
-  }: ISemVer) {
+  constructor({ major, minor, patch, prerelease = "", build = "", prefix = "" }: ISemVer) {
     this.major = major;
     this.minor = minor;
     this.patch = patch;
@@ -81,9 +74,7 @@ export class SemVer {
     if (buildMetadata !== "") {
       for (const identifier of buildMetadata.split(".")) {
         if (/[^0-9A-Za-z-]/.test(identifier) || identifier.length === 0) {
-          throw new Error(
-            `Provided build metadata (${buildMetadata}) does not comply to the SemVer specification`
-          );
+          throw new Error(`Provided build metadata (${buildMetadata}) does not comply to the SemVer specification`);
         }
       }
     }
@@ -156,11 +147,7 @@ export class SemVer {
    *
    * Returns new SemVer object or `null` if unsuccessful.
    */
-  nextPrerelease(
-    pre?: string,
-    post?: string,
-    zeroPadToMinimum?: number
-  ): SemVer | null {
+  nextPrerelease(pre?: string, post?: string, zeroPadToMinimum?: number): SemVer | null {
     const match = /(?<pre>\D*)(?<nr>\d+)(?<post>.*)/.exec(this.prerelease);
     if (match == null || match.groups == null) {
       return null;
@@ -178,9 +165,7 @@ export class SemVer {
     };
 
     const nv = SemVer.copy(this);
-    nv.prerelease = `${pre ?? match.groups.pre}${incrementAndZeroPad(
-      match.groups.nr
-    )}${post ?? match.groups.post}`;
+    nv.prerelease = `${pre ?? match.groups.pre}${incrementAndZeroPad(match.groups.nr)}${post ?? match.groups.post}`;
     nv.build = "";
 
     return nv;
@@ -237,11 +222,7 @@ export class SemVer {
     const rhs = typeof b === "string" ? SemVer.fromString(b) : b;
 
     if (lhs === null || rhs === null) {
-      return lhs === null && rhs !== null
-        ? -1
-        : rhs === null && lhs !== null
-        ? 1
-        : 0;
+      return lhs === null && rhs !== null ? -1 : rhs === null && lhs !== null ? 1 : 0;
     }
 
     let allVersionFieldsEqual = false;

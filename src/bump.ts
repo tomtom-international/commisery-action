@@ -35,12 +35,7 @@ import {
 } from "./github";
 import { ConventionalCommitMessage } from "./commit";
 import { SemVer, SemVerType } from "./semver";
-import {
-  BumpError,
-  ConventionalCommitError,
-  FixupCommitError,
-  MergeCommitError,
-} from "./errors";
+import { BumpError, ConventionalCommitError, FixupCommitError, MergeCommitError } from "./errors";
 import {
   ICommit,
   IGitTag,
@@ -79,12 +74,7 @@ function shortSha(sha: string): string {
  * @return {Semver | null} A SemVer object representing the value of `tagName`,
  *                         or `null` if the provided parameters don't match
  */
-function getSemVerIfMatches(
-  prefix: string,
-  tagName: string,
-  tagSha: string,
-  commitSha: string
-): SemVer | null {
+function getSemVerIfMatches(prefix: string, tagName: string, tagSha: string, commitSha: string): SemVer | null {
   if (commitSha === tagSha) {
     const dbg = (tag, commit, message): void => {
       core.debug(`Tag '${tag}' on commit '${commit.slice(0, 6)}' ${message}`);
@@ -109,10 +99,7 @@ function getSemVerIfMatches(
 /** Validates a list of commits in a bump context, which differs slightly to
  * pull request validation runs, as some rules need to be disabled.
  */
-function processCommitsForBump(
-  commits: ICommit[],
-  config: Configuration
-): IValidationResult[] {
+function processCommitsForBump(commits: ICommit[], config: Configuration): IValidationResult[] {
   // We'll relax certain rules while processing these commits; these are
   // commits/pull request titles that (ideally) have been validated
   // _before_ they were merged, and certain GitHub CI settings may append
@@ -128,17 +115,15 @@ function processCommitsForBump(
  * Determines the highest SemVer bump level based on the provided
  * list of Conventional Commits
  */
-export function getVersionBumpType(
-  messages: ConventionalCommitMessage[]
-): SemVerType {
+export function getVersionBumpType(messages: ConventionalCommitMessage[]): SemVerType {
   let highestBump: SemVerType = SemVerType.NONE;
 
   for (const message of messages) {
     if (highestBump !== SemVerType.MAJOR) {
       core.debug(
-        `Commit type '${message.type}'${
-          message.breakingChange ? " (BREAKING)" : ""
-        }, has bump type: ${SemVerType[message.bump]}`
+        `Commit type '${message.type}'${message.breakingChange ? " (BREAKING)" : ""}, has bump type: ${
+          SemVerType[message.bump]
+        }`
       );
       highestBump = message.bump > highestBump ? message.bump : highestBump;
     }
@@ -185,17 +170,13 @@ export async function getVersionBumpTypeAndMessages(
     // Try and match this commit's hash to one of the tags in `tags`
     for (const tag of tags) {
       let semVer: SemVer | null = null;
-      core.debug(
-        `Considering tag ${tag.name} (${tag.commitSha}) on ${commitSha}`
-      );
+      core.debug(`Considering tag ${tag.name} (${tag.commitSha}) on ${commitSha}`);
       semVer = getSemVerIfMatches(prefix, tag.name, tag.commitSha, commitSha);
       if (semVer) {
         // We've found a tag that matches to this commit. Now, we need to
         // make sure that we return the _highest_ version tag_ associated with
         // this commit
-        core.debug(
-          `Matching tag found (${tag.name}), checking other tags for commit ${commitSha}..`
-        );
+        core.debug(`Matching tag found (${tag.name}), checking other tags for commit ${commitSha}..`);
         const matchTags = tags.filter(t => t.commitSha === commitSha);
         if (matchTags.length > 1) {
           core.debug(`${matchTags.length} other tags found`);
@@ -221,17 +202,13 @@ export async function getVersionBumpTypeAndMessages(
   const [version, commitList] = await matchTagsToCommits(targetSha, tagMatcher);
 
   const results = processCommitsForBump(commitList, config);
-  const convCommits = results
-    .map(r => r.message)
-    .filter((r): r is ConventionalCommitMessage => r !== undefined);
+  const convCommits = results.map(r => r.message).filter((r): r is ConventionalCommitMessage => r !== undefined);
 
   return {
     foundVersion: version,
     requiredBump: getVersionBumpType(convCommits),
     processedCommits: results,
-    initialDevelopment:
-      config.initialDevelopment &&
-      (!version || (version && version.major === 0)),
+    initialDevelopment: config.initialDevelopment && (!version || (version && version.major === 0)),
   };
 }
 
@@ -247,14 +224,8 @@ export async function getVersionBumpTypeAndMessages(
  * Returns the new prerelease version name if update was successful,
  * `undefined` otherwise.
  */
-async function tryUpdateDraftRelease(
-  cv: SemVer,
-  changelog: string,
-  sha: string
-): Promise<string | undefined> {
-  const preStem = cv.prerelease
-    ? `-${cv.prerelease.replace(/(.+?)\d.*/, "$1")}`
-    : "";
+async function tryUpdateDraftRelease(cv: SemVer, changelog: string, sha: string): Promise<string | undefined> {
+  const preStem = cv.prerelease ? `-${cv.prerelease.replace(/(.+?)\d.*/, "$1")}` : "";
   const latestDraftRelease = await getRelease({
     prefixToMatch: cv.prefix,
     draftOnly: true,
@@ -272,13 +243,7 @@ async function tryUpdateDraftRelease(
   if (!npv) return;
   npv.build = shortSha(sha);
 
-  const updateSuccess = await updateDraftRelease(
-    latestDraftRelease.id,
-    npv.toString(),
-    npv.toString(),
-    sha,
-    changelog
-  );
+  const updateSuccess = await updateDraftRelease(latestDraftRelease.id, npv.toString(), npv.toString(), sha, changelog);
   if (!updateSuccess) {
     core.info(`Error renaming existing draft release.`);
     return;
@@ -300,13 +265,7 @@ async function newDraftRelease(
   } else {
     nextPrereleaseVersion.prerelease = `${prefix}001`;
   }
-  await createRelease(
-    nextPrereleaseVersion.toString(),
-    sha,
-    changelog,
-    true,
-    false
-  );
+  await createRelease(nextPrereleaseVersion.toString(), sha, changelog, true, false);
   return nextPrereleaseVersion.toString();
 }
 
@@ -319,8 +278,7 @@ export async function bumpDraftRelease(
   const cv = bumpInfo.foundVersion;
   if (!cv) throw Error("Found version is falsy"); // should never happen
   const result =
-    (await tryUpdateDraftRelease(cv, changelog, sha)) ??
-    (await newDraftRelease(cv, changelog, sha, preRelPrefix));
+    (await tryUpdateDraftRelease(cv, changelog, sha)) ?? (await newDraftRelease(cv, changelog, sha, preRelPrefix));
 
   core.info(`ℹ️ Next prerelease: ${result}`);
   return result;
@@ -382,9 +340,7 @@ export async function publishBump(
       return false;
     }
     if (isPullRequestEvent()) {
-      core.startGroup(
-        `ℹ️ Not creating ${releaseMode} on a pull request event.`
-      );
+      core.startGroup(`ℹ️ Not creating ${releaseMode} on a pull request event.`);
       core.info(
         "We cannot create a release or tag in a pull request context, due to " +
           "potential parallelism (i.e. races) in pull request builds."
@@ -412,10 +368,7 @@ export async function publishBump(
             isRc // prerelease
           );
           if (!updated) {
-            core.info(
-              `Error renaming existing draft release, ` +
-                `creating new draft release.`
-            );
+            core.info(`Error renaming existing draft release, ` + `creating new draft release.`);
           }
         }
         if (!updated) {
@@ -439,9 +392,7 @@ export async function publishBump(
             `HTTP request error (status ${ex.status}):\n${ex.message}`
         );
       } else if (ex instanceof Error) {
-        core.setFailed(
-          `Unable to create ${releaseMode} with the name "${nv}":\n${ex.message}`
-        );
+        core.setFailed(`Unable to create ${releaseMode} with the name "${nv}":\n${ex.message}`);
       } else {
         core.setFailed(`Unknown error during ${releaseMode} creation`);
         throw ex;
@@ -497,10 +448,7 @@ export async function bumpSemVer(
     return false;
   }
 
-  const nextVersion = bumpInfo.foundVersion?.bump(
-    bumpInfo.requiredBump,
-    config.initialDevelopment
-  );
+  const nextVersion = bumpInfo.foundVersion?.bump(bumpInfo.requiredBump, config.initialDevelopment);
 
   let changelog = "";
   if (createChangelog) changelog = await generateChangelog(bumpInfo);
@@ -512,13 +460,7 @@ export async function bumpSemVer(
       nextVersion.build = buildMetadata;
     }
 
-    bumped = await publishBump(
-      nextVersion,
-      releaseMode,
-      headSha,
-      changelog,
-      isBranchAllowedToPublish
-    );
+    bumped = await publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish);
   } else {
     core.info("ℹ️ No bump necessary");
     core.setOutput("next-version", "");
@@ -528,18 +470,9 @@ export async function bumpSemVer(
   if (!bumped && config.prereleasePrefix !== undefined) {
     // When configured to create GitHub releases, and the `bump-prereleases` config item
     // evaluates to `true`.
-    if (
-      isBranchAllowedToPublish &&
-      !isPullRequestEvent() &&
-      releaseMode === "release"
-    ) {
+    if (isBranchAllowedToPublish && !isPullRequestEvent() && releaseMode === "release") {
       // Create/rename draft release
-      const ver = await bumpDraftRelease(
-        bumpInfo,
-        changelog,
-        headSha,
-        config.prereleasePrefix
-      );
+      const ver = await bumpDraftRelease(bumpInfo, changelog, headSha, config.prereleasePrefix);
 
       core.info(`ℹ️ Created draft prerelease version ${ver}`);
     } else {
@@ -582,11 +515,7 @@ function getNextSdkVer(
   };
 
   core.info(`Determining SDK bump for version ${currentVersion.toString()}:`);
-  core.info(
-    ` - current version type: ${
-      currentIsRel ? "release" : currentIsRc ? "release candidate" : "dev"
-    }`
-  );
+  core.info(` - current version type: ${currentIsRel ? "release" : currentIsRc ? "release candidate" : "dev"}`);
   core.info(` - bump type: ${sdkVerBumpType}`);
   core.info(` - branch type: ${isReleaseBranch ? "" : "not "}release`);
   core.info(` - breaking changes: ${hasBreakingChange ? "yes" : "no"}`);
@@ -614,10 +543,7 @@ function getNextSdkVer(
     // Special case: we allow breaking changes on a release branch if that
     // release branch still contains an RC for the next API version, in which
     // case, the MINOR and PATCH fields will be 0 (1.2.3 -> 2.0.0-rc1)
-    if (
-      hasBreakingChange &&
-      !(currentIsRc && currentVersion.minor === 0 && currentVersion.patch === 0)
-    ) {
+    if (hasBreakingChange && !(currentIsRc && currentVersion.minor === 0 && currentVersion.patch === 0)) {
       fatal("Breaking changes are not allowed on release branches.");
     }
 
@@ -646,8 +572,7 @@ function getNextSdkVer(
         nextVersion = currentVersion.nextPrerelease(undefined, "", 2);
         if (!nextVersion) {
           fatal(
-            `Unable to bump RC version for: ${currentVersion.toString()}; ` +
-              `make sure it contains an index number.`
+            `Unable to bump RC version for: ${currentVersion.toString()}; ` + `make sure it contains an index number.`
           );
         }
       } else {
@@ -756,9 +681,7 @@ export async function bumpSdkVer(
   createChangelog: boolean
 ): Promise<boolean> {
   const isReleaseBranch = branchName.match(config.releaseBranches);
-  const hasBreakingChange = bumpInfo.processedCommits.some(
-    c => c.message?.breakingChange
-  );
+  const hasBreakingChange = bumpInfo.processedCommits.some(c => c.message?.breakingChange);
   if (!bumpInfo.foundVersion) return false; // should never happen
 
   // SdkVer requires a prerelease, so apply the default if not set
@@ -824,11 +747,7 @@ export async function bumpSdkVer(
         minor: nextVersion.minor,
       },
     });
-    core.info(
-      `The full release preceding the current one is ${
-        previousRelease?.name ?? "undefined"
-      }`
-    );
+    core.info(`The full release preceding the current one is ${previousRelease?.name ?? "undefined"}`);
     let changelog = "";
 
     if (createChangelog) {
@@ -836,9 +755,7 @@ export async function bumpSdkVer(
         const toVersion =
           // Since "dev" releases on non-release-branches result in a draft
           // release, we'll need to use the commit sha.
-          sdkVerBumpType === "dev" && !isReleaseBranch
-            ? shortSha(headSha)
-            : nextVersion.toString();
+          sdkVerBumpType === "dev" && !isReleaseBranch ? shortSha(headSha) : nextVersion.toString();
         changelog = await generateChangelogForCommits(
           previousRelease.name,
           toVersion,
@@ -865,11 +782,7 @@ export async function bumpSdkVer(
   } else {
     // Create a release branch for releases and RC's if we're configured to do so
     // and are currently not running on a release branch.
-    if (
-      config.sdkverCreateReleaseBranches !== undefined &&
-      !isReleaseBranch &&
-      sdkVerBumpType !== "dev"
-    ) {
+    if (config.sdkverCreateReleaseBranches !== undefined && !isReleaseBranch && sdkVerBumpType !== "dev") {
       const releaseBranchName = `${config.sdkverCreateReleaseBranches}${nextVersion.major}.${nextVersion.minor}`;
       core.info(`Creating release branch ${releaseBranchName}..`);
       try {
@@ -886,9 +799,7 @@ export async function bumpSdkVer(
               `HTTP request error (status ${ex.status}):\n${ex.message}`
           );
         } else if (ex instanceof Error) {
-          core.warning(
-            `Unable to create release branch '${releaseBranchName}':\n${ex.message}`
-          );
+          core.warning(`Unable to create release branch '${releaseBranchName}':\n${ex.message}`);
         } else {
           core.warning(`Unknown error during ${releaseMode} creation`);
           throw ex;
@@ -925,7 +836,5 @@ async function collectChangelogCommits(
   const processedCommits = processCommitsForBump(commits, config);
 
   core.endGroup();
-  return processedCommits
-    .map(c => c.message)
-    .filter(c => c) as ConventionalCommitMessage[];
+  return processedCommits.map(c => c.message).filter(c => c) as ConventionalCommitMessage[];
 }

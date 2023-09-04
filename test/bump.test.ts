@@ -47,9 +47,7 @@ beforeEach(() => {
   jest.spyOn(core, "getInput").mockImplementation(U.mockGetInput);
   jest.spyOn(core, "getBooleanInput").mockImplementation(U.mockGetBooleanInput);
 
-  jest
-    .spyOn(changelog, "generateChangelog")
-    .mockResolvedValue(U.CHANGELOG_PLACEHOLDER);
+  jest.spyOn(changelog, "generateChangelog").mockResolvedValue(U.CHANGELOG_PLACEHOLDER);
 
   jest.spyOn(github, "getLatestTags").mockResolvedValue([
     {
@@ -62,10 +60,7 @@ beforeEach(() => {
   jest.spyOn(gh, "getOctokit");
   jest
     .spyOn(github, "matchTagsToCommits")
-    .mockResolvedValue([
-      SemVer.fromString(U.INITIAL_VERSION),
-      U.DEFAULT_COMMIT_LIST,
-    ]);
+    .mockResolvedValue([SemVer.fromString(U.INITIAL_VERSION), U.DEFAULT_COMMIT_LIST]);
 
   /*
   jest.spyOn(core, "info").mockImplementation(console.log);
@@ -109,46 +104,33 @@ describe("Bump functionality", () => {
     },
   ];
 
-  test.each(bumpTests)(
-    "$testDescription",
-    async ({ messages, prTitle, expectedVersion }) => {
-      jest.spyOn(github, "getPullRequestTitle").mockResolvedValue(prTitle);
-      jest
-        .spyOn(github, "matchTagsToCommits")
-        .mockResolvedValue([
-          SemVer.fromString(U.INITIAL_VERSION),
-          messages.concat(U.DEFAULT_COMMIT_LIST),
-        ]);
+  test.each(bumpTests)("$testDescription", async ({ messages, prTitle, expectedVersion }) => {
+    jest.spyOn(github, "getPullRequestTitle").mockResolvedValue(prTitle);
+    jest
+      .spyOn(github, "matchTagsToCommits")
+      .mockResolvedValue([SemVer.fromString(U.INITIAL_VERSION), messages.concat(U.DEFAULT_COMMIT_LIST)]);
 
-      await bumpaction.exportedForTesting.run();
-      expect(core.info).toHaveBeenCalledWith(
-        expect.stringContaining(`Found SemVer tag: ${U.INITIAL_VERSION}`)
+    await bumpaction.exportedForTesting.run();
+    expect(core.info).toHaveBeenCalledWith(expect.stringContaining(`Found SemVer tag: ${U.INITIAL_VERSION}`));
+    if (expectedVersion == "") {
+      expect(core.info).toHaveBeenCalledWith(expect.stringContaining(`No bump necessary`));
+    } else {
+      expect(github.createTag).not.toHaveBeenCalled();
+      expect(github.createRelease).toHaveBeenCalledTimes(1);
+      expect(github.createRelease).toHaveBeenCalledWith(
+        expectedVersion,
+        U.HEAD_SHA,
+        U.CHANGELOG_PLACEHOLDER,
+        false,
+        false
       );
-      if (expectedVersion == "") {
-        expect(core.info).toHaveBeenCalledWith(
-          expect.stringContaining(`No bump necessary`)
-        );
-      } else {
-        expect(github.createTag).not.toHaveBeenCalled();
-        expect(github.createRelease).toHaveBeenCalledTimes(1);
-        expect(github.createRelease).toHaveBeenCalledWith(
-          expectedVersion,
-          U.HEAD_SHA,
-          U.CHANGELOG_PLACEHOLDER,
-          false,
-          false
-        );
-      }
-      expect(core.setOutput).toBeCalledWith(
-        "current-version",
-        U.INITIAL_VERSION
-      );
-      expect(core.setOutput).toBeCalledWith("next-version", expectedVersion);
-      expect(core.warning).not.toHaveBeenCalled();
-      expect(core.error).not.toHaveBeenCalled();
-      expect(core.setFailed).not.toHaveBeenCalled();
     }
-  );
+    expect(core.setOutput).toBeCalledWith("current-version", U.INITIAL_VERSION);
+    expect(core.setOutput).toBeCalledWith("next-version", expectedVersion);
+    expect(core.warning).not.toHaveBeenCalled();
+    expect(core.error).not.toHaveBeenCalled();
+    expect(core.setFailed).not.toHaveBeenCalled();
+  });
 });
 
 describe("Releases and tags", () => {
@@ -170,33 +152,27 @@ describe("Releases and tags", () => {
   ];
 
   test.each(relTests)("$desc", async ({ rel, tag }) => {
-    jest
-      .spyOn(core, "getBooleanInput")
-      .mockImplementation((setting, options?) => {
-        switch (setting) {
-          case "create-release":
-            return rel;
-          case "create-tag":
-            return tag;
-          case "create-changelog":
-            return true;
-        }
-        return false;
-      });
+    jest.spyOn(core, "getBooleanInput").mockImplementation((setting, options?) => {
+      switch (setting) {
+        case "create-release":
+          return rel;
+        case "create-tag":
+          return tag;
+        case "create-changelog":
+          return true;
+      }
+      return false;
+    });
 
     await bumpaction.exportedForTesting.run();
     if (!rel && !tag) {
       expect(core.startGroup).toHaveBeenCalledWith(
-        expect.stringContaining(
-          `Not creating tag or release for ${U.PATCH_BUMPED_VERSION}..`
-        )
+        expect.stringContaining(`Not creating tag or release for ${U.PATCH_BUMPED_VERSION}..`)
       );
       expect(github.createTag).not.toHaveBeenCalled();
       expect(github.createRelease).not.toHaveBeenCalled();
     } else if (!rel && tag) {
-      expect(core.startGroup).toHaveBeenCalledWith(
-        expect.stringContaining(`Creating tag ${U.PATCH_BUMPED_VERSION}..`)
-      );
+      expect(core.startGroup).toHaveBeenCalledWith(expect.stringContaining(`Creating tag ${U.PATCH_BUMPED_VERSION}..`));
       expect(github.createTag).toHaveBeenCalledTimes(1);
       expect(github.createRelease).not.toHaveBeenCalled();
     } else if (rel && !tag) {
@@ -208,9 +184,7 @@ describe("Releases and tags", () => {
       expect(changelog.generateChangelog).toHaveBeenCalledTimes(1);
     } else {
       expect(core.warning).toHaveBeenCalledTimes(1);
-      expect(core.warning).toHaveBeenCalledWith(
-        expect.stringContaining("not needed")
-      );
+      expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("not needed"));
       // Warn only when both are set; release takes precedence
       expect(github.createRelease).toHaveBeenCalledTimes(1);
       expect(github.createTag).not.toHaveBeenCalled();
@@ -226,10 +200,7 @@ describe("Trouble bumping", () => {
   beforeEach(() => {
     jest
       .spyOn(github, "matchTagsToCommits")
-      .mockResolvedValue([
-        SemVer.fromString(U.INITIAL_VERSION),
-        [U.PATCH_MSG].concat(U.DEFAULT_COMMIT_LIST),
-      ]);
+      .mockResolvedValue([SemVer.fromString(U.INITIAL_VERSION), [U.PATCH_MSG].concat(U.DEFAULT_COMMIT_LIST)]);
   });
 
   test("no matching tags found", async () => {
@@ -239,14 +210,10 @@ describe("Trouble bumping", () => {
         commitSha: "000",
       },
     ]);
-    jest
-      .spyOn(github, "matchTagsToCommits")
-      .mockResolvedValue([null, [U.PATCH_MSG].concat(U.DEFAULT_COMMIT_LIST)]);
+    jest.spyOn(github, "matchTagsToCommits").mockResolvedValue([null, [U.PATCH_MSG].concat(U.DEFAULT_COMMIT_LIST)]);
     await bumpaction.exportedForTesting.run();
     expect(core.warning).toHaveBeenCalledTimes(1);
-    expect(core.warning).toHaveBeenCalledWith(
-      expect.stringContaining("No matching SemVer tags found")
-    );
+    expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("No matching SemVer tags found"));
 
     expect(core.setOutput).toBeCalledWith("current-version", "");
     expect(core.setOutput).toBeCalledWith("next-version", "");
@@ -261,16 +228,12 @@ describe("Trouble bumping", () => {
       .spyOn(github, "matchTagsToCommits")
       .mockResolvedValue([
         SemVer.fromString(U.INITIAL_VERSION),
-        [U.toICommit(invalidMessage), U.PATCH_MSG].concat(
-          U.DEFAULT_COMMIT_LIST
-        ),
+        [U.toICommit(invalidMessage), U.PATCH_MSG].concat(U.DEFAULT_COMMIT_LIST),
       ]);
 
     await bumpaction.exportedForTesting.run();
     // Warning about compliance, as well as what's wrong with the commit(s)
-    expect(core.warning).toHaveBeenCalledWith(
-      expect.stringContaining("not comply")
-    );
+    expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("not comply"));
     expect(core.warning).toHaveBeenCalledWith(
       expect.stringContaining("C001"), // Type tag lower case
       { title: expect.stringContaining(invalidMessage) }
@@ -282,10 +245,7 @@ describe("Trouble bumping", () => {
 
     // Still handle proper commits and bump correctly
     expect(core.setOutput).toBeCalledWith("current-version", U.INITIAL_VERSION);
-    expect(core.setOutput).toBeCalledWith(
-      "next-version",
-      U.PATCH_BUMPED_VERSION
-    );
+    expect(core.setOutput).toBeCalledWith("next-version", U.PATCH_BUMPED_VERSION);
 
     expect(core.error).not.toHaveBeenCalled();
     expect(core.setFailed).not.toHaveBeenCalled();
@@ -302,18 +262,11 @@ describe("Trouble bumping", () => {
     expect(github.getShaForTag).toHaveBeenCalledTimes(1);
 
     expect(core.setOutput).toBeCalledWith("current-version", U.INITIAL_VERSION);
-    expect(core.setOutput).toBeCalledWith(
-      "next-version",
-      U.PATCH_BUMPED_VERSION
-    );
+    expect(core.setOutput).toBeCalledWith("next-version", U.PATCH_BUMPED_VERSION);
 
     expect(core.error).not.toHaveBeenCalled();
-    expect(core.setFailed).toHaveBeenCalledWith(
-      expect.stringContaining("Unable to create release with the name")
-    );
-    expect(core.setFailed).toHaveBeenCalledWith(
-      expect.stringContaining("Mocked error")
-    );
+    expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining("Unable to create release with the name"));
+    expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining("Mocked error"));
   });
 
   test("can't create tag, random HTTP error", async () => {
@@ -326,43 +279,27 @@ describe("Trouble bumping", () => {
     expect(github.getShaForTag).toHaveBeenCalledTimes(1);
 
     expect(core.setOutput).toBeCalledWith("current-version", U.INITIAL_VERSION);
-    expect(core.setOutput).toBeCalledWith(
-      "next-version",
-      U.PATCH_BUMPED_VERSION
-    );
+    expect(core.setOutput).toBeCalledWith("next-version", U.PATCH_BUMPED_VERSION);
 
     expect(core.error).not.toHaveBeenCalled();
-    expect(core.setFailed).toHaveBeenCalledWith(
-      expect.stringContaining("Unable to create release with the name")
-    );
-    expect(core.setFailed).toHaveBeenCalledWith(
-      expect.stringContaining("Mocked error")
-    );
+    expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining("Unable to create release with the name"));
+    expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining("Mocked error"));
   });
 
   test("tag already exists", async () => {
     jest.spyOn(github, "getShaForTag").mockResolvedValue("123456");
-    jest
-      .spyOn(github, "createRelease")
-      .mockRejectedValue(U.getMockRequestError(422));
+    jest.spyOn(github, "createRelease").mockRejectedValue(U.getMockRequestError(422));
 
     await bumpaction.exportedForTesting.run();
 
     expect(github.getShaForTag).toHaveBeenCalledTimes(1);
-    expect(github.getShaForTag).toHaveBeenCalledWith(
-      `refs/tags/${U.PATCH_BUMPED_VERSION}`
-    );
+    expect(github.getShaForTag).toHaveBeenCalledWith(`refs/tags/${U.PATCH_BUMPED_VERSION}`);
 
     expect(core.setOutput).toBeCalledWith("current-version", U.INITIAL_VERSION);
-    expect(core.setOutput).toBeCalledWith(
-      "next-version",
-      U.PATCH_BUMPED_VERSION
-    );
+    expect(core.setOutput).toBeCalledWith("next-version", U.PATCH_BUMPED_VERSION);
 
     expect(core.error).not.toHaveBeenCalled();
-    expect(core.setFailed).toHaveBeenCalledWith(
-      expect.stringContaining("currently points to 123456")
-    );
+    expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining("currently points to 123456"));
   });
 });
 
@@ -394,10 +331,7 @@ describe("Initial development", () => {
     );
 
     // Bump minor, not major
-    expect(core.setOutput).toBeCalledWith(
-      "current-version",
-      INITIAL_DEVELOPMENT_VERSION
-    );
+    expect(core.setOutput).toBeCalledWith("current-version", INITIAL_DEVELOPMENT_VERSION);
     expect(core.setOutput).toBeCalledWith(
       "next-version",
       SemVer.fromString(INITIAL_DEVELOPMENT_VERSION)?.nextMinor().toString()
@@ -408,35 +342,19 @@ describe("Initial development", () => {
   });
 
   test("first non-initial development build bumps major regardless", async () => {
-    jest
-      .spyOn(fs, "readFileSync")
-      .mockReturnValue("initial-development: false");
+    jest.spyOn(fs, "readFileSync").mockReturnValue("initial-development: false");
     jest
       .spyOn(github, "matchTagsToCommits")
-      .mockResolvedValue([
-        SemVer.fromString(INITIAL_DEVELOPMENT_VERSION),
-        U.DEFAULT_COMMIT_LIST,
-      ]);
+      .mockResolvedValue([SemVer.fromString(INITIAL_DEVELOPMENT_VERSION), U.DEFAULT_COMMIT_LIST]);
 
     await bumpaction.exportedForTesting.run();
-    expect(core.warning).toHaveBeenCalledWith(
-      expect.stringContaining("Enforcing version `1.0.0`")
-    );
+    expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("Enforcing version `1.0.0`"));
 
     // Bump major, even with non-bumping commits
-    expect(core.setOutput).toBeCalledWith(
-      "current-version",
-      INITIAL_DEVELOPMENT_VERSION
-    );
+    expect(core.setOutput).toBeCalledWith("current-version", INITIAL_DEVELOPMENT_VERSION);
     expect(core.setOutput).toBeCalledWith("next-version", "1.0.0");
     expect(github.createRelease).toHaveBeenCalledTimes(1);
-    expect(github.createRelease).toHaveBeenCalledWith(
-      "1.0.0",
-      U.HEAD_SHA,
-      U.CHANGELOG_PLACEHOLDER,
-      false,
-      false
-    );
+    expect(github.createRelease).toHaveBeenCalledWith("1.0.0", U.HEAD_SHA, U.CHANGELOG_PLACEHOLDER, false, false);
 
     expect(core.error).not.toHaveBeenCalled();
     expect(core.setFailed).not.toHaveBeenCalled();
@@ -452,26 +370,21 @@ describe("Create changelog", () => {
   beforeEach(() => {
     jest
       .spyOn(github, "matchTagsToCommits")
-      .mockResolvedValue([
-        SemVer.fromString(U.INITIAL_VERSION),
-        [U.toICommit("fix: valid message")],
-      ]);
+      .mockResolvedValue([SemVer.fromString(U.INITIAL_VERSION), [U.toICommit("fix: valid message")]]);
   });
 
   test.each(createChangelogInput)("$desc", async ({ createChangelog }) => {
-    jest
-      .spyOn(core, "getBooleanInput")
-      .mockImplementation((setting, options?) => {
-        switch (setting) {
-          case "create-release":
-            return true;
-          case "create-tag":
-            return false;
-          case "create-changelog":
-            return createChangelog;
-        }
-        return false;
-      });
+    jest.spyOn(core, "getBooleanInput").mockImplementation((setting, options?) => {
+      switch (setting) {
+        case "create-release":
+          return true;
+        case "create-tag":
+          return false;
+        case "create-changelog":
+          return createChangelog;
+      }
+      return false;
+    });
 
     await bumpaction.exportedForTesting.run();
     if (createChangelog) {
@@ -487,13 +400,7 @@ describe("Create changelog", () => {
     } else {
       expect(changelog.generateChangelog).not.toHaveBeenCalled();
       expect(github.createRelease).toHaveBeenCalledTimes(1);
-      expect(github.createRelease).toHaveBeenCalledWith(
-        U.PATCH_BUMPED_VERSION,
-        U.HEAD_SHA,
-        "",
-        false,
-        false
-      );
+      expect(github.createRelease).toHaveBeenCalledWith(U.PATCH_BUMPED_VERSION, U.HEAD_SHA, "", false, false);
     }
   });
 });

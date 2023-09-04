@@ -24,13 +24,9 @@ export const toICommit = msg => ({
 export const PATCH_MSG = toICommit("fix: something");
 export const MINOR_MSG = toICommit("feat: add something");
 export const MAJOR_MSG = toICommit("chore!: make and break something");
-export const MAJOR_MSG_FOOTER = toICommit(
-  "fix: break\n\nBREAKING-CHANGE: something"
-);
+export const MAJOR_MSG_FOOTER = toICommit("fix: break\n\nBREAKING-CHANGE: something");
 export const NONE_MSG1 = toICommit("perf: make something faster");
-export const NONE_MSG2 = toICommit(
-  "refactor: make something easier to maintain"
-);
+export const NONE_MSG2 = toICommit("refactor: make something easier to maintain");
 export const NONE_MSG3 = toICommit("build: make something more efficiently");
 export const PRTITLE = type_ => `${type_}: simple PR title`;
 

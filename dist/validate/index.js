@@ -11726,15 +11726,12 @@ function getVersionBumpTypeAndMessages(prefix, targetSha, config) {
         };
         const [version, commitList] = yield (0, github_1.matchTagsToCommits)(targetSha, tagMatcher);
         const results = processCommitsForBump(commitList, config);
-        const convCommits = results
-            .map(r => r.message)
-            .filter((r) => r !== undefined);
+        const convCommits = results.map(r => r.message).filter((r) => r !== undefined);
         return {
             foundVersion: version,
             requiredBump: getVersionBumpType(convCommits),
             processedCommits: results,
-            initialDevelopment: config.initialDevelopment &&
-                (!version || (version && version.major === 0)),
+            initialDevelopment: config.initialDevelopment && (!version || (version && version.major === 0)),
         };
     });
 }
@@ -11753,9 +11750,7 @@ exports.getVersionBumpTypeAndMessages = getVersionBumpTypeAndMessages;
  */
 function tryUpdateDraftRelease(cv, changelog, sha) {
     return __awaiter(this, void 0, void 0, function* () {
-        const preStem = cv.prerelease
-            ? `-${cv.prerelease.replace(/(.+?)\d.*/, "$1")}`
-            : "";
+        const preStem = cv.prerelease ? `-${cv.prerelease.replace(/(.+?)\d.*/, "$1")}` : "";
         const latestDraftRelease = yield (0, github_1.getRelease)({
             prefixToMatch: cv.prefix,
             draftOnly: true,
@@ -11869,8 +11864,7 @@ function publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllow
                         isRc // prerelease
                         );
                         if (!updated) {
-                            core.info(`Error renaming existing draft release, ` +
-                                `creating new draft release.`);
+                            core.info(`Error renaming existing draft release, ` + `creating new draft release.`);
                         }
                     }
                     if (!updated) {
@@ -11957,9 +11951,7 @@ function bumpSemVer(config, bumpInfo, releaseMode, branchName, headSha, isBranch
         if (!bumped && config.prereleasePrefix !== undefined) {
             // When configured to create GitHub releases, and the `bump-prereleases` config item
             // evaluates to `true`.
-            if (isBranchAllowedToPublish &&
-                !(0, github_1.isPullRequestEvent)() &&
-                releaseMode === "release") {
+            if (isBranchAllowedToPublish && !(0, github_1.isPullRequestEvent)() && releaseMode === "release") {
                 // Create/rename draft release
                 const ver = yield bumpDraftRelease(bumpInfo, changelog, headSha, config.prereleasePrefix);
                 core.info(`ℹ️ Created draft prerelease version ${ver}`);
@@ -12017,8 +12009,7 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
         // Special case: we allow breaking changes on a release branch if that
         // release branch still contains an RC for the next API version, in which
         // case, the MINOR and PATCH fields will be 0 (1.2.3 -> 2.0.0-rc1)
-        if (hasBreakingChange &&
-            !(currentIsRc && currentVersion.minor === 0 && currentVersion.patch === 0)) {
+        if (hasBreakingChange && !(currentIsRc && currentVersion.minor === 0 && currentVersion.patch === 0)) {
             fatal("Breaking changes are not allowed on release branches.");
         }
         // Only bump if we need to; we don't want to generate a new RC or release
@@ -12048,8 +12039,7 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
                 // Also zero pad to at least two digits.
                 nextVersion = currentVersion.nextPrerelease(undefined, "", 2);
                 if (!nextVersion) {
-                    fatal(`Unable to bump RC version for: ${currentVersion.toString()}; ` +
-                        `make sure it contains an index number.`);
+                    fatal(`Unable to bump RC version for: ${currentVersion.toString()}; ` + `make sure it contains an index number.`);
                 }
             }
             else {
@@ -12206,9 +12196,7 @@ function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, bran
                     const toVersion = 
                     // Since "dev" releases on non-release-branches result in a draft
                     // release, we'll need to use the commit sha.
-                    sdkVerBumpType === "dev" && !isReleaseBranch
-                        ? shortSha(headSha)
-                        : nextVersion.toString();
+                    sdkVerBumpType === "dev" && !isReleaseBranch ? shortSha(headSha) : nextVersion.toString();
                     changelog = yield (0, changelog_1.generateChangelogForCommits)(previousRelease.name, toVersion, yield collectChangelogCommits(previousRelease.name, config));
                 }
                 else {
@@ -12226,9 +12214,7 @@ function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, bran
         else {
             // Create a release branch for releases and RC's if we're configured to do so
             // and are currently not running on a release branch.
-            if (config.sdkverCreateReleaseBranches !== undefined &&
-                !isReleaseBranch &&
-                sdkVerBumpType !== "dev") {
+            if (config.sdkverCreateReleaseBranches !== undefined && !isReleaseBranch && sdkVerBumpType !== "dev") {
                 const releaseBranchName = `${config.sdkverCreateReleaseBranches}${nextVersion.major}.${nextVersion.minor}`;
                 core.info(`Creating release branch ${releaseBranchName}..`);
                 try {
@@ -12277,9 +12263,7 @@ function collectChangelogCommits(previousRelease, config) {
             `${commits.map(c => c.message.split("\n")[0]).join("\n-> ")}`);
         const processedCommits = processCommitsForBump(commits, config);
         core.endGroup();
-        return processedCommits
-            .map(c => c.message)
-            .filter(c => c);
+        return processedCommits.map(c => c.message).filter(c => c);
     });
 }
 
@@ -12420,9 +12404,7 @@ function getIssueReferenceSuffix(commit) {
 function generateChangelogEntry(commit) {
     return __awaiter(this, void 0, void 0, function* () {
         const { owner, repo } = github_1.context.repo;
-        let changelogEntry = `${commit.description
-            .charAt(0)
-            .toUpperCase()}${commit.description.slice(1)}`;
+        let changelogEntry = `${commit.description.charAt(0).toUpperCase()}${commit.description.slice(1)}`;
         changelogEntry += yield getPullRequestSuffix(commit);
         changelogEntry += getIssueReferenceSuffix(commit);
         if (commit.hexsha) {
@@ -12491,12 +12473,10 @@ function generateChangelogForCommits(startVersion, endVersion, commitList) {
                     //       and instead rely on version bump label associated with this
                     //       commit.
                     labels = labels.concat(pullRequest.labels
-                        .filter(label => !Label.isCategory(label.name, "bump") &&
-                        !Label.isCategory(label.name, "scope"))
+                        .filter(label => !Label.isCategory(label.name, "bump") && !Label.isCategory(label.name, "scope"))
                         .map(label => label.name));
                     // Check if the author of the Pull Request is part of the exclude list
-                    if (pullRequest.user &&
-                        ((_c = (_b = config.changelog.exclude) === null || _b === void 0 ? void 0 : _b.authors) === null || _c === void 0 ? void 0 : _c.includes(pullRequest.user.login))) {
+                    if (pullRequest.user && ((_c = (_b = config.changelog.exclude) === null || _b === void 0 ? void 0 : _b.authors) === null || _c === void 0 ? void 0 : _c.includes(pullRequest.user.login))) {
                         continue;
                     }
                 }
@@ -12507,9 +12487,7 @@ function generateChangelogForCommits(startVersion, endVersion, commitList) {
             }
             // Either group commits per Conventional Commit scope, or group them all
             // together (*)
-            const scope = config.changelog.group === "scope"
-                ? ((_d = commit === null || commit === void 0 ? void 0 : commit.scope) === null || _d === void 0 ? void 0 : _d.toLowerCase()) || "*"
-                : "*";
+            const scope = config.changelog.group === "scope" ? ((_d = commit === null || commit === void 0 ? void 0 : commit.scope) === null || _d === void 0 ? void 0 : _d.toLowerCase()) || "*" : "*";
             changelog.set(scope, (_e = changelog.get(scope)) !== null && _e !== void 0 ? _e : new Map());
             for (const category of config.changelog.categories) {
                 // Apply all exclusion patterns from Pull Request metadata on Category
@@ -12517,9 +12495,7 @@ function generateChangelogForCommits(startVersion, endVersion, commitList) {
                     continue;
                 }
                 // Validate whether the commit matches any of the inclusion patterns
-                if (!labels
-                    .concat([bumpLabel, "*"])
-                    .some(label => { var _a; return (_a = category.labels) === null || _a === void 0 ? void 0 : _a.includes(label); })) {
+                if (!labels.concat([bumpLabel, "*"]).some(label => { var _a; return (_a = category.labels) === null || _a === void 0 ? void 0 : _a.includes(label); })) {
                     continue;
                 }
                 if (((_f = changelog.get(scope)) === null || _f === void 0 ? void 0 : _f.get(category.title)) === undefined) {
@@ -12541,9 +12517,7 @@ function generateChangelogForCommits(startVersion, endVersion, commitList) {
             }
             for (const [category, messages] of categories) {
                 if (messages.length > 0) {
-                    formattedChangelog += isGrouped
-                        ? `#### ${category}\n`
-                        : `### ${category}\n`;
+                    formattedChangelog += isGrouped ? `#### ${category}\n` : `### ${category}\n`;
                     for (const message of messages) {
                         formattedChangelog += `* ${message}\n`;
                     }
@@ -12553,8 +12527,7 @@ function generateChangelogForCommits(startVersion, endVersion, commitList) {
         const { owner, repo } = github_1.context.repo;
         const diffRange = `${startVersion}...${endVersion || github_1.context.sha.substring(0, 8)}`;
         formattedChangelog +=
-            `\n\n*Diff since last release: ` +
-                `[${diffRange}](https://github.com/${owner}/${repo}/compare/${diffRange})*`;
+            `\n\n*Diff since last release: ` + `[${diffRange}](https://github.com/${owner}/${repo}/compare/${diffRange})*`;
         return formattedChangelog;
     });
 }
@@ -12566,9 +12539,7 @@ exports.generateChangelogForCommits = generateChangelogForCommits;
 function generateChangelog(bump) {
     var _a, _b, _c, _d, _e;
     return __awaiter(this, void 0, void 0, function* () {
-        return yield generateChangelogForCommits((_b = (_a = bump.foundVersion) === null || _a === void 0 ? void 0 : _a.toString()) !== null && _b !== void 0 ? _b : "", (_e = (_d = (_c = bump.foundVersion) === null || _c === void 0 ? void 0 : _c.bump(bump.requiredBump, bump.initialDevelopment)) === null || _d === void 0 ? void 0 : _d.toString()) !== null && _e !== void 0 ? _e : "", bump.processedCommits
-            .map(c => c.message)
-            .filter(c => c));
+        return yield generateChangelogForCommits((_b = (_a = bump.foundVersion) === null || _a === void 0 ? void 0 : _a.toString()) !== null && _b !== void 0 ? _b : "", (_e = (_d = (_c = bump.foundVersion) === null || _c === void 0 ? void 0 : _c.bump(bump.requiredBump, bump.initialDevelopment)) === null || _d === void 0 ? void 0 : _d.toString()) !== null && _e !== void 0 ? _e : "", bump.processedCommits.map(c => c.message).filter(c => c));
     });
 }
 exports.generateChangelog = generateChangelog;
@@ -13085,9 +13056,7 @@ class Configuration {
                      *   sdkver-create-release-branches: "rel-"
                      */
                     if (typeof data[key] === "boolean") {
-                        this.sdkverCreateReleaseBranches = data[key]
-                            ? "release/"
-                            : undefined;
+                        this.sdkverCreateReleaseBranches = data[key] ? "release/" : undefined;
                     }
                     else if (typeof data[key] === "string") {
                         this.sdkverCreateReleaseBranches = data[key];
@@ -13098,8 +13067,7 @@ class Configuration {
                     break;
             }
         }
-        if (this.sdkverCreateReleaseBranches !== undefined &&
-            this.versionScheme !== "sdkver") {
+        if (this.sdkverCreateReleaseBranches !== undefined && this.versionScheme !== "sdkver") {
             core.warning("The configuration option `sdkver-create-release-branches` is only relevant " +
                 'when the `version-scheme` is set to `"sdkver"`.');
         }
@@ -13384,8 +13352,7 @@ function getRelease(params) {
             .filter(r => r.isDraft === params.draftOnly)
             .filter(r => {
             const asSemVer = semver_1.SemVer.fromString(r.tagName);
-            return ((asSemVer === null || asSemVer === void 0 ? void 0 : asSemVer.prefix) === params.prefixToMatch &&
-                (params.fullReleasesOnly ? (asSemVer === null || asSemVer === void 0 ? void 0 : asSemVer.prerelease) === "" : true));
+            return ((asSemVer === null || asSemVer === void 0 ? void 0 : asSemVer.prefix) === params.prefixToMatch && (params.fullReleasesOnly ? (asSemVer === null || asSemVer === void 0 ? void 0 : asSemVer.prerelease) === "" : true));
         })
             .map(r => ({ id: r.id, name: r.tagName }))
             .sort((lhs, rhs) => semver_1.SemVer.sortSemVer(lhs.name, rhs.name));
@@ -13395,12 +13362,9 @@ function getRelease(params) {
             // take the first major/minor version lower than the constraint we encounter.
             releaseList.reverse();
             for (const r of releaseList) {
-                core.debug(`checking release ${r.name} against constraint ` +
-                    `${params.constraint.major}.${params.constraint.minor}.*`);
+                core.debug(`checking release ${r.name} against constraint ` + `${params.constraint.major}.${params.constraint.minor}.*`);
                 const sv = semver_1.SemVer.fromString(r.name);
-                if (sv &&
-                    sv.major <= params.constraint.major &&
-                    sv.minor <= params.constraint.minor) {
+                if (sv && sv.major <= params.constraint.major && sv.minor <= params.constraint.minor) {
                     return r;
                 }
             }
@@ -13570,9 +13534,7 @@ function getLatestTags(pageSize) {
     `);
         const tagList = result.repository.refs.edges.map(x => ({
             name: x.node.name,
-            commitSha: x.node.reftarget.tagtarget
-                ? x.node.reftarget.tagtarget.commitsha
-                : x.node.reftarget.commitsha,
+            commitSha: x.node.reftarget.tagtarget ? x.node.reftarget.tagtarget.commitsha : x.node.reftarget.commitsha,
         }));
         return tagList;
     });
@@ -13825,21 +13787,15 @@ class LlvmMessage {
         if (this.line === undefined) {
             return undefined;
         }
-        const indicatorColor = this.expectations
-            ? TextFormat.LIGHT_GREEN
-            : TextFormat.RED;
-        let indicator = this.line.trimEnd() +
-            os_1.EOL +
-            " ".repeat(this.columnNumber.start - 1) +
-            formatString("^", indicatorColor);
+        const indicatorColor = this.expectations ? TextFormat.LIGHT_GREEN : TextFormat.RED;
+        let indicator = this.line.trimEnd() + os_1.EOL + " ".repeat(this.columnNumber.start - 1) + formatString("^", indicatorColor);
         if (this.columnNumber.range !== undefined) {
             if (this.columnNumber.range > 1) {
                 indicator += formatString("~".repeat(this.columnNumber.range - 1), indicatorColor);
             }
         }
         if (this.expectations !== undefined) {
-            indicator +=
-                os_1.EOL + " ".repeat(this.columnNumber.start - 1) + this.expectations;
+            indicator += os_1.EOL + " ".repeat(this.columnNumber.start - 1) + this.expectations;
         }
         return indicator;
     }
@@ -13995,8 +13951,7 @@ class TitleCaseDescription {
         this.default = true;
     }
     validate(message, _) {
-        if (message.description &&
-            !message.description.startsWith(message.description[0].toLowerCase())) {
+        if (message.description && !message.description.startsWith(message.description[0].toLowerCase())) {
             throw new logging_1.LlvmError({
                 message: `[${this.id}] ${this.description}`,
                 line: message.subject,
@@ -14023,9 +13978,7 @@ class UnknownTagType {
         }
         if (!(message.type in config.tags)) {
             const matches = difflib.getCloseMatches(message.type.toLowerCase(), Object.keys(config.tags));
-            const closestMatch = matches
-                ? matches[0]
-                : Object.keys(config.tags).join(", ");
+            const closestMatch = matches ? matches[0] : Object.keys(config.tags).join(", ");
             throw new logging_1.LlvmError({
                 message: `[${this.id}] ${this.description}. Use one of: ${Object.keys(config.tags).join(", ")}`,
                 line: message.subject,
@@ -14127,8 +14080,7 @@ class MissingSeparator {
                 start: Math.max(1, message.subject.indexOf(" ") + 1),
             };
             if (message.scope) {
-                columnNumber.start =
-                    message.subject.indexOf(message.scope) + message.scope.length + 2;
+                columnNumber.start = message.subject.indexOf(message.scope) + message.scope.length + 2;
             }
             else if (message.breakingChange) {
                 columnNumber.start = message.subject.indexOf(message.breakingChange);
@@ -14171,8 +14123,7 @@ class BreakingIndicatorContainsWhitespacing {
         this.default = true;
     }
     validate(message, _) {
-        if (message.breakingChange &&
-            message.breakingChange.trim() !== message.breakingChange) {
+        if (message.breakingChange && message.breakingChange.trim() !== message.breakingChange) {
             throw new logging_1.LlvmError({
                 message: `[${this.id}] ${this.description}`,
                 line: message.subject,
@@ -14280,15 +14231,12 @@ class NoRepeatedTags {
         if (message.description === undefined || message.type === undefined) {
             return;
         }
-        if (message.description.split(" ")[0].toLowerCase() ===
-            message.type.toLowerCase()) {
+        if (message.description.split(" ")[0].toLowerCase() === message.type.toLowerCase()) {
             throw new logging_1.LlvmError({
                 message: `[${this.id}] ${this.description}`,
                 line: message.subject,
                 columnNumber: {
-                    start: message.subject.indexOf(message.separator) +
-                        message.separator.length +
-                        1,
+                    start: message.subject.indexOf(message.separator) + message.separator.length + 1,
                     range: message.type.length,
                 },
             });
@@ -14657,7 +14605,7 @@ var SemVerType;
     SemVerType[SemVerType["MAJOR"] = 3] = "MAJOR";
 })(SemVerType = exports.SemVerType || (exports.SemVerType = {}));
 class SemVer {
-    constructor({ major, minor, patch, prerelease = "", build = "", prefix = "", }) {
+    constructor({ major, minor, patch, prerelease = "", build = "", prefix = "" }) {
         this.major = major;
         this.minor = minor;
         this.patch = patch;
@@ -14810,11 +14758,7 @@ class SemVer {
         const lhs = typeof a === "string" ? SemVer.fromString(a) : a;
         const rhs = typeof b === "string" ? SemVer.fromString(b) : b;
         if (lhs === null || rhs === null) {
-            return lhs === null && rhs !== null
-                ? -1
-                : rhs === null && lhs !== null
-                    ? 1
-                    : 0;
+            return lhs === null && rhs !== null ? -1 : rhs === null && lhs !== null ? 1 : 0;
         }
         let allVersionFieldsEqual = false;
         if (lhs.major < rhs.major)
@@ -14979,9 +14923,7 @@ function outputCommitErrors(message, errors, sha, useErrorLevel) {
         }
         const outputFunc = useErrorLevel ? core.error : core.warning;
         outputFunc(error.message, {
-            title: isPullRequestTitle
-                ? `(PR title) ${message}`
-                : `(Commit ${sha.slice(0, 8)}) ${message}`,
+            title: isPullRequestTitle ? `(PR title) ${message}` : `(Commit ${sha.slice(0, 8)}) ${message}`,
         });
         const indicatorMaybe = error.indicator();
         if (indicatorMaybe) {
@@ -15026,8 +14968,7 @@ function processCommits(commits, config) {
                     errors: error.errors,
                 });
             }
-            else if (error instanceof errors_1.MergeCommitError ||
-                error instanceof errors_1.FixupCommitError) {
+            else if (error instanceof errors_1.MergeCommitError || error instanceof errors_1.FixupCommitError) {
                 continue;
             }
         }
@@ -15077,8 +15018,7 @@ function validatePrTitle(config) {
         let errors = [];
         let conventionalCommitMessage;
         core.info(""); // for vertical whitespace
-        let errorMessage = "The pull request title is not compliant " +
-            "with the Conventional Commits specification";
+        let errorMessage = "The pull request title is not compliant " + "with the Conventional Commits specification";
         try {
             conventionalCommitMessage = new commit_1.ConventionalCommitMessage(prTitleText);
         }
@@ -15145,9 +15085,7 @@ function validatePrTitleBump(config) {
             return accb > valb ? acc : val;
         }).message) === null || _a === void 0 ? void 0 : _a.bump) !== null && _b !== void 0 ? _b : semver_1.SemVerType.NONE;
         if (highestBump !== prTitle.bump) {
-            const commitSubjects = results
-                .map(r => { var _a; return (_a = r.message) === null || _a === void 0 ? void 0 : _a.subject; })
-                .filter(x => x !== undefined);
+            const commitSubjects = results.map(r => { var _a; return (_a = r.message) === null || _a === void 0 ? void 0 : _a.subject; }).filter(x => x !== undefined);
             core.setFailed("The PR title's bump level is not consistent with its commits.\n" +
                 `The PR title type ${prTitle.type} represents bump level ` +
                 `${semver_1.SemVerType[prTitle.bump]}, while the highest bump in the ` +

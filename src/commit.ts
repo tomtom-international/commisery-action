@@ -16,11 +16,7 @@
 
 import { Configuration } from "./config";
 import { validateRules } from "./rules";
-import {
-  ConventionalCommitError,
-  FixupCommitError,
-  MergeCommitError,
-} from "./errors";
+import { ConventionalCommitError, FixupCommitError, MergeCommitError } from "./errors";
 import { SemVerType } from "./semver";
 
 import * as os from "os";
@@ -28,8 +24,7 @@ import * as os from "os";
 const BREAKING_CHANGE_TOKEN = "BREAKING-CHANGE";
 const CONVENTIONAL_COMMIT_REGEX =
   /(?<type>\w+)?((\s*)?\((?<scope>[^()]*)\)(\s*)?)?(?<breakingChange>((\s*)+[!]+(\s*)?)?)(?<separator>((\s+)?:?(\s+)?))(?<description>.*)/;
-const FOOTER_REGEX =
-  /^(?<token>[\w-]+|BREAKING\sCHANGE|[\w-\s]+\sby)(?::[ ]|[ ](?=[#]))(?<value>.*)/;
+const FOOTER_REGEX = /^(?<token>[\w-]+|BREAKING\sCHANGE|[\w-\s]+\sby)(?::[ ]|[ ](?=[#]))(?<value>.*)/;
 
 /**
  * Conventional Commit Metadata used for validating
@@ -71,9 +66,7 @@ class Footer {
  * Parses a commit message (array) and populates
  * the classes properties.
  */
-export function getConventionalCommitMetadata(
-  message: string[]
-): ConventionalCommitMetadata {
+export function getConventionalCommitMetadata(message: string[]): ConventionalCommitMetadata {
   let footers: Footer[] = [];
   let body: string[] = [];
   let hasBreakingChange = false;
@@ -112,14 +105,10 @@ export function getConventionalCommitMetadata(
     }
   }
 
-  const conventionalSubject = message[0].match(
-    CONVENTIONAL_COMMIT_REGEX
-  )?.groups;
+  const conventionalSubject = message[0].match(CONVENTIONAL_COMMIT_REGEX)?.groups;
 
   if (conventionalSubject === undefined) {
-    throw new Error(
-      `Commit is not compliant to Conventional Commits (non-strict)`
-    );
+    throw new Error(`Commit is not compliant to Conventional Commits (non-strict)`);
   }
 
   const metadata: ConventionalCommitMetadata = {
@@ -151,11 +140,7 @@ export class ConventionalCommitMessage {
   subject: string;
   type: string;
 
-  constructor(
-    message: string,
-    hexsha: string | undefined = undefined,
-    config: Configuration = new Configuration()
-  ) {
+  constructor(message: string, hexsha: string | undefined = undefined, config: Configuration = new Configuration()) {
     const splitMessage: string[] = stripMessage(message).split(os.EOL);
 
     // Skip Mere and Fixup commits
@@ -173,20 +158,14 @@ export class ConventionalCommitMessage {
     // Initializes class based on commit message
     const metadata = getConventionalCommitMetadata(splitMessage);
     if (metadata === undefined) {
-      throw new ConventionalCommitError(
-        `Commit is not a Conventional Commit type!`,
-        []
-      );
+      throw new ConventionalCommitError(`Commit is not a Conventional Commit type!`, []);
     }
 
     // Validate whether this is a valid Conventional Commit
     const errors = validateRules(metadata, this.config);
 
     if (errors.length > 0) {
-      throw new ConventionalCommitError(
-        `Commit is not compliant to Conventional Commits!`,
-        errors
-      );
+      throw new ConventionalCommitError(`Commit is not compliant to Conventional Commits!`, errors);
     }
 
     this.body = metadata.body.slice(1).join(os.EOL);
@@ -251,9 +230,7 @@ function isMerge(subject: string): boolean {
 }
 
 function stripMessage(message): string {
-  const cutLine = message.indexOf(
-    "# ------------------------ >8 ------------------------\n"
-  );
+  const cutLine = message.indexOf("# ------------------------ >8 ------------------------\n");
 
   if (cutLine >= 0 && (cutLine === 0 || message[cutLine - 1] === "\n")) {
     message = message.substring(cutLine);

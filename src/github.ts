@@ -79,9 +79,7 @@ export async function getPullRequestTitle(): Promise<string> {
  * @param pullRequestId GitHub pull request ID
  * @returns ICommit[] List of ICommit objects
  */
-export async function getCommitsInPR(
-  pullRequestId: number
-): Promise<ICommit[]> {
+export async function getCommitsInPR(pullRequestId: number): Promise<ICommit[]> {
   // Retrieve commits from provided pull request
   const { data: commits } = await getOctokit().rest.pulls.listCommits({
     ...github.context.repo,
@@ -98,9 +96,7 @@ export async function getCommitsInPR(
  */
 export async function getPullRequest(
   pullRequestId: number
-): Promise<
-  octokit.RestEndpointMethodTypes["pulls"]["get"]["response"]["data"]
-> {
+): Promise<octokit.RestEndpointMethodTypes["pulls"]["get"]["response"]["data"]> {
   const { data: pr } = await getOctokit().rest.pulls.get({
     ...github.context.repo,
     pull_number: pullRequestId,
@@ -155,11 +151,7 @@ export async function getRelease(params: {
   fullReleasesOnly: boolean;
   constraint?: { major: number; minor: number };
 }): Promise<{ id: number; name: string } | undefined> {
-  core.info(
-    `getRelease: finding ${
-      params.draftOnly ? "draft " : ""
-    }release with the prefix: ${params.prefixToMatch}`
-  );
+  core.info(`getRelease: finding ${params.draftOnly ? "draft " : ""}release with the prefix: ${params.prefixToMatch}`);
   const octo = getOctokit();
 
   const result = (
@@ -186,16 +178,13 @@ export async function getRelease(params: {
     .filter(r => {
       const asSemVer = SemVer.fromString(r.tagName);
       return (
-        asSemVer?.prefix === params.prefixToMatch &&
-        (params.fullReleasesOnly ? asSemVer?.prerelease === "" : true)
+        asSemVer?.prefix === params.prefixToMatch && (params.fullReleasesOnly ? asSemVer?.prerelease === "" : true)
       );
     })
     .map(r => ({ id: r.id, name: r.tagName }))
     .sort((lhs, rhs) => SemVer.sortSemVer(lhs.name, rhs.name));
 
-  core.debug(
-    `getRelease: sorted list of releases:\n${JSON.stringify(releaseList)}`
-  );
+  core.debug(`getRelease: sorted list of releases:\n${JSON.stringify(releaseList)}`);
 
   if (params.constraint) {
     // We're sorted by precedence, highest last, so let's reverse it and we can
@@ -203,15 +192,10 @@ export async function getRelease(params: {
     releaseList.reverse();
     for (const r of releaseList) {
       core.debug(
-        `checking release ${r.name} against constraint ` +
-          `${params.constraint.major}.${params.constraint.minor}.*`
+        `checking release ${r.name} against constraint ` + `${params.constraint.major}.${params.constraint.minor}.*`
       );
       const sv = SemVer.fromString(r.name);
-      if (
-        sv &&
-        sv.major <= params.constraint.major &&
-        sv.minor <= params.constraint.minor
-      ) {
+      if (sv && sv.major <= params.constraint.major && sv.minor <= params.constraint.minor) {
         return r;
       }
     }
@@ -317,9 +301,7 @@ export async function matchTagsToCommits(
     for (const commit of resp.data) {
       match = matcher(commit.commit.message, commit.sha);
       if (match) {
-        core.debug(
-          `Matching on (${commit.sha}):${commit.commit.message.split("\n")[0]}`
-        );
+        core.debug(`Matching on (${commit.sha}):${commit.commit.message.split("\n")[0]}`);
         return [match, commitList];
       }
       commitList.push({ message: commit.commit.message, sha: commit.sha });
@@ -416,9 +398,7 @@ export async function getLatestTags(pageSize: number): Promise<IGitTag[]> {
     x =>
       ({
         name: x.node.name,
-        commitSha: x.node.reftarget.tagtarget
-          ? x.node.reftarget.tagtarget.commitsha
-          : x.node.reftarget.commitsha,
+        commitSha: x.node.reftarget.tagtarget ? x.node.reftarget.tagtarget.commitsha : x.node.reftarget.commitsha,
       } as IGitTag)
   );
 
@@ -430,15 +410,12 @@ export async function getLatestTags(pageSize: number): Promise<IGitTag[]> {
  */
 export async function getAssociatedPullRequests(
   sha: string
-): Promise<
-  octokit.RestEndpointMethodTypes["repos"]["listPullRequestsAssociatedWithCommit"]["response"]["data"]
-> {
+): Promise<octokit.RestEndpointMethodTypes["repos"]["listPullRequestsAssociatedWithCommit"]["response"]["data"]> {
   try {
-    const { data: prs } =
-      await getOctokit().rest.repos.listPullRequestsAssociatedWithCommit({
-        ...github.context.repo,
-        commit_sha: sha,
-      });
+    const { data: prs } = await getOctokit().rest.repos.listPullRequestsAssociatedWithCommit({
+      ...github.context.repo,
+      commit_sha: sha,
+    });
 
     return prs;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -458,11 +435,10 @@ export async function updateLabels(labels: string[]): Promise<void> {
   const issueId = getPullRequestId();
 
   // Retrieve current labels
-  const { data: pullRequestLabels } =
-    await getOctokit().rest.issues.listLabelsOnIssue({
-      ...github.context.repo,
-      issue_number: issueId,
-    });
+  const { data: pullRequestLabels } = await getOctokit().rest.issues.listLabelsOnIssue({
+    ...github.context.repo,
+    issue_number: issueId,
+  });
 
   try {
     // Remove all bump, type and initial development labels
@@ -535,15 +511,11 @@ export async function currentHeadMatchesTag(tagName: string): Promise<boolean> {
  *
  * Returns a list ICommits representing `baseRef...compRef`.
  */
-export async function getCommitsBetweenRefs(
-  baseRef: string,
-  compRef?: string
-): Promise<ICommit[]> {
-  const { data: resp } =
-    await getOctokit().rest.repos.compareCommitsWithBasehead({
-      ...github.context.repo,
-      basehead: `${baseRef}...${compRef ?? github.context.sha}`,
-    });
+export async function getCommitsBetweenRefs(baseRef: string, compRef?: string): Promise<ICommit[]> {
+  const { data: resp } = await getOctokit().rest.repos.compareCommitsWithBasehead({
+    ...github.context.repo,
+    basehead: `${baseRef}...${compRef ?? github.context.sha}`,
+  });
 
   return githubCommitsAsICommits(resp.commits);
 }

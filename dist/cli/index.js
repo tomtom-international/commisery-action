@@ -10216,10 +10216,7 @@ const red = "\x1b[91m";
 const green = "\x1b[92m";
 const yellow = "\x1b[93m";
 const reset = "\x1b[0m";
-program
-    .name("commisery")
-    .description("Commisery Conventional Commit Message Manager")
-    .option("-c, --config <string>");
+program.name("commisery").description("Commisery Conventional Commit Message Manager").option("-c, --config <string>");
 program
     .command("check")
     .description("Checks whether commit messages adhere to the Conventional Commits standard.")
@@ -10262,9 +10259,7 @@ program
     Conventional Commit types
     -------------------------`));
     for (const key in config.tags) {
-        const bumps = config.tags[key].bump && key !== "fix"
-            ? ` ${yellow}(bumps patch)${reset}`
-            : "";
+        const bumps = config.tags[key].bump && key !== "fix" ? ` ${yellow}(bumps patch)${reset}` : "";
         core.info(`${key}: ${gray}${config.tags[key].description}${reset}${bumps}`);
     }
     core.info(os.EOL);
@@ -10275,9 +10270,7 @@ program
     `));
     core.info(os.EOL);
     for (const rule in config.rules) {
-        const status = config.rules[rule].enabled
-            ? `${green}o${reset}`
-            : `${red}x${reset}`;
+        const status = config.rules[rule].enabled ? `${green}o${reset}` : `${red}x${reset}`;
         core.info(`[${status}] ${rule}: ${gray}${config.rules[rule].description}${reset}`);
     }
 });
@@ -10350,12 +10343,7 @@ function getCommitHashes(target) {
  */
 function getCommitMessage(target) {
     return __awaiter(this, void 0, void 0, function* () {
-        return yield (0, simple_git_1.simpleGit)(yield getRootPath()).show([
-            "-q",
-            "--format=%B",
-            target,
-            "--",
-        ]);
+        return yield (0, simple_git_1.simpleGit)(yield getRootPath()).show(["-q", "--format=%B", target, "--"]);
     });
 }
 /**
@@ -10366,8 +10354,7 @@ function getCommitMessages(target) {
     return __awaiter(this, void 0, void 0, function* () {
         const git = (0, simple_git_1.simpleGit)(yield getRootPath());
         let commitHashes = [];
-        if (/^[0-9a-fA-F]{40}$/.test(target.join(" ")) === false &&
-            (yield getCommitHashes(target)).length > 1) {
+        if (/^[0-9a-fA-F]{40}$/.test(target.join(" ")) === false && (yield getCommitHashes(target)).length > 1) {
             commitHashes = (yield git.raw(["rev-list"].concat(target).concat(["--"]))).split("\n");
         }
         else {
@@ -10900,9 +10887,7 @@ class Configuration {
                      *   sdkver-create-release-branches: "rel-"
                      */
                     if (typeof data[key] === "boolean") {
-                        this.sdkverCreateReleaseBranches = data[key]
-                            ? "release/"
-                            : undefined;
+                        this.sdkverCreateReleaseBranches = data[key] ? "release/" : undefined;
                     }
                     else if (typeof data[key] === "string") {
                         this.sdkverCreateReleaseBranches = data[key];
@@ -10913,8 +10898,7 @@ class Configuration {
                     break;
             }
         }
-        if (this.sdkverCreateReleaseBranches !== undefined &&
-            this.versionScheme !== "sdkver") {
+        if (this.sdkverCreateReleaseBranches !== undefined && this.versionScheme !== "sdkver") {
             core.warning("The configuration option `sdkver-create-release-branches` is only relevant " +
                 'when the `version-scheme` is set to `"sdkver"`.');
         }
@@ -11101,21 +11085,15 @@ class LlvmMessage {
         if (this.line === undefined) {
             return undefined;
         }
-        const indicatorColor = this.expectations
-            ? TextFormat.LIGHT_GREEN
-            : TextFormat.RED;
-        let indicator = this.line.trimEnd() +
-            os_1.EOL +
-            " ".repeat(this.columnNumber.start - 1) +
-            formatString("^", indicatorColor);
+        const indicatorColor = this.expectations ? TextFormat.LIGHT_GREEN : TextFormat.RED;
+        let indicator = this.line.trimEnd() + os_1.EOL + " ".repeat(this.columnNumber.start - 1) + formatString("^", indicatorColor);
         if (this.columnNumber.range !== undefined) {
             if (this.columnNumber.range > 1) {
                 indicator += formatString("~".repeat(this.columnNumber.range - 1), indicatorColor);
             }
         }
         if (this.expectations !== undefined) {
-            indicator +=
-                os_1.EOL + " ".repeat(this.columnNumber.start - 1) + this.expectations;
+            indicator += os_1.EOL + " ".repeat(this.columnNumber.start - 1) + this.expectations;
         }
         return indicator;
     }
@@ -11271,8 +11249,7 @@ class TitleCaseDescription {
         this.default = true;
     }
     validate(message, _) {
-        if (message.description &&
-            !message.description.startsWith(message.description[0].toLowerCase())) {
+        if (message.description && !message.description.startsWith(message.description[0].toLowerCase())) {
             throw new logging_1.LlvmError({
                 message: `[${this.id}] ${this.description}`,
                 line: message.subject,
@@ -11299,9 +11276,7 @@ class UnknownTagType {
         }
         if (!(message.type in config.tags)) {
             const matches = difflib.getCloseMatches(message.type.toLowerCase(), Object.keys(config.tags));
-            const closestMatch = matches
-                ? matches[0]
-                : Object.keys(config.tags).join(", ");
+            const closestMatch = matches ? matches[0] : Object.keys(config.tags).join(", ");
             throw new logging_1.LlvmError({
                 message: `[${this.id}] ${this.description}. Use one of: ${Object.keys(config.tags).join(", ")}`,
                 line: message.subject,
@@ -11403,8 +11378,7 @@ class MissingSeparator {
                 start: Math.max(1, message.subject.indexOf(" ") + 1),
             };
             if (message.scope) {
-                columnNumber.start =
-                    message.subject.indexOf(message.scope) + message.scope.length + 2;
+                columnNumber.start = message.subject.indexOf(message.scope) + message.scope.length + 2;
             }
             else if (message.breakingChange) {
                 columnNumber.start = message.subject.indexOf(message.breakingChange);
@@ -11447,8 +11421,7 @@ class BreakingIndicatorContainsWhitespacing {
         this.default = true;
     }
     validate(message, _) {
-        if (message.breakingChange &&
-            message.breakingChange.trim() !== message.breakingChange) {
+        if (message.breakingChange && message.breakingChange.trim() !== message.breakingChange) {
             throw new logging_1.LlvmError({
                 message: `[${this.id}] ${this.description}`,
                 line: message.subject,
@@ -11556,15 +11529,12 @@ class NoRepeatedTags {
         if (message.description === undefined || message.type === undefined) {
             return;
         }
-        if (message.description.split(" ")[0].toLowerCase() ===
-            message.type.toLowerCase()) {
+        if (message.description.split(" ")[0].toLowerCase() === message.type.toLowerCase()) {
             throw new logging_1.LlvmError({
                 message: `[${this.id}] ${this.description}`,
                 line: message.subject,
                 columnNumber: {
-                    start: message.subject.indexOf(message.separator) +
-                        message.separator.length +
-                        1,
+                    start: message.subject.indexOf(message.separator) + message.separator.length + 1,
                     range: message.type.length,
                 },
             });
@@ -11933,7 +11903,7 @@ var SemVerType;
     SemVerType[SemVerType["MAJOR"] = 3] = "MAJOR";
 })(SemVerType = exports.SemVerType || (exports.SemVerType = {}));
 class SemVer {
-    constructor({ major, minor, patch, prerelease = "", build = "", prefix = "", }) {
+    constructor({ major, minor, patch, prerelease = "", build = "", prefix = "" }) {
         this.major = major;
         this.minor = minor;
         this.patch = patch;
@@ -12086,11 +12056,7 @@ class SemVer {
         const lhs = typeof a === "string" ? SemVer.fromString(a) : a;
         const rhs = typeof b === "string" ? SemVer.fromString(b) : b;
         if (lhs === null || rhs === null) {
-            return lhs === null && rhs !== null
-                ? -1
-                : rhs === null && lhs !== null
-                    ? 1
-                    : 0;
+            return lhs === null && rhs !== null ? -1 : rhs === null && lhs !== null ? 1 : 0;
         }
         let allVersionFieldsEqual = false;
         if (lhs.major < rhs.major)

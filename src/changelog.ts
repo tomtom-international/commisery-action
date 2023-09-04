@@ -88,9 +88,7 @@ const DEFAULT_CONFIG: IReleaseConfiguration = {
  * Generates a Pull Request suffix `(#123)` in case this is not yet present
  * in the commit description.
  */
-async function getPullRequestSuffix(
-  commit: ConventionalCommitMessage
-): Promise<string> {
+async function getPullRequestSuffix(commit: ConventionalCommitMessage): Promise<string> {
   if (commit.hexsha && !commit.description.match(/\s\(#[0-9]+\)$/)) {
     const pull_requests = await getAssociatedPullRequests(commit.hexsha);
 
@@ -134,23 +132,16 @@ function getIssueReferenceSuffix(commit: ConventionalCommitMessage): string {
  * Creates an entry in the Changelog based on the provided
  * Conventional Commit message.
  */
-async function generateChangelogEntry(
-  commit: ConventionalCommitMessage
-): Promise<string> {
+async function generateChangelogEntry(commit: ConventionalCommitMessage): Promise<string> {
   const { owner, repo } = context.repo;
 
-  let changelogEntry = `${commit.description
-    .charAt(0)
-    .toUpperCase()}${commit.description.slice(1)}`;
+  let changelogEntry = `${commit.description.charAt(0).toUpperCase()}${commit.description.slice(1)}`;
 
   changelogEntry += await getPullRequestSuffix(commit);
   changelogEntry += getIssueReferenceSuffix(commit);
 
   if (commit.hexsha) {
-    const sha_link = `[${commit.hexsha.slice(
-      0,
-      6
-    )}](https://github.com/${owner}/${repo}/commit/${commit.hexsha})`;
+    const sha_link = `[${commit.hexsha.slice(0, 6)}](https://github.com/${owner}/${repo}/commit/${commit.hexsha})`;
     changelogEntry += ` [${sha_link}]`;
   }
 
@@ -201,10 +192,7 @@ export async function generateChangelogForCommits(
 
     const bumpLabel = Label.create("bump", SemVerType[commit.bump]);
     const typeLabel = Label.create("type", commit.type);
-    const scopeLabel = Label.create(
-      "scope",
-      commit.scope?.toLowerCase() || "*"
-    );
+    const scopeLabel = Label.create("scope", commit.scope?.toLowerCase() || "*");
 
     // Adds the following items as "virtual" labels for each commit:
     // * The version bump (`bump:<version>`)
@@ -228,37 +216,25 @@ export async function generateChangelogForCommits(
         //       commit.
         labels = labels.concat(
           pullRequest.labels
-            .filter(
-              label =>
-                !Label.isCategory(label.name, "bump") &&
-                !Label.isCategory(label.name, "scope")
-            )
+            .filter(label => !Label.isCategory(label.name, "bump") && !Label.isCategory(label.name, "scope"))
             .map(label => label.name)
         );
 
         // Check if the author of the Pull Request is part of the exclude list
-        if (
-          pullRequest.user &&
-          config.changelog.exclude?.authors?.includes(pullRequest.user.login)
-        ) {
+        if (pullRequest.user && config.changelog.exclude?.authors?.includes(pullRequest.user.login)) {
           continue;
         }
       }
     }
 
     // Check if any of the labels is part of the global exclusion list
-    if (
-      labels.some(label => config.changelog.exclude?.labels?.includes(label))
-    ) {
+    if (labels.some(label => config.changelog.exclude?.labels?.includes(label))) {
       continue;
     }
 
     // Either group commits per Conventional Commit scope, or group them all
     // together (*)
-    const scope =
-      config.changelog.group === "scope"
-        ? commit?.scope?.toLowerCase() || "*"
-        : "*";
+    const scope = config.changelog.group === "scope" ? commit?.scope?.toLowerCase() || "*" : "*";
 
     changelog.set(scope, changelog.get(scope) ?? new Map<string, string[]>());
     for (const category of config.changelog.categories) {
@@ -268,11 +244,7 @@ export async function generateChangelogForCommits(
       }
 
       // Validate whether the commit matches any of the inclusion patterns
-      if (
-        !labels
-          .concat([bumpLabel, "*"])
-          .some(label => category.labels?.includes(label))
-      ) {
+      if (!labels.concat([bumpLabel, "*"]).some(label => category.labels?.includes(label))) {
         continue;
       }
 
@@ -303,9 +275,7 @@ export async function generateChangelogForCommits(
     }
     for (const [category, messages] of categories) {
       if (messages.length > 0) {
-        formattedChangelog += isGrouped
-          ? `#### ${category}\n`
-          : `### ${category}\n`;
+        formattedChangelog += isGrouped ? `#### ${category}\n` : `### ${category}\n`;
         for (const message of messages) {
           formattedChangelog += `* ${message}\n`;
         }
@@ -314,12 +284,9 @@ export async function generateChangelogForCommits(
   }
 
   const { owner, repo } = context.repo;
-  const diffRange = `${startVersion}...${
-    endVersion || context.sha.substring(0, 8)
-  }`;
+  const diffRange = `${startVersion}...${endVersion || context.sha.substring(0, 8)}`;
   formattedChangelog +=
-    `\n\n*Diff since last release: ` +
-    `[${diffRange}](https://github.com/${owner}/${repo}/compare/${diffRange})*`;
+    `\n\n*Diff since last release: ` + `[${diffRange}](https://github.com/${owner}/${repo}/compare/${diffRange})*`;
 
   return formattedChangelog;
 }
@@ -328,16 +295,10 @@ export async function generateChangelogForCommits(
  * Returns a markdown-formatted changelog, based on the info contained
  * in the provided `IVersionBumpTypeAndMessages`.
  */
-export async function generateChangelog(
-  bump: IVersionBumpTypeAndMessages
-): Promise<string> {
+export async function generateChangelog(bump: IVersionBumpTypeAndMessages): Promise<string> {
   return await generateChangelogForCommits(
     bump.foundVersion?.toString() ?? "",
-    bump.foundVersion
-      ?.bump(bump.requiredBump, bump.initialDevelopment)
-      ?.toString() ?? "",
-    bump.processedCommits
-      .map(c => c.message)
-      .filter(c => c) as ConventionalCommitMessage[]
+    bump.foundVersion?.bump(bump.requiredBump, bump.initialDevelopment)?.toString() ?? "",
+    bump.processedCommits.map(c => c.message).filter(c => c) as ConventionalCommitMessage[]
   );
 }

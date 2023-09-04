@@ -18,11 +18,7 @@ import dedent from "dedent";
 
 import { ConventionalCommitMessage } from "../src/commit";
 import { SemVerType } from "../src/semver";
-import {
-  ConventionalCommitError,
-  FixupCommitError,
-  MergeCommitError,
-} from "../src/errors";
+import { ConventionalCommitError, FixupCommitError, MergeCommitError } from "../src/errors";
 
 // Validate non-compliant Commit Messages
 //
@@ -278,9 +274,7 @@ describe("Footer", () => {
 
     expect(msg.footers.length).toBe(1);
     expect(msg.footers[0].token).toBe("BREAKING-CHANGE");
-    expect(msg.footers[0].value).toBe(
-      "This is a multiline\n paragraph in the footer"
-    );
+    expect(msg.footers[0].value).toBe("This is a multiline\n paragraph in the footer");
   });
 });
 
@@ -293,9 +287,7 @@ describe("Scope", () => {
   });
 
   test("Scope", () => {
-    const msg = new ConventionalCommitMessage(
-      "chore(test): commit without scope"
-    );
+    const msg = new ConventionalCommitMessage("chore(test): commit without scope");
     expect(msg.scope).toBe("test");
   });
 });

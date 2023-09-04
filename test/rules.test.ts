@@ -17,10 +17,7 @@
 import dedent from "dedent";
 
 import { ConventionalCommitMessage } from "../src/commit";
-import {
-  getConventionalCommitRule,
-  IConventionalCommitRule,
-} from "../src/rules";
+import { getConventionalCommitRule, IConventionalCommitRule } from "../src/rules";
 import { ConventionalCommitError } from "../src/errors";
 import { Configuration } from "../src/config";
 
@@ -138,12 +135,7 @@ describe("Rules", () => {
       assertRuleValidationError(message, getConventionalCommitRule("C003"));
     }
 
-    for (const message of [
-      "feat: check rule",
-      "feat: cHeck rule",
-      "feat:check rule",
-      "feat:   check rule",
-    ]) {
+    for (const message of ["feat: check rule", "feat: cHeck rule", "feat:check rule", "feat:   check rule"]) {
       assertRuleNoValidationError(message, getConventionalCommitRule("C003"));
     }
   });
@@ -152,19 +144,11 @@ describe("Rules", () => {
    * [C004] Commit message's subject should not contain an unknown tag type
    */
   test("[C004] Commit message's subject should not contain an unknown tag type", () => {
-    for (const message of [
-      "awesome: type does not exist",
-      "fox : type does not exist",
-      "feet:type does not exist",
-    ]) {
+    for (const message of ["awesome: type does not exist", "fox : type does not exist", "feet:type does not exist"]) {
       assertRuleValidationError(message, getConventionalCommitRule("C004"));
     }
 
-    for (const message of [
-      "feat: type exists",
-      "fix: type exists",
-      ": type does not exist",
-    ]) {
+    for (const message of ["feat: type exists", "fix: type exists", ": type does not exist"]) {
       assertRuleNoValidationError(message, getConventionalCommitRule("C004"));
     }
   });
@@ -173,27 +157,17 @@ describe("Rules", () => {
    * [C005] Only one whitespace allowed after the ":" separator
    */
   test('[C005] Only one whitespace allowed after the ":" separator', () => {
-    for (const message of [
-      "feat:no whitespace",
-      "feat:  two whitespaces",
-      "feat:   three whitespaces",
-    ]) {
+    for (const message of ["feat:no whitespace", "feat:  two whitespaces", "feat:   three whitespaces"]) {
       assertRuleValidationError(message, getConventionalCommitRule("C005"));
     }
-    assertRuleNoValidationError(
-      "feat: one whitespace",
-      getConventionalCommitRule("C005")
-    );
+    assertRuleNoValidationError("feat: one whitespace", getConventionalCommitRule("C005"));
   });
 
   /**
    * [C006] The commit message's scope should not be empty
    */
   test("[C006] The commit message's scope should not be empty", () => {
-    for (const message of [
-      "feat(): empty scope",
-      "feat( ): scope only whitespaces",
-    ]) {
+    for (const message of ["feat(): empty scope", "feat( ): scope only whitespaces"]) {
       assertRuleValidationError(message, getConventionalCommitRule("C006"));
     }
 
@@ -250,10 +224,7 @@ describe("Rules", () => {
       assertRuleValidationError(message, getConventionalCommitRule("C009"));
     }
 
-    for (const message of [
-      "feat:description without whitespace",
-      "feat: description with whitespace",
-    ]) {
+    for (const message of ["feat:description without whitespace", "feat: description with whitespace"]) {
       assertRuleNoValidationError(message, getConventionalCommitRule("C009"));
     }
   });
@@ -262,18 +233,11 @@ describe("Rules", () => {
    * [C010] No whitespace allowed around the "!" indicator
    */
   test(`[C010] No whitespace allowed around the "!" indicator`, () => {
-    for (const message of [
-      "feat !: breaking change",
-      "feat! : breaking change",
-    ]) {
+    for (const message of ["feat !: breaking change", "feat! : breaking change"]) {
       assertRuleValidationError(message, getConventionalCommitRule("C010"));
     }
 
-    for (const message of [
-      "feat!: breaking change",
-      "feat(scope)!: breaking change",
-      "feat(scope)!:breaking change",
-    ]) {
+    for (const message of ["feat!: breaking change", "feat(scope)!: breaking change", "feat(scope)!:breaking change"]) {
       assertRuleNoValidationError(message, getConventionalCommitRule("C010"));
     }
   });
@@ -282,18 +246,11 @@ describe("Rules", () => {
    * [C011] Breaking separator should consist of only one indicator
    */
   test(`[C011] Breaking separator should consist of only one indicator`, () => {
-    for (const message of [
-      "feat!!: breaking change",
-      "feat!!! : breaking change",
-    ]) {
+    for (const message of ["feat!!: breaking change", "feat!!! : breaking change"]) {
       assertRuleValidationError(message, getConventionalCommitRule("C011"));
     }
 
-    for (const message of [
-      "feat!: breaking change",
-      "feat(scope)!: breaking change",
-      "feat(scope)!:breaking change",
-    ]) {
+    for (const message of ["feat!: breaking change", "feat(scope)!: breaking change", "feat(scope)!:breaking change"]) {
       assertRuleNoValidationError(message, getConventionalCommitRule("C011"));
     }
   });
@@ -302,11 +259,7 @@ describe("Rules", () => {
    * [C012] The commit message's subject requires a type
    */
   test(`[C012] The commit message's subject requires a type`, () => {
-    for (const message of [
-      ": missing type",
-      "  : multispace type",
-      "  !:breaking multispace",
-    ]) {
+    for (const message of [": missing type", "  : multispace type", "  !:breaking multispace"]) {
       assertRuleValidationError(message, getConventionalCommitRule("C012"));
     }
 
@@ -323,11 +276,7 @@ describe("Rules", () => {
    * [C013] The commit message's subject should not end with punctuation
    */
   test(`[C013] The commit message's subject should not end with punctuation`, () => {
-    for (const message of [
-      "feat: ends with a!",
-      "fix: ends with a?",
-      "chore!: ends with a.",
-    ]) {
+    for (const message of ["feat: ends with a!", "fix: ends with a?", "chore!: ends with a."]) {
       assertRuleValidationError(message, getConventionalCommitRule("C013"));
     }
 
@@ -347,16 +296,8 @@ describe("Rules", () => {
     const config = new Configuration();
     config.maxSubjectLength = 100;
 
-    for (const message of [
-      `feat: ${"0".repeat(95)}`,
-      `feat: ${"0".repeat(100)}`,
-      `feat: ${"0".repeat(1000)}`,
-    ]) {
-      assertRuleValidationError(
-        message,
-        getConventionalCommitRule("C014"),
-        config
-      );
+    for (const message of [`feat: ${"0".repeat(95)}`, `feat: ${"0".repeat(100)}`, `feat: ${"0".repeat(1000)}`]) {
+      assertRuleValidationError(message, getConventionalCommitRule("C014"), config);
     }
 
     for (const message of [
@@ -365,11 +306,7 @@ describe("Rules", () => {
       "feat(scope)!: breaking change with scope",
       "fix:fix without whitespacing",
     ]) {
-      assertRuleNoValidationError(
-        message,
-        getConventionalCommitRule("C014"),
-        config
-      );
+      assertRuleNoValidationError(message, getConventionalCommitRule("C014"), config);
     }
   });
 
@@ -377,19 +314,11 @@ describe("Rules", () => {
    * [C015] Description should not start with a repetition of the tag
    */
   test(`[C015] Description should not start with a repetition of the tag`, () => {
-    for (const message of [
-      "feat: feat",
-      "fix: fix",
-      "fix:fix without whitespacing",
-    ]) {
+    for (const message of ["feat: feat", "fix: fix", "fix:fix without whitespacing"]) {
       assertRuleValidationError(message, getConventionalCommitRule("C015"));
     }
 
-    for (const message of [
-      "chore: this is a chore",
-      "feat(scope)!: breaking change with scope",
-      "fix: fixed",
-    ]) {
+    for (const message of ["chore: this is a chore", "feat(scope)!: breaking change with scope", "fix: fixed"]) {
       assertRuleNoValidationError(message, getConventionalCommitRule("C015"));
     }
   });
@@ -398,11 +327,7 @@ describe("Rules", () => {
    * [C016] The commit message's description should be written in imperative mood
    */
   test(`[C016] The commit message's description should be written in imperative mood`, () => {
-    for (const message of [
-      "feat: adds something",
-      "fix: removes something else",
-      "chore:renamed without spacing",
-    ]) {
+    for (const message of ["feat: adds something", "fix: removes something else", "chore:renamed without spacing"]) {
       assertRuleValidationError(message, getConventionalCommitRule("C016"));
     }
 
@@ -457,11 +382,7 @@ describe("Rules", () => {
    * [C019] The commit message's subject should not contain a ticket reference
    */
   test(`[C019] The commit message's subject should not contain a ticket reference`, () => {
-    for (const message of [
-      "feat(ISS-1): add something",
-      "fix: [ISS-2] do something",
-      "chore: based on ISS-3",
-    ]) {
+    for (const message of ["feat(ISS-1): add something", "fix: [ISS-2] do something", "chore: based on ISS-3"]) {
       assertRuleValidationError(message, getConventionalCommitRule("C019"));
     }
 
@@ -621,11 +542,7 @@ describe("Rules", () => {
         Implements: AES-128, CVE-123, PEP-8, SHA-256, UTF-16, VT-123
         Token: Value`),
     ]) {
-      assertRuleValidationError(
-        message,
-        getConventionalCommitRule("C026"),
-        config
-      );
+      assertRuleValidationError(message, getConventionalCommitRule("C026"), config);
     }
 
     for (const message of [
@@ -646,11 +563,7 @@ describe("Rules", () => {
         Token: Value
         `),
     ]) {
-      assertRuleNoValidationError(
-        message,
-        getConventionalCommitRule("C026"),
-        config
-      );
+      assertRuleNoValidationError(message, getConventionalCommitRule("C026"), config);
     }
   });
 });
