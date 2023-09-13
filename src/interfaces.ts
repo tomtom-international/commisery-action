@@ -69,6 +69,7 @@ export interface IGitTag {
 export interface ICommit {
   message: string;
   sha: string;
+  parents?: string[];
 }
 
 export interface IValidationResult {

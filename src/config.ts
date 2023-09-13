@@ -73,6 +73,7 @@ const CONFIG_ITEMS = [
   "release-branches",
   "prereleases",
   "sdkver-create-release-branches",
+  "excluded-commits",
 ];
 
 const VERSION_SCHEMES = ["semver", "sdkver"];
@@ -107,6 +108,7 @@ export class Configuration {
   tags: IConfigurationRules = DEFAULT_ACCEPTED_TAGS;
   rules: Map<string, IRuleConfigItem> = new Map<string, IRuleConfigItem>();
   sdkverCreateReleaseBranches?: string = undefined;
+  excludedCommits: string[] = [];
 
   set initialDevelopment(initialDevelopment: boolean) {
     this._initialDevelopment = initialDevelopment;
@@ -336,6 +338,25 @@ export class Configuration {
               `Incorrect type '${typeof data[
                 key
               ]}' for '${key}', must be either "boolean" or "string"!`
+            );
+          }
+          break;
+
+        case "excluded-commits":
+          /* Example YAML:
+           *   excluded-commits: []
+           *   excluded-commits: ["3723ac94f5091257195d91a26e03492a8265b90d"]
+           *   excluded-commits:
+           *     - 3723ac94f5091257195d91a26e03492a8265b90d
+           *     - 1234567890123456789012345678901234567890
+           */
+          if (typeof data[key] === "object") {
+            this.excludedCommits = data[key] as string[];
+          } else {
+            throw new Error(
+              `Incorrect type '${typeof data[
+                key
+              ]}' for '${key}', must be an array of strings!`
             );
           }
           break;

@@ -98,6 +98,67 @@ export function outputCommitListErrors(
   }
 }
 
+/* Returns a list of commits that should be excluded from validation checks,
+ * following the configured exclusion sha's in the provided Configuration object.
+ *
+ * Parents of excluded commits are excluded (children are not).
+ * This is a bit of a pain without a `git merge-base`-like GitHub interface, but since
+ * we have all commits and parents, we can still simulate the behavior ourselves.
+ */
+function getExcludedCommits(
+  commits: ICommit[],
+  config: Configuration
+): ICommit[] {
+  if (config.excludedCommits.length < 1) return [];
+
+  const commitParentsMap = new Map<string, string[]>();
+  for (const commit of commits) {
+    core.debug(`${commit.sha}: ${commit.message}, parents: ${commit.parents}`);
+    commitParentsMap.set(commit.sha, commit.parents ?? []);
+  }
+
+  const collectParents = (commitSha: string): string[] => {
+    const parentList: string[] = [];
+    let c: string | undefined = commitSha;
+
+    while (c !== undefined) {
+      parentList.push(c);
+      const parents = commitParentsMap.get(c);
+      core.debug(`Considering sha: ${c}, parents ${parents}`);
+      if (parents === undefined) break;
+
+      if (parents.length > 1) {
+        // Recurse/fan out on encountering more than one parent, right side first
+        for (const p of parents.reverse()) {
+          core.debug(`Recurse into parent ${p}`);
+          parentList.push(...collectParents(p));
+          core.debug(`Collected from parent ${p}`);
+        }
+        break;
+      } else if (parents.length === 1) {
+        c = parents[0];
+      } else {
+        c = undefined;
+      }
+    }
+
+    return parentList;
+  };
+
+  core.debug(`Collecting excluded commits`);
+  const excludedSet = new Set<string>();
+  for (const excludedCommitSha of config.excludedCommits) {
+    for (const foundSha of collectParents(excludedCommitSha)) {
+      excludedSet.add(foundSha);
+    }
+  }
+
+  const excludedCommits = Array.from(excludedSet);
+  core.debug(`Done collecting excluded commits, result: ${excludedCommits}`);
+
+  return commits.filter(c => excludedCommits.includes(c.sha));
+}
+
 /* Takes an array of ICommit interface objects and process them using the
  * provided `Configuration` into an array of IValidationResult objects.
  * This contains the input, ConventionalCommitMessage object if compliant,
@@ -108,9 +169,18 @@ export function processCommits(
   config: Configuration
 ): IValidationResult[] {
   const results: IValidationResult[] = [];
+  const exclusionList = getExcludedCommits(commits, config);
+
   for (const commit of commits) {
     const message = commit.message;
     const sha = commit.sha;
+
+    if (exclusionList.find(c => c.sha === sha)) {
+      // `sha` is an (ancestor of an) excluded commit; push an undefined message
+      // with no errors to results, signifying an excluded commit
+      results.push({ input: commit, message: undefined, errors: [] });
+      continue;
+    }
 
     try {
       const cc = new ConventionalCommitMessage(message, undefined, config);
@@ -143,8 +213,13 @@ export async function validateCommitsInCurrentPR(
   const commits: ICommit[] = await getCommitsInPR(getPullRequestId());
   const results: IValidationResult[] = processCommits(commits, config);
 
-  const passResults = results.filter(c => c.errors.length === 0);
+  const passResults = results.filter(
+    c => c.errors.length === 0 && c.message !== undefined
+  );
   const failResults = results.filter(c => c.errors.length !== 0);
+  const excludeResults = results.filter(
+    c => c.errors.length === 0 && c.message === undefined
+  );
 
   if (passResults.length > 0) {
     core.info(
@@ -166,6 +241,26 @@ export async function validateCommitsInCurrentPR(
     );
 
     outputCommitListErrors(failResults, true);
+  }
+  if (excludeResults.length > 0) {
+    core.info("");
+    core.info(
+      `↷ Ignored ${excludeResults.length} commit${
+        excludeResults.length > 1 ? "s" : ""
+      }`
+    );
+
+    for (const c of excludeResults) {
+      const subject = c.input.message.split("\n")[0];
+      const ancestor = !config.excludedCommits.includes(c.input.sha);
+      core.startGroup(
+        `↷ ${ancestor ? `Ancestor of excluded commit` : `Excluded commit`}` +
+          ` (${c.input.sha.slice(0, 8)}): ` +
+          `${subject}`
+      );
+      core.info(c.input.message);
+      core.endGroup();
+    }
   }
 
   return {
