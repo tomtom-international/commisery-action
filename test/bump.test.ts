@@ -90,6 +90,13 @@ describe("Bump functionality", () => {
       expectedVersion: U.PATCH_BUMPED_VERSION,
     },
     {
+      // For default configurations, a revert commit will trigger a patch bump
+      testDescription: "bump patch (revert)",
+      messages: [U.toICommit("revert: valid message"), U.NONE_MSG1],
+      prTitle: U.PRTITLE("revert"),
+      expectedVersion: U.PATCH_BUMPED_VERSION,
+    },
+    {
       testDescription: "bump minor",
       messages: [U.PATCH_MSG, U.MINOR_MSG, U.PATCH_MSG, U.NONE_MSG1],
       expectedVersion: U.MINOR_BUMPED_VERSION,
