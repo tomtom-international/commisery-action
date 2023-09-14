@@ -257,6 +257,43 @@ describe("Configurable options", () => {
     );
   });
 
+  test("Default overwritable bumping tag (revert)", () => {
+    // With the default "tags" config, "revert" should bump
+    withConfig(
+      dedent(`
+        disable:
+          - C001
+        `),
+      config => {
+        const msg = new ConventionalCommitMessage(
+          "revert: oopsie",
+          undefined,
+          config
+        );
+        expect(msg.bump).toBe(SemVerType.PATCH);
+      }
+    );
+    // ...but with a non-default "tags" config, "revert" should _not_ bump unless
+    // explicitly configured to do so
+    withConfig(
+      dedent(`
+        tags:
+          othertype: A description of "othertype" here
+          revert: A description of "revert" here
+        disable:
+          - C001
+        `),
+      config => {
+        const msg = new ConventionalCommitMessage(
+          "revert: oopsie",
+          undefined,
+          config
+        );
+        expect(msg.bump).toBe(SemVerType.NONE);
+      }
+    );
+  });
+
   test("Type configuration overwriting defaults", () => {
     // With the default config, "chore" should be accepted
     expect(() => {

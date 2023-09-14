@@ -12915,7 +12915,7 @@ const DEFAULT_ACCEPTED_TAGS = {
     },
     revert: {
         description: "Reverts previous change(s) from your codebase",
-        bump: false,
+        bump: true,
     },
     style: { description: "Coding style improvements", bump: false },
     test: { description: "Updates tests", bump: false },
