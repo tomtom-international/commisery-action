@@ -154,7 +154,9 @@ export async function getRelease(params: {
   draftOnly: boolean;
   fullReleasesOnly: boolean;
   constraint?: { major: number; minor: number };
-}): Promise<{ id: number; name: string } | undefined> {
+}): Promise<
+  { id: number; name: string; target_commitish: string } | undefined
+> {
   core.info(
     `getRelease: finding ${
       params.draftOnly ? "draft " : ""
@@ -166,7 +168,12 @@ export async function getRelease(params: {
     await octo.paginate(octo.rest.repos.listReleases, {
       ...github.context.repo,
     })
-  ).map(r => ({ isDraft: r.draft, tagName: r.tag_name, id: r.id }));
+  ).map(r => ({
+    isDraft: r.draft,
+    tagName: r.tag_name,
+    id: r.id,
+    target_commitish: r.target_commitish,
+  }));
 
   core.debug(`getRelease: listReleases returned:\n${JSON.stringify(result)}`);
 
@@ -176,7 +183,7 @@ export async function getRelease(params: {
    *    release parameters
    *  - consider the major/minor constraint, if provided
    *  - _NOT_ rely on the temporal data; the precendence of the existing tags
-   *    shall determined according to a "SemVer-esque prerelease", that is:
+   *    shall be determined according to a "SemVer-esque prerelease", that is:
    *      * componentX-1.2.3-9 < componentX-1.2.3-10
    *  - return the highest-precedence item
    */
@@ -190,7 +197,11 @@ export async function getRelease(params: {
         (params.fullReleasesOnly ? asSemVer?.prerelease === "" : true)
       );
     })
-    .map(r => ({ id: r.id, name: r.tagName }))
+    .map(r => ({
+      id: r.id,
+      name: r.tagName,
+      target_commitish: r.target_commitish,
+    }))
     .sort((lhs, rhs) => SemVer.sortSemVer(lhs.name, rhs.name));
 
   core.debug(
@@ -559,4 +570,15 @@ export async function createBranch(name: string, sha: string): Promise<void> {
     ref: name.startsWith("refs/heads/") ? name : `refs/heads/${name}`,
     sha,
   });
+}
+
+export async function getReleaseBody(id: number): Promise<string> {
+  return (
+    (
+      await getOctokit().rest.repos.getRelease({
+        ...github.context.repo,
+        release_id: id,
+      })
+    ).data.body ?? ""
+  );
 }

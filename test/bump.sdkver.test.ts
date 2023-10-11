@@ -141,7 +141,9 @@ const testFunction = async (p: SdkBumpTestParameters) => {
   jest
     .spyOn(github, "getRelease")
     .mockResolvedValue(
-      p.latestDraftRelease ? { id: 1, name: p.latestDraftRelease } : undefined
+      p.latestDraftRelease
+        ? { id: 1, name: p.latestDraftRelease, target_commitish: "9c8072b" }
+        : undefined
     );
   gh.context.ref = `refs/heads/${p.branch}`;
 

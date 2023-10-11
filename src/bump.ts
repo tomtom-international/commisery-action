@@ -28,6 +28,7 @@ import {
   getRunNumber,
   getLatestTags,
   getRelease,
+  getReleaseBody,
   getShaForTag,
   isPullRequestEvent,
   matchTagsToCommits,
@@ -369,7 +370,7 @@ export async function publishBump(
   nextVersion: SemVer,
   releaseMode: ReleaseMode,
   headSha: string,
-  changelog: string,
+  contents: string,
   isBranchAllowedToPublish: boolean,
   updateDraftId?: number
 ): Promise<boolean> {
@@ -407,7 +408,7 @@ export async function publishBump(
             nv,
             nv,
             headSha,
-            changelog,
+            contents,
             isDev, // draft
             isRc // prerelease
           );
@@ -419,7 +420,7 @@ export async function publishBump(
           }
         }
         if (!updated) {
-          await createRelease(nv, headSha, changelog, isDev, isRc);
+          await createRelease(nv, headSha, contents, isDev, isRc);
         }
       }
     } catch (ex: unknown) {
@@ -829,8 +830,8 @@ export async function bumpSdkVer(
         previousRelease?.name ?? "undefined"
       }`
     );
-    let changelog = "";
 
+    let contents = "";
     if (createChangelog) {
       if (previousRelease && cv.prerelease) {
         const toVersion =
@@ -839,21 +840,24 @@ export async function bumpSdkVer(
           sdkVerBumpType === "dev" && !isReleaseBranch
             ? shortSha(headSha)
             : nextVersion.toString();
-        changelog = await generateChangelogForCommits(
+        contents = await generateChangelogForCommits(
           previousRelease.name,
           toVersion,
           await collectChangelogCommits(previousRelease.name, config)
         );
       } else {
-        changelog = await generateChangelog(bumpInfo);
+        contents = await generateChangelog(bumpInfo);
       }
+    } else {
+      // if a draft release already exists, don't overwrite its contents
+      if (latestDraft?.id) contents = await getReleaseBody(latestDraft.id);
     }
 
     bumped = await publishBump(
       nextVersion,
       releaseMode,
       headSha,
-      changelog,
+      contents,
       isBranchAllowedToPublish,
       // Re-use the latest draft release only when not running on a release branch,
       // otherwise we might randomly reset a `dev-N` number chain.
@@ -897,6 +901,11 @@ export async function bumpSdkVer(
     }
   }
   core.setOutput("next-version", nextVersion?.toString() ?? "");
+  core.setOutput(
+    "previous-prerelease-draft-sha",
+    latestDraft?.target_commitish ?? ""
+  );
+
   core.endGroup();
   return bumped;
 }

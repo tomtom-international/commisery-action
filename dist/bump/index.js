@@ -11878,7 +11878,7 @@ function printNonCompliance(commits) {
     }
 }
 exports.printNonCompliance = printNonCompliance;
-function publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish, updateDraftId) {
+function publishBump(nextVersion, releaseMode, headSha, contents, isBranchAllowedToPublish, updateDraftId) {
     return __awaiter(this, void 0, void 0, function* () {
         const nv = nextVersion.toString();
         core.info(`ℹ️ Next version: ${nv}`);
@@ -11906,7 +11906,7 @@ function publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllow
                     const isDev = nextVersion.prerelease !== "" && !isRc;
                     let updated = false;
                     if (updateDraftId) {
-                        updated = yield (0, github_1.updateDraftRelease)(updateDraftId, nv, nv, headSha, changelog, isDev, // draft
+                        updated = yield (0, github_1.updateDraftRelease)(updateDraftId, nv, nv, headSha, contents, isDev, // draft
                         isRc // prerelease
                         );
                         if (!updated) {
@@ -11915,7 +11915,7 @@ function publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllow
                         }
                     }
                     if (!updated) {
-                        yield (0, github_1.createRelease)(nv, headSha, changelog, isDev, isRc);
+                        yield (0, github_1.createRelease)(nv, headSha, contents, isDev, isRc);
                     }
                 }
             }
@@ -12190,7 +12190,7 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
  * Bump and release/tag SDK versions
  */
 function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, branchName, isBranchAllowedToPublish, createChangelog) {
-    var _a, _b, _c, _d, _e, _f;
+    var _a, _b, _c, _d, _e, _f, _g;
     return __awaiter(this, void 0, void 0, function* () {
         const isReleaseBranch = branchName.match(config.releaseBranches);
         const hasBreakingChange = bumpInfo.processedCommits.some(c => { var _a; return (_a = c.message) === null || _a === void 0 ? void 0 : _a.breakingChange; });
@@ -12241,7 +12241,7 @@ function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, bran
                 },
             });
             core.info(`The full release preceding the current one is ${(_e = previousRelease === null || previousRelease === void 0 ? void 0 : previousRelease.name) !== null && _e !== void 0 ? _e : "undefined"}`);
-            let changelog = "";
+            let contents = "";
             if (createChangelog) {
                 if (previousRelease && cv.prerelease) {
                     const toVersion = 
@@ -12250,13 +12250,18 @@ function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, bran
                     sdkVerBumpType === "dev" && !isReleaseBranch
                         ? shortSha(headSha)
                         : nextVersion.toString();
-                    changelog = yield (0, changelog_1.generateChangelogForCommits)(previousRelease.name, toVersion, yield collectChangelogCommits(previousRelease.name, config));
+                    contents = yield (0, changelog_1.generateChangelogForCommits)(previousRelease.name, toVersion, yield collectChangelogCommits(previousRelease.name, config));
                 }
                 else {
-                    changelog = yield (0, changelog_1.generateChangelog)(bumpInfo);
+                    contents = yield (0, changelog_1.generateChangelog)(bumpInfo);
                 }
             }
-            bumped = yield publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish, 
+            else {
+                // if a draft release already exists, don't overwrite its contents
+                if (latestDraft === null || latestDraft === void 0 ? void 0 : latestDraft.id)
+                    contents = yield (0, github_1.getReleaseBody)(latestDraft.id);
+            }
+            bumped = yield publishBump(nextVersion, releaseMode, headSha, contents, isBranchAllowedToPublish, 
             // Re-use the latest draft release only when not running on a release branch,
             // otherwise we might randomly reset a `dev-N` number chain.
             !isReleaseBranch ? latestDraft === null || latestDraft === void 0 ? void 0 : latestDraft.id : undefined);
@@ -12295,6 +12300,7 @@ function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, bran
             }
         }
         core.setOutput("next-version", (_f = nextVersion === null || nextVersion === void 0 ? void 0 : nextVersion.toString()) !== null && _f !== void 0 ? _f : "");
+        core.setOutput("previous-prerelease-draft-sha", (_g = latestDraft === null || latestDraft === void 0 ? void 0 : latestDraft.target_commitish) !== null && _g !== void 0 ? _g : "");
         core.endGroup();
         return bumped;
     });
@@ -13299,7 +13305,7 @@ var __asyncValues = (this && this.__asyncValues) || function (o) {
     function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.createBranch = exports.getCommitsBetweenRefs = exports.currentHeadMatchesTag = exports.getContent = exports.updateLabels = exports.getAssociatedPullRequests = exports.getLatestTags = exports.getShaForTag = exports.matchTagsToCommits = exports.getReleaseConfiguration = exports.getConfig = exports.createTag = exports.updateDraftRelease = exports.getRelease = exports.createRelease = exports.getPullRequest = exports.getCommitsInPR = exports.getPullRequestTitle = exports.getRunNumber = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
+exports.getReleaseBody = exports.createBranch = exports.getCommitsBetweenRefs = exports.currentHeadMatchesTag = exports.getContent = exports.updateLabels = exports.getAssociatedPullRequests = exports.getLatestTags = exports.getShaForTag = exports.matchTagsToCommits = exports.getReleaseConfiguration = exports.getConfig = exports.createTag = exports.updateDraftRelease = exports.getRelease = exports.createRelease = exports.getPullRequest = exports.getCommitsInPR = exports.getPullRequestTitle = exports.getRunNumber = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const fs = __importStar(__nccwpck_require__(7147));
 const github = __importStar(__nccwpck_require__(5438));
@@ -13409,7 +13415,12 @@ function getRelease(params) {
     return __awaiter(this, void 0, void 0, function* () {
         core.info(`getRelease: finding ${params.draftOnly ? "draft " : ""}release with the prefix: ${params.prefixToMatch}`);
         const octo = getOctokit();
-        const result = (yield octo.paginate(octo.rest.repos.listReleases, Object.assign({}, github.context.repo))).map(r => ({ isDraft: r.draft, tagName: r.tag_name, id: r.id }));
+        const result = (yield octo.paginate(octo.rest.repos.listReleases, Object.assign({}, github.context.repo))).map(r => ({
+            isDraft: r.draft,
+            tagName: r.tag_name,
+            id: r.id,
+            target_commitish: r.target_commitish,
+        }));
         core.debug(`getRelease: listReleases returned:\n${JSON.stringify(result)}`);
         /**
          * We need to:
@@ -13417,7 +13428,7 @@ function getRelease(params) {
          *    release parameters
          *  - consider the major/minor constraint, if provided
          *  - _NOT_ rely on the temporal data; the precendence of the existing tags
-         *    shall determined according to a "SemVer-esque prerelease", that is:
+         *    shall be determined according to a "SemVer-esque prerelease", that is:
          *      * componentX-1.2.3-9 < componentX-1.2.3-10
          *  - return the highest-precedence item
          */
@@ -13428,7 +13439,11 @@ function getRelease(params) {
             return ((asSemVer === null || asSemVer === void 0 ? void 0 : asSemVer.prefix) === params.prefixToMatch &&
                 (params.fullReleasesOnly ? (asSemVer === null || asSemVer === void 0 ? void 0 : asSemVer.prerelease) === "" : true));
         })
-            .map(r => ({ id: r.id, name: r.tagName }))
+            .map(r => ({
+            id: r.id,
+            name: r.tagName,
+            target_commitish: r.target_commitish,
+        }))
             .sort((lhs, rhs) => semver_1.SemVer.sortSemVer(lhs.name, rhs.name));
         core.debug(`getRelease: sorted list of releases:\n${JSON.stringify(releaseList)}`);
         if (params.constraint) {
@@ -13726,6 +13741,13 @@ function createBranch(name, sha) {
     });
 }
 exports.createBranch = createBranch;
+function getReleaseBody(id) {
+    var _a;
+    return __awaiter(this, void 0, void 0, function* () {
+        return ((_a = (yield getOctokit().rest.repos.getRelease(Object.assign(Object.assign({}, github.context.repo), { release_id: id }))).data.body) !== null && _a !== void 0 ? _a : "");
+    });
+}
+exports.getReleaseBody = getReleaseBody;
 
 
 /***/ }),
