@@ -638,7 +638,7 @@ class GitTrailerNeedAColon implements IConventionalCommitRule {
   description = "A colon is required in git-trailers";
   default = true;
 
-  validate(message: ConventionalCommitMetadata, config: Configuration): void {
+  validate(message: ConventionalCommitMetadata, _: Configuration): void {
     const trailerFormats = [
       /^Addresses:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
       /^Closes:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
@@ -697,7 +697,7 @@ class FooterContainsTicketReference implements IConventionalCommitRule {
   description = "A ticket reference is required in at least one footer value";
   default = false;
 
-  validate(message: ConventionalCommitMetadata, config: Configuration): void {
+  validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (!message.footers.some(footer => ISSUE_REGEX.exec(footer.value))) {
       throw new LlvmError({
         message: `[${this.id}] ${this.description}`,
