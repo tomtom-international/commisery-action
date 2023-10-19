@@ -11728,7 +11728,6 @@ exports.getVersionBumpType = getVersionBumpType;
  */
 function getVersionBumpTypeAndMessages(prefix, targetSha, config) {
     return __awaiter(this, void 0, void 0, function* () {
-        const nonConventionalCommits = [];
         core.debug(`Fetching last ${PAGE_SIZE} tags from ${targetSha}..`);
         const tags = yield (0, github_1.getLatestTags)(PAGE_SIZE);
         core.debug("Fetch complete");
@@ -11794,9 +11793,6 @@ exports.getVersionBumpTypeAndMessages = getVersionBumpTypeAndMessages;
  */
 function tryUpdateDraftRelease(cv, changelog, sha) {
     return __awaiter(this, void 0, void 0, function* () {
-        const preStem = cv.prerelease
-            ? `-${cv.prerelease.replace(/(.+?)\d.*/, "$1")}`
-            : "";
         const latestDraftRelease = yield (0, github_1.getRelease)({
             prefixToMatch: cv.prefix,
             draftOnly: true,
@@ -13394,9 +13390,6 @@ function createRelease(tagName, commitish, body, draft, prerelease) {
     });
 }
 exports.createRelease = createRelease;
-function sortVersionPrereleases(releaseList, nameStartsWith) {
-    return releaseList.sort((lhs, rhs) => semver_1.SemVer.sortSemVer(lhs.name, rhs.name));
-}
 /**
  * Gets the name and ID of the existing (draft) release with the
  * most precedence of which the tag name starts with the provided parameter.
@@ -14525,7 +14518,7 @@ class GitTrailerNeedAColon {
         this.description = "A colon is required in git-trailers";
         this.default = true;
     }
-    validate(message, config) {
+    validate(message, _) {
         const trailerFormats = [
             /^Addresses:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
             /^Closes:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
@@ -14582,7 +14575,7 @@ class FooterContainsTicketReference {
         this.description = "A ticket reference is required in at least one footer value";
         this.default = false;
     }
-    validate(message, config) {
+    validate(message, _) {
         if (!message.footers.some(footer => ISSUE_REGEX.exec(footer.value))) {
             throw new logging_1.LlvmError({
                 message: `[${this.id}] ${this.description}`,
@@ -15054,7 +15047,6 @@ function processCommits(commits, config) {
     const results = [];
     for (const commit of commits) {
         const message = commit.message;
-        const sha = commit.sha;
         try {
             const cc = new commit_1.ConventionalCommitMessage(message, undefined, config);
             results.push({ input: commit, message: cc, errors: [] });
@@ -15082,7 +15074,6 @@ exports.processCommits = processCommits;
 function validateCommitsInCurrentPR(config) {
     var _a;
     return __awaiter(this, void 0, void 0, function* () {
-        const conventionalCommitMessages = [];
         const commits = yield (0, github_1.getCommitsInPR)((0, github_1.getPullRequestId)());
         const results = processCommits(commits, config);
         const passResults = results.filter(c => c.errors.length === 0);
@@ -15112,7 +15103,7 @@ exports.validateCommitsInCurrentPR = validateCommitsInCurrentPR;
  * Validates the pull request title and, if compliant, returns it as a
  * ConventionalCommitMessage object.
  */
-function validatePrTitle(config) {
+function validatePrTitle(_) {
     return __awaiter(this, void 0, void 0, function* () {
         const prTitleText = yield (0, github_1.getPullRequestTitle)();
         let errors = [];

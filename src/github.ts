@@ -134,13 +134,6 @@ export async function createRelease(
   });
 }
 
-function sortVersionPrereleases(
-  releaseList: { id: number; name: string }[],
-  nameStartsWith
-): { id: number; name: string }[] {
-  return releaseList.sort((lhs, rhs) => SemVer.sortSemVer(lhs.name, rhs.name));
-}
-
 /**
  * Gets the name and ID of the existing (draft) release with the
  * most precedence of which the tag name starts with the provided parameter.

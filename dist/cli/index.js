@@ -11760,7 +11760,7 @@ class GitTrailerNeedAColon {
         this.description = "A colon is required in git-trailers";
         this.default = true;
     }
-    validate(message, config) {
+    validate(message, _) {
         const trailerFormats = [
             /^Addresses:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
             /^Closes:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
@@ -11817,7 +11817,7 @@ class FooterContainsTicketReference {
         this.description = "A ticket reference is required in at least one footer value";
         this.default = false;
     }
-    validate(message, config) {
+    validate(message, _) {
         if (!message.footers.some(footer => ISSUE_REGEX.exec(footer.value))) {
             throw new logging_1.LlvmError({
                 message: `[${this.id}] ${this.description}`,

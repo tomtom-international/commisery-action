@@ -110,7 +110,6 @@ export function processCommits(
   const results: IValidationResult[] = [];
   for (const commit of commits) {
     const message = commit.message;
-    const sha = commit.sha;
 
     try {
       const cc = new ConventionalCommitMessage(message, undefined, config);
@@ -139,7 +138,6 @@ export function processCommits(
 export async function validateCommitsInCurrentPR(
   config: Configuration
 ): Promise<ValidationResult> {
-  const conventionalCommitMessages: ConventionalCommitMessage[] = [];
   const commits: ICommit[] = await getCommitsInPR(getPullRequestId());
   const results: IValidationResult[] = processCommits(commits, config);
 
@@ -179,7 +177,7 @@ export async function validateCommitsInCurrentPR(
  * ConventionalCommitMessage object.
  */
 export async function validatePrTitle(
-  config: Configuration
+  _: Configuration
 ): Promise<ConventionalCommitMessage | undefined> {
   const prTitleText = await getPullRequestTitle();
   let errors: LlvmError[] = [];
