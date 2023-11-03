@@ -12228,7 +12228,7 @@ function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, bran
                 const releaseBranchName = `${config.sdkverCreateReleaseBranches}${nextVersion.major}.${nextVersion.minor}`;
                 core.info(`Creating release branch ${releaseBranchName}..`);
                 try {
-                    (0, github_1.createBranch)(`refs/heads/${releaseBranchName}`, headSha);
+                    yield (0, github_1.createBranch)(`refs/heads/${releaseBranchName}`, headSha);
                 }
                 catch (ex) {
                     if (ex instanceof request_error_1.RequestError && ex.status === 422) {
