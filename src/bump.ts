@@ -862,7 +862,7 @@ export async function bumpSdkVer(
       const releaseBranchName = `${config.sdkverCreateReleaseBranches}${nextVersion.major}.${nextVersion.minor}`;
       core.info(`Creating release branch ${releaseBranchName}..`);
       try {
-        createBranch(`refs/heads/${releaseBranchName}`, headSha);
+        await createBranch(`refs/heads/${releaseBranchName}`, headSha);
       } catch (ex: unknown) {
         if (ex instanceof RequestError && ex.status === 422) {
           core.warning(
