@@ -412,7 +412,7 @@ export async function getLatestTags(pageSize: number): Promise<IGitTag[]> {
         commitSha: x.node.reftarget.tagtarget
           ? x.node.reftarget.tagtarget.commitsha
           : x.node.reftarget.commitsha,
-      } as IGitTag)
+      }) as IGitTag
   );
 
   return tagList;
