@@ -32304,15 +32304,6 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -32344,7 +32335,7 @@ program
   - a file containing the commit message to check
   - a revision range that \`git rev-list\` can interpret
  When TARGET is omitted, 'HEAD' is implied.`)
-    .action((target) => __awaiter(void 0, void 0, void 0, function* () {
+    .action(async (target) => {
     const config = new config_1.Configuration(program.opts().config);
     if (target.length === 0) {
         target = ["HEAD"];
@@ -32354,7 +32345,7 @@ program
         messages = [fs.readFileSync(target.join(" "), "utf8")];
     }
     else {
-        messages = yield (0, utils_1.getCommitMessages)(target);
+        messages = await (0, utils_1.getCommitMessages)(target);
     }
     for (const message of messages) {
         try {
@@ -32365,14 +32356,17 @@ program
                 for (const err of error.errors) {
                     core.info(err.report());
                 }
+                continue;
             }
+            throw error;
         }
     }
-}));
+});
 program
     .command("overview")
     .description("Lists the accepted Conventional Commit types and Rules (including description)")
     .action(() => {
+    var _a, _b;
     const config = new config_1.Configuration(program.opts().config);
     core.info((0, dedent_1.default)(`
     Conventional Commit types
@@ -32391,10 +32385,10 @@ program
     `));
     core.info(os.EOL);
     for (const rule in config.rules) {
-        const status = config.rules[rule].enabled
+        const status = ((_a = config.rules.get(rule)) === null || _a === void 0 ? void 0 : _a.enabled)
             ? `${green}o${reset}`
             : `${red}x${reset}`;
-        core.info(`[${status}] ${rule}: ${gray}${config.rules[rule].description}${reset}`);
+        core.info(`[${status}] ${rule}: ${gray}${(_b = config.rules.get(rule)) === null || _b === void 0 ? void 0 : _b.description}${reset}`);
     }
 });
 program.parse();
@@ -32403,7 +32397,7 @@ program.parse();
 /***/ }),
 
 /***/ 2449:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
@@ -32422,15 +32416,6 @@ program.parse();
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getCommitMessages = exports.getRootPath = void 0;
 const simple_git_1 = __nccwpck_require__(9103);
@@ -32438,69 +32423,65 @@ let __ROOT_PATH = undefined;
 /**
  * Determine the root path of the GIT project
  */
-function getRootPath() {
-    return __awaiter(this, void 0, void 0, function* () {
-        if (__ROOT_PATH === undefined) {
-            try {
-                __ROOT_PATH = yield (0, simple_git_1.simpleGit)().revparse({ "--show-toplevel": null });
-            }
-            catch (GitError) {
+async function getRootPath() {
+    if (__ROOT_PATH === undefined) {
+        try {
+            __ROOT_PATH = await (0, simple_git_1.simpleGit)().revparse({ "--show-toplevel": null });
+        }
+        catch (error) {
+            if (error instanceof simple_git_1.GitError) {
                 __ROOT_PATH = process.cwd();
             }
+            else {
+                throw error;
+            }
         }
-        return __ROOT_PATH;
-    });
+    }
+    return __ROOT_PATH;
 }
 exports.getRootPath = getRootPath;
 /**
  * Determines a list of commit hashes (based on `git rev-parse`) using the
  * provided target
  */
-function getCommitHashes(target) {
-    return __awaiter(this, void 0, void 0, function* () {
-        return (yield (0, simple_git_1.simpleGit)(yield getRootPath()).revparse(target)).split("\n");
-    });
+async function getCommitHashes(target) {
+    return (await (0, simple_git_1.simpleGit)(await getRootPath()).revparse(target)).split("\n");
 }
 /**
  * Retrieve the full commit message for the provided target
  */
-function getCommitMessage(target) {
-    return __awaiter(this, void 0, void 0, function* () {
-        return yield (0, simple_git_1.simpleGit)(yield getRootPath()).show([
-            "-q",
-            "--format=%B",
-            target,
-            "--",
-        ]);
-    });
+async function getCommitMessage(target) {
+    return await (0, simple_git_1.simpleGit)(await getRootPath()).show([
+        "-q",
+        "--format=%B",
+        target,
+        "--",
+    ]);
 }
 /**
  * Retrieves a list of commit messages based on the provided target
  * parameter
  */
-function getCommitMessages(target) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const git = (0, simple_git_1.simpleGit)(yield getRootPath());
-        let commitHashes = [];
-        if (/^[0-9a-fA-F]{40}$/.test(target.join(" ")) === false &&
-            (yield getCommitHashes(target)).length > 1) {
-            commitHashes = (yield git.raw(["rev-list"].concat(target).concat(["--"]))).split("\n");
+async function getCommitMessages(target) {
+    const git = (0, simple_git_1.simpleGit)(await getRootPath());
+    let commitHashes = [];
+    if (/^[0-9a-fA-F]{40}$/.test(target.join(" ")) === false &&
+        (await getCommitHashes(target)).length > 1) {
+        commitHashes = (await git.raw(["rev-list"].concat(target).concat(["--"]))).split("\n");
+    }
+    else {
+        commitHashes.push(target[0]);
+    }
+    const messages = [];
+    for (const hash of commitHashes) {
+        try {
+            messages.push(await getCommitMessage(hash));
         }
-        else {
-            commitHashes.push(target[0]);
+        catch (error) {
+            continue;
         }
-        const messages = [];
-        for (const hash of commitHashes) {
-            try {
-                messages.push(yield getCommitMessage(hash));
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            }
-            catch (error) {
-                continue;
-            }
-        }
-        return messages;
-    });
+    }
+    return messages;
 }
 exports.getCommitMessages = getCommitMessages;
 
@@ -32831,11 +32812,7 @@ const VERSION_SCHEMES = ["semver", "sdkver"];
 /**
  * This function takes two values and throws when their types don't match.
  */
-function verifyTypeMatches(name, 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-typeToTest, 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-typeItShouldBe) {
+function verifyTypeMatches(name, typeToTest, typeItShouldBe) {
     if (typeof typeToTest !== typeof typeItShouldBe) {
         throw new Error(`Incorrect type '${typeof typeToTest}' for '${name}', must be '${typeof typeItShouldBe}'`);
     }
@@ -32850,9 +32827,19 @@ class Configuration {
     get initialDevelopment() {
         return this._initialDevelopment;
     }
+    setRuleActivationStatus(ruleId, enabled) {
+        const rule = this.rules.get(ruleId);
+        if (rule !== undefined) {
+            rule.enabled = enabled;
+        }
+        else {
+            core.warning(`Rule "${ruleId}" is unknown; enabling or disabling it has no effect.`);
+        }
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     loadFromData(data) {
-        var _a, _b;
-        var _c;
+        var _a, _b, _c;
+        var _d;
         for (const key in data) {
             if (!CONFIG_ITEMS.includes(key)) {
                 throw new Error(`Unknown configuration item '${key}' detected!`);
@@ -32869,12 +32856,7 @@ class Configuration {
                      */
                     if (typeof data[key] === "object") {
                         for (const item of data[key]) {
-                            if (item in this.rules) {
-                                this.rules[item].enabled = key === "enable";
-                            }
-                            else {
-                                core.warning(`Rule "${item}" is unknown; enabling or disabling it has no effect.`);
-                            }
+                            this.setRuleActivationStatus(item, key === "enable");
                         }
                     }
                     else {
@@ -32911,20 +32893,24 @@ class Configuration {
                                 this.tags[typ] = { description: typeValue, bump: false };
                                 break;
                             case "object":
-                                for (const entry of Object.keys(typeValue)) {
-                                    if (["description", "bump"].includes(entry)) {
-                                        if (entry === "description") {
-                                            verifyTypeMatches(`${typ}.${entry}`, typeValue[entry], "");
+                                {
+                                    const tagObject = (_a = this.tags[typ]) !== null && _a !== void 0 ? _a : {};
+                                    for (const entry of Object.keys(typeValue)) {
+                                        if (["description", "bump"].includes(entry)) {
+                                            if (entry === "description") {
+                                                verifyTypeMatches(`${typ}.${entry}`, typeValue[entry], "");
+                                                tagObject.description = typeValue[entry];
+                                            }
+                                            else if (entry === "bump") {
+                                                verifyTypeMatches(`${typ}.${entry}`, typeValue[entry], true);
+                                                tagObject.bump = typeValue[entry];
+                                            }
                                         }
-                                        else if (entry === "bump") {
-                                            verifyTypeMatches(`${typ}.${entry}`, typeValue[entry], true);
+                                        else {
+                                            core.info(`Warning: "${key}.${typ}.${entry}" is unknown and has no effect.`);
                                         }
-                                        this.tags[typ] = this.tags[typ] ? this.tags[typ] : {};
-                                        this.tags[typ][entry] = typeValue[entry];
                                     }
-                                    else {
-                                        core.info(`Warning: "${key}.${typ}.${entry}" is unknown and has no effect.`);
-                                    }
+                                    this.tags[typ] = tagObject;
                                 }
                                 break;
                             default:
@@ -32943,11 +32929,11 @@ class Configuration {
                             let desc = "";
                             // Use the default description if it's one of the default tags
                             if (typ in DEFAULT_ACCEPTED_TAGS) {
-                                desc = (_a = DEFAULT_ACCEPTED_TAGS[typ].description) !== null && _a !== void 0 ? _a : "";
+                                desc = (_b = DEFAULT_ACCEPTED_TAGS[typ].description) !== null && _b !== void 0 ? _b : "";
                             }
                             this.tags[typ].description = desc;
                         }
-                        (_b = (_c = this.tags[typ]).bump) !== null && _b !== void 0 ? _b : (_c.bump = false);
+                        (_c = (_d = this.tags[typ]).bump) !== null && _c !== void 0 ? _c : (_d.bump = false);
                     }
                     break;
                 case "allowed-branches":
@@ -33062,10 +33048,10 @@ class Configuration {
         this.rules = new Map();
         this.sdkverCreateReleaseBranches = undefined;
         for (const rule of rules_1.ALL_RULES) {
-            this.rules[rule.id] = {
+            this.rules.set(rule.id, {
                 description: rule.description,
                 enabled: rule.default,
-            };
+            });
         }
         if (fs.existsSync(configPath)) {
             const data = yaml.parse(fs.readFileSync(configPath, "utf8"));
@@ -33171,7 +33157,7 @@ var LlvmLevel;
     LlvmLevel["ERROR"] = "ERROR";
     LlvmLevel["WARNING"] = "WARNING";
     LlvmLevel["NOTE"] = "NOTE";
-})(LlvmLevel = exports.LlvmLevel || (exports.LlvmLevel = {}));
+})(LlvmLevel || (exports.LlvmLevel = LlvmLevel = {}));
 // eslint-disable-next-line no-shadow
 var TextFormat;
 (function (TextFormat) {
@@ -33324,8 +33310,8 @@ const logging_1 = __nccwpck_require__(1517);
  */
 function validateRules(message, config) {
     const errors = [];
-    const disabledRules = Object.entries(config.rules)
-        .filter(item => !item[1]["enabled"])
+    const disabledRules = Array.from(config.rules)
+        .filter(item => item[1].enabled === false)
         .map(item => item[0]);
     for (const rule of exports.ALL_RULES) {
         try {
@@ -33336,10 +33322,9 @@ function validateRules(message, config) {
         catch (error) {
             if (error instanceof logging_1.LlvmError) {
                 errors.push(error);
+                continue;
             }
-            else {
-                throw error;
-            }
+            throw error;
         }
     }
     return errors;
@@ -34060,7 +34045,7 @@ var SemVerType;
     SemVerType[SemVerType["PATCH"] = 1] = "PATCH";
     SemVerType[SemVerType["MINOR"] = 2] = "MINOR";
     SemVerType[SemVerType["MAJOR"] = 3] = "MAJOR";
-})(SemVerType = exports.SemVerType || (exports.SemVerType = {}));
+})(SemVerType || (exports.SemVerType = SemVerType = {}));
 class SemVer {
     constructor({ major, minor, patch, prerelease = "", build = "", prefix = "", }) {
         this.major = major;
@@ -34071,7 +34056,10 @@ class SemVer {
         this.prefix = prefix;
     }
     static copy(semver) {
-        return new SemVer(Object.assign({ build: semver.build }, semver));
+        return new SemVer({
+            build: semver.build,
+            ...semver,
+        });
     }
     get build() {
         return this._build;

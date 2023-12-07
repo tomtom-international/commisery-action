@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { simpleGit } from "simple-git";
+import { GitError, simpleGit } from "simple-git";
 
 let __ROOT_PATH: string | undefined = undefined;
 
@@ -25,8 +25,12 @@ export async function getRootPath(): Promise<string> {
   if (__ROOT_PATH === undefined) {
     try {
       __ROOT_PATH = await simpleGit().revparse({ "--show-toplevel": null });
-    } catch (GitError) {
-      __ROOT_PATH = process.cwd();
+    } catch (error: unknown) {
+      if (error instanceof GitError) {
+        __ROOT_PATH = process.cwd();
+      } else {
+        throw error;
+      }
     }
   }
 
@@ -76,8 +80,7 @@ export async function getCommitMessages(target: string[]): Promise<string[]> {
   for (const hash of commitHashes) {
     try {
       messages.push(await getCommitMessage(hash));
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
+    } catch (error: unknown) {
       continue;
     }
   }

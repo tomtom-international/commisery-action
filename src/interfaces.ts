@@ -45,13 +45,6 @@ export interface IConfigurationRules {
   [key: string]: ITypeTagConfigItem;
 }
 
-export interface IConfiguration {
-  disable: string[];
-  "max-subject-length": number;
-  tags: IConfigurationRules;
-  "allowed-branches": string;
-}
-
 export interface ISemVer {
   major: number;
   minor: number;

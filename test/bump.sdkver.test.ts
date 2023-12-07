@@ -19,7 +19,6 @@ import * as gh from "@actions/github";
 import * as github from "../src/github";
 import * as bumpaction from "../src/actions/bump";
 import * as changelog from "../src/changelog";
-import { Configuration } from "../src/config";
 
 import * as fs from "fs";
 import { SemVer } from "../src/semver";
@@ -150,7 +149,7 @@ const testFunction = async (p: SdkBumpTestParameters) => {
     .spyOn(github, "matchTagsToCommits")
     .mockResolvedValue([SemVer.fromString(p.initialVersion), messages]);
 
-  await bumpaction.exportedForTesting.run();
+  await bumpaction.run();
   expect(core.info).toHaveBeenCalledWith(
     expect.stringContaining(`Found SdkVer tag: ${p.initialVersion}`)
   );
@@ -352,7 +351,7 @@ describe("Create release branch", () => {
     gh.context.ref = `refs/heads/${branch}`;
     setInputSpyWith({ "release-type": bumpType });
 
-    await bumpaction.exportedForTesting.run();
+    await bumpaction.run();
 
     if (branch === "main" && ["rel", "rc"].includes(bumpType)) {
       expect(github.createBranch).toHaveBeenCalledWith(
@@ -367,7 +366,7 @@ describe("Create release branch", () => {
   it("should be default disabled", async () => {
     gh.context.ref = "refs/heads/main";
     jest.spyOn(fs, "readFileSync").mockReturnValue(`version-scheme: "sdkver"`);
-    await bumpaction.exportedForTesting.run();
+    await bumpaction.run();
     expect(github.createBranch).not.toHaveBeenCalled();
   });
 
@@ -378,7 +377,7 @@ describe("Create release branch", () => {
       .mockReturnValue(
         `version-scheme: "sdkver"\nsdkver-create-release-branches: true`
       );
-    await bumpaction.exportedForTesting.run();
+    await bumpaction.run();
     expect(github.createBranch).toHaveBeenCalledWith(
       "refs/heads/release/1.3",
       "baaaadb0b"
@@ -392,7 +391,7 @@ describe("Create release branch", () => {
       .mockReturnValue(
         `version-scheme: "sdkver"\nsdkver-create-release-branches: "rel-"`
       );
-    await bumpaction.exportedForTesting.run();
+    await bumpaction.run();
     expect(github.createBranch).toHaveBeenCalledWith(
       "refs/heads/rel-1.3",
       "baaaadb0b"
@@ -431,7 +430,7 @@ describe("Create changelog", () => {
       });
     setInputSpyWith({ "release-type": "rel" });
 
-    await bumpaction.exportedForTesting.run();
+    await bumpaction.run();
     if (createChangelog) {
       expect(changelog.generateChangelog).toHaveBeenCalledTimes(1);
       expect(github.createRelease).toHaveBeenCalledTimes(1);

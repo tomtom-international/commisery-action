@@ -249,7 +249,7 @@ function isMerge(subject: string): boolean {
   return merge !== null;
 }
 
-function stripMessage(message): string {
+function stripMessage(message: string): string {
   const cutLine = message.indexOf(
     "# ------------------------ >8 ------------------------\n"
   );

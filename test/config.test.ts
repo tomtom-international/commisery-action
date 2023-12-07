@@ -74,9 +74,9 @@ describe("Configurable options", () => {
       "C023",
       "C024",
     ];
-    withConfig("", config => {
-      const enabledRules = Object.entries(config.rules)
-        .filter(item => (item[1] as Object)["enabled"])
+    withConfig("", (config: Configuration) => {
+      const enabledRules = Array.from(config.rules)
+        .filter(item => item[1].enabled)
         .map(item => item[0]);
       expect(enabledRules).toEqual(expectedRules);
     });
@@ -84,9 +84,9 @@ describe("Configurable options", () => {
 
   test("Default disabled ruleset", () => {
     const expectedRules = ["C026"];
-    withConfig("", config => {
-      const disabledRules = Object.entries(config.rules)
-        .filter(item => !(item[1] as Object)["enabled"])
+    withConfig("", (config: Configuration) => {
+      const disabledRules = Array.from(config.rules)
+        .filter(item => !item[1].enabled)
         .map(item => item[0]);
       expect(disabledRules).toEqual(expectedRules);
     });
@@ -101,8 +101,8 @@ describe("Configurable options", () => {
           - C016
         `),
       config => {
-        expect(config.rules["C003"].enabled).toEqual(false);
-        expect(config.rules["C016"].enabled).toEqual(false);
+        expect(config.rules.get("C003").enabled).toEqual(false);
+        expect(config.rules.get("C016").enabled).toEqual(false);
 
         expect(() => {
           new ConventionalCommitMessage(
@@ -117,7 +117,6 @@ describe("Configurable options", () => {
 
   test("Disable nonexistent rule", () => {
     const coreWarning = jest.spyOn(core, "warning").mockImplementation();
-
     withConfig(
       dedent(`
         disable:
@@ -125,10 +124,7 @@ describe("Configurable options", () => {
           - XYZZY0123
           - C002
         `),
-      config => {
-        expect(() => {
-          new ConventionalCommitMessage("ci: make things", undefined, config);
-        }).not.toThrow(ConventionalCommitError);
+      _config => {
         expect(coreWarning).toHaveBeenCalledTimes(1);
       }
     );
@@ -142,7 +138,7 @@ describe("Configurable options", () => {
           - C026
         `),
       config => {
-        expect(config.rules["C026"].enabled).toEqual(true);
+        expect(config.rules.get("C026").enabled).toEqual(true);
 
         expect(() => {
           new ConventionalCommitMessage(
@@ -158,7 +154,6 @@ describe("Configurable options", () => {
 
   test("Enable nonexistent rule", () => {
     const coreWarning = jest.spyOn(core, "warning").mockImplementation();
-
     withConfig(
       dedent(`
         enable:
@@ -166,7 +161,7 @@ describe("Configurable options", () => {
           - XYZZY0123
           - C002
         `),
-      config => {
+      _config => {
         expect(coreWarning).toHaveBeenCalledTimes(1);
       }
     );

@@ -18,7 +18,6 @@ import * as core from "@actions/core";
 
 import { context } from "@actions/github";
 import {
-  bumpDraftRelease,
   bumpSdkVer,
   bumpSemVer,
   getVersionBumpTypeAndMessages,
@@ -41,8 +40,10 @@ import {
  * This action:
  *  - takes inputs `config`, `version-prefix`, `create-release` and `create-tag`
  *  - sets outputs `current-version` and `next-version`
+ *
+ * @internal
  */
-async function run(): Promise<void> {
+export async function run(): Promise<void> {
   // Try to download and load configuration
   await getConfig(core.getInput("config"));
   const config = new Configuration(".commisery.yml");
@@ -55,7 +56,7 @@ async function run(): Promise<void> {
       isBranchAllowedToPublish = new RegExp(config.allowedBranches).test(
         branchName
       );
-    } catch (e) {
+    } catch (e: unknown) {
       core.startGroup(
         "❌ Configuration error - invalid 'allowed-branches' RegEx"
       );
@@ -168,15 +169,9 @@ async function run(): Promise<void> {
         `Unimplemented 'version-scheme': ${config.versionScheme}`
       );
     }
-  } catch (ex) {
+  } catch (ex: unknown) {
     core.startGroup("❌ Exception");
     core.setFailed((ex as Error).message);
     core.endGroup();
   }
 }
-
-run();
-
-export const exportedForTesting = {
-  run,
-};
