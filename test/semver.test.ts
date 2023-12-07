@@ -278,6 +278,10 @@ describe("Build metadata", () => {
 describe("Helper functions", () => {
   test("Copy", () => {
     const original = SemVer.fromString("prefix1.2.3-prerelease+build");
+    expect(original).not.toBeNull();
+    if (original == null) {
+      return;
+    }
     const copy = SemVer.copy(original);
 
     expect(copy).not.toBe(original);

@@ -111,9 +111,9 @@ function processCommitsForBump(
   // commits/pull request titles that (ideally) have been validated
   // _before_ they were merged, and certain GitHub CI settings may append
   // a reference to the PR number in merge commits.
-  const configCopy = Object.create(config);
-  configCopy.setRuleActivationStatus("C014", false); // SubjectExceedsLineLengthLimit
-  configCopy.setRuleActivationStatus("C019", false); // SubjectContainsIssueReference
+  const configCopy = config.copy();
+  configCopy.setRuleActive("C014", false); // SubjectExceedsLineLengthLimit
+  configCopy.setRuleActive("C019", false); // SubjectContainsIssueReference
 
   return processCommits(commits, configCopy);
 }

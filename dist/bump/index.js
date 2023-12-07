@@ -33858,9 +33858,9 @@ function processCommitsForBump(commits, config) {
     // commits/pull request titles that (ideally) have been validated
     // _before_ they were merged, and certain GitHub CI settings may append
     // a reference to the PR number in merge commits.
-    const configCopy = Object.create(config);
-    configCopy.setRuleActivationStatus("C014", false); // SubjectExceedsLineLengthLimit
-    configCopy.setRuleActivationStatus("C019", false); // SubjectContainsIssueReference
+    const configCopy = config.copy();
+    configCopy.setRuleActive("C014", false); // SubjectExceedsLineLengthLimit
+    configCopy.setRuleActive("C019", false); // SubjectContainsIssueReference
     return (0, validate_1.processCommits)(commits, configCopy);
 }
 /**
@@ -34806,20 +34806,36 @@ const semver_1 = __nccwpck_require__(8593);
 const os = __importStar(__nccwpck_require__(2037));
 const BREAKING_CHANGE_TOKEN = "BREAKING-CHANGE";
 const CONVENTIONAL_COMMIT_REGEX = /(?<type>\w+)?((\s*)?\((?<scope>[^()]*)\)(\s*)?)?(?<breakingChange>((\s*)+[!]+(\s*)?)?)(?<separator>((\s+)?:?(\s+)?))(?<description>.*)/;
-const FOOTER_REGEX = /^(?<token>[\w-]+|BREAKING\sCHANGE|[\w-\s]+\sby)(?::[ ]|[ ](?=[#]))(?<value>.*)/;
+const FOOTER_REGEX = /^(?<token>[\w-]+|BREAKING\sCHANGE|[\w-\s]+\sby)(?::[ ]|[ ](?=#))(?<value>.*)/;
 /**
  * Footer class containing key, value pairs
  */
 class Footer {
     constructor(token, value) {
         this.token = token;
-        if (token === "BREAKING CHANGE") {
-            this.token = BREAKING_CHANGE_TOKEN;
-        }
         this.value = value;
     }
-    appendParagrah(paragrah) {
-        this.value += os.EOL + paragrah;
+    set token(token) {
+        if (token === "BREAKING CHANGE") {
+            this._token = BREAKING_CHANGE_TOKEN;
+        }
+        else {
+            this._token = token;
+        }
+    }
+    get token() {
+        return this._token;
+    }
+    set value(value) {
+        this._value = value;
+    }
+    // NOTE: Returns the value of the footer, without
+    // any trailing whitespace or new line
+    get value() {
+        return this._value.trimEnd();
+    }
+    appendParagraph(paragraph) {
+        this._value += os.EOL + paragraph;
     }
 }
 /**
@@ -34830,34 +34846,36 @@ function getConventionalCommitMetadata(message) {
     var _a;
     let footers = [];
     let body = [];
-    let hasBreakingChange = false;
     if (message.length > 1) {
         let endOfBody = 1;
+        let ignoreEmptyLines = false;
         // eslint-disable-next-line github/array-foreach
         message.slice(1).forEach((line, index) => {
             var _a;
-            const matches = (_a = line.match(FOOTER_REGEX)) === null || _a === void 0 ? void 0 : _a.groups;
+            const matches = (_a = FOOTER_REGEX.exec(line)) === null || _a === void 0 ? void 0 : _a.groups;
+            const currentTrailer = footers[footers.length - 1];
             if (matches) {
                 footers.push(new Footer(matches.token, matches.value));
-                if (footers[footers.length - 1].token === BREAKING_CHANGE_TOKEN) {
-                    hasBreakingChange = true;
-                }
+                ignoreEmptyLines = false;
             }
-            else if (footers.length > 0 && line.startsWith(" ")) {
-                // Multiline trailers use folding
-                footers[footers.length - 1].appendParagrah(line);
+            else if (/^-{8,}$/.test(line)) {
+                // End current trailer when a `---------` line is detected (i.e. as inserted
+                // by GitHub for certain merge strategies).
+                ignoreEmptyLines = true;
             }
-            else if (hasBreakingChange === true && line.trim() === "") {
-                // Allow blank lines after BREAKING[- ]CHANGE
-                if (footers[footers.length - 1].token !== BREAKING_CHANGE_TOKEN) {
-                    footers.push(new Footer("", ""));
-                }
-                return;
+            else if (ignoreEmptyLines && line.trim() === "") {
+                // Ignore empty lines after `---------` line
+                // until the next paragraph or footer element is detected.
+            }
+            else if (currentTrailer && (/^\s+/.test(line) || line.trim() === "")) {
+                // Multiline trailers use folding (RFC822), the exception being for empty lines
+                currentTrailer.appendParagraph(line);
             }
             else {
                 // Discard detected git trailers as non-compliant item has been found
                 endOfBody = index + 1;
                 footers = [];
+                ignoreEmptyLines = false;
             }
         });
         // Set the body
@@ -34868,7 +34886,7 @@ function getConventionalCommitMetadata(message) {
             body = [message[endOfBody]];
         }
     }
-    const conventionalSubject = (_a = message[0].match(CONVENTIONAL_COMMIT_REGEX)) === null || _a === void 0 ? void 0 : _a.groups;
+    const conventionalSubject = (_a = CONVENTIONAL_COMMIT_REGEX.exec(message[0])) === null || _a === void 0 ? void 0 : _a.groups;
     if (conventionalSubject === undefined) {
         throw new Error(`Commit is not compliant to Conventional Commits (non-strict)`);
     }
@@ -34951,13 +34969,11 @@ class ConventionalCommitMessage {
 exports.ConventionalCommitMessage = ConventionalCommitMessage;
 function isFixup(subject) {
     const AUTOSQUASH_REGEX = /^(?:(?:fixup|squash)!\s+)+/;
-    const autosquash = subject.match(AUTOSQUASH_REGEX);
-    return autosquash !== null;
+    return AUTOSQUASH_REGEX.test(subject);
 }
 function isMerge(subject) {
     const MERGE_REGEX = /^Merge.*?:?[\s\t]*?/;
-    const merge = subject.match(MERGE_REGEX);
-    return merge !== null;
+    return MERGE_REGEX.test(subject);
 }
 function stripMessage(message) {
     const cutLine = message.indexOf("# ------------------------ >8 ------------------------\n");
@@ -35093,7 +35109,7 @@ class Configuration {
     get initialDevelopment() {
         return this._initialDevelopment;
     }
-    setRuleActivationStatus(ruleId, enabled) {
+    setRuleActive(ruleId, enabled) {
         const rule = this.rules.get(ruleId);
         if (rule !== undefined) {
             rule.enabled = enabled;
@@ -35122,7 +35138,7 @@ class Configuration {
                      */
                     if (typeof data[key] === "object") {
                         for (const item of data[key]) {
-                            this.setRuleActivationStatus(item, key === "enable");
+                            this.setRuleActive(item, key === "enable");
                         }
                     }
                     else {
@@ -35173,7 +35189,7 @@ class Configuration {
                                             }
                                         }
                                         else {
-                                            core.info(`Warning: "${key}.${typ}.${entry}" is unknown and has no effect.`);
+                                            core.warning(`Warning: "${key}.${typ}.${entry}" is unknown and has no effect.`);
                                         }
                                     }
                                     this.tags[typ] = tagObject;
@@ -35328,6 +35344,21 @@ class Configuration {
                 throw new Error(`No configuration can be found at: ${configPath}`);
             }
         }
+    }
+    /**
+     * Creates a (deep) copy of the Configuration instance
+     */
+    copy() {
+        const config = new Configuration();
+        config.allowedBranches = this.allowedBranches;
+        config.maxSubjectLength = this.maxSubjectLength;
+        config.releaseBranches = this.releaseBranches;
+        config.versionScheme = this.versionScheme;
+        config.prereleasePrefix = this.prereleasePrefix;
+        config.tags = JSON.parse(JSON.stringify(this.tags));
+        config.rules = new Map(JSON.parse(JSON.stringify(Array.from(this.rules))));
+        config.sdkverCreateReleaseBranches = this.sdkverCreateReleaseBranches;
+        return config;
     }
 }
 exports.Configuration = Configuration;
@@ -35671,7 +35702,7 @@ async function matchTagsToCommits(sha, matcher) {
         sha,
     })) {
         for (const commit of resp.data) {
-            match = matcher(commit.commit.message, commit.sha);
+            match = matcher(commit.sha);
             if (match) {
                 core.debug(`Matching on (${commit.sha}):${commit.commit.message.split("\n")[0]}`);
                 return [match, commitList];
@@ -36613,24 +36644,12 @@ class GitTrailerContainsWhitespace {
     }
 }
 /**
- * Footer should not contain any blank line(s)
+ * Rule C022 was historically known as:
+ *     FooterContainsBlankLine
+ * with description:
+ *     "Footer should not contain any blank line(s)";
+ * This rule has been removed and its ID should therefore not be re-used.
  */
-class FooterContainsBlankLine {
-    constructor() {
-        this.id = "C022";
-        this.description = "Footer should not contain any blank line(s)";
-        this.default = true;
-    }
-    validate(message, _) {
-        for (const item of message.footers) {
-            if (!item.token || item.value.length === 0) {
-                throw new logging_1.LlvmError({
-                    message: `[${this.id}] ${this.description}`,
-                });
-            }
-        }
-    }
-}
 /**
  * The BREAKING CHANGE git-trailer should be the first element in the footer
  */
@@ -36749,7 +36768,6 @@ exports.ALL_RULES = [
     new MissingEmptyLineBetweenSubjectAndBody(),
     new SubjectContainsIssueReference(),
     new GitTrailerContainsWhitespace(),
-    new FooterContainsBlankLine(),
     new BreakingChangeMustBeFirstGitTrailer(),
     new GitTrailerNeedAColon(),
     new FooterContainsTicketReference(),

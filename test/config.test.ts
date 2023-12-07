@@ -35,7 +35,7 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-function withConfig(contents: string, func) {
+function withConfig(contents: string, func: any) {
   const exists = jest.spyOn(fs, "existsSync").mockImplementation(() => true);
   const read = jest
     .spyOn(fs, "readFileSync")
@@ -70,7 +70,6 @@ describe("Configurable options", () => {
       "C018",
       "C019",
       "C020",
-      "C022",
       "C023",
       "C024",
     ];
@@ -100,9 +99,9 @@ describe("Configurable options", () => {
           - C003
           - C016
         `),
-      config => {
-        expect(config.rules.get("C003").enabled).toEqual(false);
-        expect(config.rules.get("C016").enabled).toEqual(false);
+      (config: Configuration) => {
+        expect(config.rules.get("C003")?.enabled).toEqual(false);
+        expect(config.rules.get("C016")?.enabled).toEqual(false);
 
         expect(() => {
           new ConventionalCommitMessage(
@@ -124,7 +123,7 @@ describe("Configurable options", () => {
           - XYZZY0123
           - C002
         `),
-      _config => {
+      (_config: Configuration) => {
         expect(coreWarning).toHaveBeenCalledTimes(1);
       }
     );
@@ -137,8 +136,8 @@ describe("Configurable options", () => {
         enable:
           - C026
         `),
-      config => {
-        expect(config.rules.get("C026").enabled).toEqual(true);
+      (config: Configuration) => {
+        expect(config.rules.get("C026")?.enabled).toEqual(true);
 
         expect(() => {
           new ConventionalCommitMessage(
@@ -161,7 +160,7 @@ describe("Configurable options", () => {
           - XYZZY0123
           - C002
         `),
-      _config => {
+      (_config: Configuration) => {
         expect(coreWarning).toHaveBeenCalledTimes(1);
       }
     );
@@ -169,19 +168,19 @@ describe("Configurable options", () => {
   });
 
   test("Default maximum subject length", () => {
-    withConfig("", config => {
+    withConfig("", (config: Configuration) => {
       expect(config.maxSubjectLength).toEqual(80);
     });
   });
 
   test("Override maximum subject length", () => {
-    withConfig("max-subject-length: 100", config => {
+    withConfig("max-subject-length: 100", (config: Configuration) => {
       expect(config.maxSubjectLength).toEqual(100);
     });
   });
 
   test("Default tags", () => {
-    withConfig("", config => {
+    withConfig("", (config: Configuration) => {
       for (const [key, value] of Object.entries(
         _testData.DEFAULT_ACCEPTED_TAGS
       )) {
@@ -201,7 +200,7 @@ describe("Configurable options", () => {
         disable:
           - C001
         `),
-      config => {
+      (config: Configuration) => {
         const msg = new ConventionalCommitMessage(
           "typeA: do something requiring a custom type",
           undefined,
@@ -220,7 +219,7 @@ describe("Configurable options", () => {
             description: Some custom type
             bump: true
         `),
-      config => {
+      (config: Configuration) => {
         expect(() => {
           new ConventionalCommitMessage(
             "typeA: do something requiring a custom type",
@@ -241,7 +240,7 @@ describe("Configurable options", () => {
         disable:
           - C001
         `),
-      config => {
+      (config: Configuration) => {
         const msg = new ConventionalCommitMessage(
           "typeA: do something requiring a custom type",
           undefined,
@@ -259,7 +258,7 @@ describe("Configurable options", () => {
         disable:
           - C001
         `),
-      config => {
+      (config: Configuration) => {
         const msg = new ConventionalCommitMessage(
           "revert: oopsie",
           undefined,
@@ -278,7 +277,7 @@ describe("Configurable options", () => {
         disable:
           - C001
         `),
-      config => {
+      (config: Configuration) => {
         const msg = new ConventionalCommitMessage(
           "revert: oopsie",
           undefined,
@@ -305,7 +304,7 @@ describe("Configurable options", () => {
         disable:
           - C001
         `),
-      config => {
+      (config: Configuration) => {
         // Types are overwritten, so expect "chore" not to be acceptable
         expect(() => {
           const msg2 = new ConventionalCommitMessage(
@@ -325,7 +324,7 @@ describe("Configurable options", () => {
           perf:
             bump: true
         `),
-      config => {
+      (config: Configuration) => {
         const acceptedTypes = Object.keys(config.tags);
 
         expect(acceptedTypes).toHaveLength(3);
@@ -345,7 +344,7 @@ describe("Configurable options", () => {
           improvement:
             bump: true
         `),
-      config => {
+      (config: Configuration) => {
         expect(config.tags["perf"].description).toEqual(
           _testData.DEFAULT_ACCEPTED_TAGS["perf"].description
         );
@@ -354,37 +353,37 @@ describe("Configurable options", () => {
   });
 
   test("Default initial development value", () => {
-    withConfig("", config => {
+    withConfig("", (config: Configuration) => {
       expect(config.initialDevelopment).toEqual(true);
     });
   });
 
   test("Disable initial development", () => {
-    withConfig("initial-development: false", config => {
+    withConfig("initial-development: false", (config: Configuration) => {
       expect(config.initialDevelopment).toEqual(false);
     });
   });
 
   test("Default allowed branches", () => {
-    withConfig("", config => {
+    withConfig("", (config: Configuration) => {
       expect(config.allowedBranches).toEqual(".*");
     });
   });
 
   test("Customize allowed branches", () => {
-    withConfig("allowed-branches: main", config => {
+    withConfig("allowed-branches: main", (config: Configuration) => {
       expect(config.allowedBranches).toEqual("main");
     });
   });
 
   test("Default SdkVer create release branches", () => {
-    withConfig("", config => {
+    withConfig("", (config: Configuration) => {
       expect(config.sdkverCreateReleaseBranches).toBe(undefined);
     });
   });
 
   test("Default version prefix", () => {
-    withConfig("", config => {
+    withConfig("", (config: Configuration) => {
       expect(config.versionPrefix).toBe("*");
     });
   });
@@ -392,13 +391,13 @@ describe("Configurable options", () => {
   test("Boolean defaults", () => {
     withConfig(
       "version-scheme: sdkver\nsdkver-create-release-branches: true",
-      config => {
+      (config: Configuration) => {
         expect(config.sdkverCreateReleaseBranches).toBe("release/");
       }
     );
     withConfig(
       "version-scheme: sdkver\nsdkver-create-release-branches: false",
-      config => {
+      (config: Configuration) => {
         expect(config.sdkverCreateReleaseBranches).toBe(undefined);
       }
     );
@@ -407,7 +406,7 @@ describe("Configurable options", () => {
   test("String values", () => {
     withConfig(
       "version-scheme: sdkver\nsdkver-create-release-branches: some-release-prefix-\nversion-prefix: X",
-      config => {
+      (config: Configuration) => {
         expect(config.sdkverCreateReleaseBranches).toBe("some-release-prefix-");
         expect(config.versionPrefix).toBe("X");
       }
@@ -423,10 +422,58 @@ describe("Configurable options", () => {
     });
     withConfig(
       "version-scheme: semver\nsdkver-create-release-branches: true",
-      config => {
+      (config: Configuration) => {
         expect(config.sdkverCreateReleaseBranches).toBe("release/");
       }
     );
     expect(core.warning).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("(Deep) Copy of Configuration", () => {
+  test("Default settings", () => {
+    const config = new Configuration();
+    const copy = config.copy();
+    expect(config).toEqual(copy);
+  });
+
+  test("Modification of copy does not affect original", () => {
+    const config = new Configuration();
+    const copy = config.copy();
+
+    copy.maxSubjectLength = 100;
+
+    expect(config.maxSubjectLength).toEqual(80);
+  });
+
+  test("Modification of original does not affect copy", () => {
+    const config = new Configuration();
+    const copy = config.copy();
+
+    config.maxSubjectLength = 100;
+
+    expect(copy.maxSubjectLength).toEqual(80);
+  });
+
+  test("Modification of nested object in copy does not affect original", () => {
+    const config = new Configuration();
+    const copy = config.copy();
+
+    copy.tags["ci"].bump = true;
+    copy.setRuleActive("C001", false);
+
+    expect(config.rules.get("C001")?.enabled).toEqual(true);
+    expect(config.tags["ci"].bump).toEqual(false);
+  });
+
+  test("Modification of nested object in original does not affect copy", () => {
+    const config = new Configuration();
+    const copy = config.copy();
+
+    config.tags["ci"].bump = true;
+    config.setRuleActive("C001", false);
+
+    expect(copy.rules.get("C001")?.enabled).toEqual(true);
+    expect(copy.tags["ci"].bump).toEqual(false);
   });
 });

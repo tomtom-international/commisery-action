@@ -19,10 +19,16 @@ import * as gh from "@actions/github";
 import * as github from "../src/github";
 import * as bumpaction from "../src/actions/bump";
 import * as changelog from "../src/changelog";
+import * as validate from "../src/validate";
 
+import { getVersionBumpTypeAndMessages } from "../src/bump";
 import * as fs from "fs";
 import { SemVer } from "../src/semver";
 import * as U from "./test_utils";
+import { Configuration } from "../src/config";
+import { IGitTag } from "../src/interfaces";
+import { BASE_COMMIT } from "./test_utils";
+import { ALL_RULES } from "../src/rules";
 
 jest.mock("fs", () => ({
   promises: { access: jest.fn() },
@@ -39,7 +45,6 @@ jest.mock("../src/changelog");
 gh.context = { ref: "refs/heads/main", sha: U.HEAD_SHA };
 
 beforeEach(() => {
-  jest.resetAllMocks();
   jest.spyOn(github, "isPullRequestEvent").mockReturnValue(false);
   jest.spyOn(github, "createTag").mockResolvedValue();
   jest.spyOn(github, "createRelease").mockResolvedValue();
@@ -74,6 +79,10 @@ beforeEach(() => {
   jest.spyOn(core, "error").mockImplementation(console.log);
   jest.spyOn(core, "setFailed").mockImplementation(console.log);
   */
+});
+
+afterEach(() => {
+  jest.resetAllMocks();
 });
 
 describe("Bump functionality", () => {
@@ -238,6 +247,10 @@ describe("Trouble bumping", () => {
         SemVer.fromString(U.INITIAL_VERSION),
         [U.PATCH_MSG].concat(U.DEFAULT_COMMIT_LIST),
       ]);
+  });
+
+  afterEach(() => {
+    jest.resetAllMocks();
   });
 
   test("no matching tags found", async () => {
@@ -577,7 +590,7 @@ describe("Version prefix handling", () => {
               : "")
         );
 
-      await bumpaction.exportedForTesting.run();
+      await bumpaction.run();
 
       const commitSha =
         TEST_VERSIONS.find(version => version.name == expected?.toString())
@@ -585,8 +598,62 @@ describe("Version prefix handling", () => {
 
       // We specifically test the matcher function passed to matchTagsToCommits here,
       // as it's (sadly) the only way to test the actual behavior of the matcher.
-      const matcherFunc = github.matchTagsToCommits.mock.calls[0][1];
-      expect(matcherFunc("", commitSha)).toEqual(expected);
+      const matcherFunc = (github.matchTagsToCommits as jest.Mock).mock
+        .calls[0][1];
+      expect(matcherFunc(commitSha)).toEqual(expected);
     }
   );
+});
+
+describe("Process Commits Configuration", () => {
+  beforeEach(() => {
+    jest.spyOn(github, "getLatestTags").mockResolvedValue([
+      {
+        name: "1.0.0",
+        commitSha: BASE_COMMIT.sha,
+      },
+    ] as IGitTag[]);
+
+    jest
+      .spyOn(github, "matchTagsToCommits")
+      .mockResolvedValue([SemVer.fromString("1.0.0"), [BASE_COMMIT]]);
+  });
+
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  test("Disable C014 and C019 during bump", async () => {
+    const processCommits = jest.spyOn(validate, "processCommits");
+
+    const config = new Configuration();
+    await getVersionBumpTypeAndMessages("f00dcafe", config);
+
+    // Both C014 and C019 are disabled when running bump
+    const expectedConfig = new Configuration();
+    expectedConfig.setRuleActive("C014", false);
+    expectedConfig.setRuleActive("C019", false);
+
+    expect(processCommits).toHaveBeenCalledWith([BASE_COMMIT], expectedConfig);
+    expect(config).toStrictEqual(new Configuration());
+
+    processCommits.mockRestore();
+  });
+
+  test("All rules already disabled", async () => {
+    const processCommits = jest.spyOn(validate, "processCommits");
+
+    const config = new Configuration();
+    ALL_RULES.forEach(rule => config.setRuleActive(rule.id, false));
+
+    await getVersionBumpTypeAndMessages("f00dcafe", config);
+
+    const expectedConfig = new Configuration();
+    ALL_RULES.forEach(rule => expectedConfig.setRuleActive(rule.id, false));
+
+    expect(processCommits).toHaveBeenCalledWith([BASE_COMMIT], config);
+    expect(config).toStrictEqual(expectedConfig);
+
+    processCommits.mockRestore();
+  });
 });

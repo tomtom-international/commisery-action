@@ -116,6 +116,23 @@ describe("Breaking Change", () => {
     );
     expect(msg.breakingChange).toBe(true);
   });
+
+  test("Using BREAKING CHANGE footer, followed by a paragragh", () => {
+    const msg = new ConventionalCommitMessage(
+      dedent(
+        `feat: although this is breaking, it isn't (#123)
+
+         BREAKING CHANGE: this will be ignored as it is followed
+         by a paragraph (<-- this one, as it is not prefixed with one (or more) space(s))
+
+         Implements #1234
+        `
+      )
+    );
+    expect(msg.breakingChange).toBe(false);
+    expect(msg.footers.length).toBe(1);
+    expect(msg.footers[0].value).toBe("#1234");
+  });
 });
 
 // Validation of the body of a Commit Message
@@ -234,27 +251,31 @@ describe("Footer", () => {
     expect(msg.footers[0].value).toBe("TEST-123");
   });
 
-  test("Discarded footer element due to paragraph break", () => {
+  test("Accept empty lines between footer elements", () => {
     const msg = new ConventionalCommitMessage(
       dedent(
         `fix: this commit has footers
       
-         Ignored: Item
+         Not-Ignored: Item
       
          Implements: TEST-123`
       )
     );
-    expect(msg.footers.length).toBe(1);
-    expect(msg.footers[0].token).toBe("Implements");
-    expect(msg.footers[0].value).toBe("TEST-123");
+    expect(msg.footers.length).toBe(2);
+    expect(msg.footers[0].token).toBe("Not-Ignored");
+    expect(msg.footers[0].value).toBe("Item");
+    expect(msg.footers[1].token).toBe("Implements");
+    expect(msg.footers[1].value).toBe("TEST-123");
   });
 
-  test("Line break allowed after BREAKING-CHANGE", () => {
+  test("Ignore -------- cutting lines", () => {
     const msg = new ConventionalCommitMessage(
       dedent(
         `fix: this commit has footers
       
          BREAKING-CHANGE: This change is breaking
+
+         --------
 
          Implements: TEST-123`
       )
@@ -272,14 +293,16 @@ describe("Footer", () => {
         `chore: this contains a multiline footer element
     
          BREAKING-CHANGE: This is a multiline
-          paragraph in the footer`
+          paragraph in the footer
+        
+          This is the second paragraph in the BREAKING CHANGE footer`
       )
     );
 
     expect(msg.footers.length).toBe(1);
     expect(msg.footers[0].token).toBe("BREAKING-CHANGE");
     expect(msg.footers[0].value).toBe(
-      "This is a multiline\n paragraph in the footer"
+      "This is a multiline\n paragraph in the footer\n\n This is the second paragraph in the BREAKING CHANGE footer"
     );
   });
 });

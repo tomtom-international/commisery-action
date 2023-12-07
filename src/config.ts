@@ -116,7 +116,7 @@ export class Configuration {
     return this._initialDevelopment;
   }
 
-  setRuleActivationStatus(ruleId: string, enabled: boolean): void {
+  setRuleActive(ruleId: string, enabled: boolean): void {
     const rule = this.rules.get(ruleId);
     if (rule !== undefined) {
       rule.enabled = enabled;
@@ -146,7 +146,7 @@ export class Configuration {
            */
           if (typeof data[key] === "object") {
             for (const item of data[key]) {
-              this.setRuleActivationStatus(item, key === "enable");
+              this.setRuleActive(item, key === "enable");
             }
           } else {
             throw new Error(
@@ -212,7 +212,7 @@ export class Configuration {
                         tagObject.bump = typeValue[entry];
                       }
                     } else {
-                      core.info(
+                      core.warning(
                         `Warning: "${key}.${typ}.${entry}" is unknown and has no effect.`
                       );
                     }
@@ -396,6 +396,22 @@ export class Configuration {
         throw new Error(`No configuration can be found at: ${configPath}`);
       }
     }
+  }
+
+  /**
+   * Creates a (deep) copy of the Configuration instance
+   */
+  copy(): Configuration {
+    const config = new Configuration();
+    config.allowedBranches = this.allowedBranches;
+    config.maxSubjectLength = this.maxSubjectLength;
+    config.releaseBranches = this.releaseBranches;
+    config.versionScheme = this.versionScheme;
+    config.prereleasePrefix = this.prereleasePrefix;
+    config.tags = JSON.parse(JSON.stringify(this.tags));
+    config.rules = new Map(JSON.parse(JSON.stringify(Array.from(this.rules))));
+    config.sdkverCreateReleaseBranches = this.sdkverCreateReleaseBranches;
+    return config;
   }
 }
 

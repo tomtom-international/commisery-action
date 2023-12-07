@@ -297,7 +297,7 @@ export async function getReleaseConfiguration(): Promise<string> {
  */
 export async function matchTagsToCommits(
   sha: string | undefined,
-  matcher: (msg: string, hash: string) => SemVer | null
+  matcher: (hash: string) => SemVer | null
 ): Promise<[SemVer | null, ICommit[]]> {
   const octo = getOctokit();
   const commitList: ICommit[] = [];
@@ -308,7 +308,7 @@ export async function matchTagsToCommits(
     sha,
   })) {
     for (const commit of resp.data) {
-      match = matcher(commit.commit.message, commit.sha);
+      match = matcher(commit.sha);
       if (match) {
         core.debug(
           `Matching on (${commit.sha}):${commit.commit.message.split("\n")[0]}`
