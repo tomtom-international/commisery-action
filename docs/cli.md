@@ -31,15 +31,20 @@ Usage: commisery check [options] [TARGET...]
 Checks whether commit messages adhere to the Conventional Commits standard.
 
 Arguments:
-  TARGET      The `TARGET` can be:
+  TARGET         The `TARGET` can be:
     - a single commit hash
     - a file containing the commit message to check
     - a revision range that `git rev-list` can interpret
    When TARGET is omitted, 'HEAD' is implied.
 
 Options:
-  -h, --help  display help for command
+  -v, --verbose  also print commit message metadata (default: false)
+  -h, --help     display help for command
 ```
+
+> :bulb: flag will provide an overview of the parsed Conventional Commits elements for each correct message encountered.
+> This can be valuable to investigate scenarios in which you expected a different version bump than
+> the actual output of the `bump`-action.
 
 ### (Pre-) Commit hook
 

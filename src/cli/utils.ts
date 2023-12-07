@@ -15,6 +15,11 @@
  */
 
 import { GitError, simpleGit } from "simple-git";
+import { ConventionalCommitMessage } from "../commit";
+import * as Color from "./colors";
+import * as os from "os";
+import dedent from "dedent";
+import { SemVerType } from "../semver";
 
 let __ROOT_PATH: string | undefined = undefined;
 
@@ -61,7 +66,9 @@ async function getCommitMessage(target: string): Promise<string> {
  * Retrieves a list of commit messages based on the provided target
  * parameter
  */
-export async function getCommitMessages(target: string[]): Promise<string[]> {
+export async function getCommitMessages(
+  target: string[]
+): Promise<{ sha: string; body: string }[]> {
   const git = simpleGit(await getRootPath());
   let commitHashes: string[] = [];
 
@@ -76,14 +83,37 @@ export async function getCommitMessages(target: string[]): Promise<string[]> {
     commitHashes.push(target[0]);
   }
 
-  const messages: string[] = [];
+  const messages: { sha: string; body: string }[] = [];
   for (const hash of commitHashes) {
     try {
-      messages.push(await getCommitMessage(hash));
+      messages.push({ sha: hash, body: await getCommitMessage(hash) });
     } catch (error: unknown) {
       continue;
     }
   }
 
   return messages;
+}
+
+export function prettyPrintCommitMessage(
+  commit: ConventionalCommitMessage
+): void {
+  console.log("");
+  console.log(
+    dedent(`
+    ${Color.RED(`[[---- (Commit ${commit.hexsha}) ----]]`)}
+    ${Color.GREEN("Type")}: ${commit.type}
+    ${Color.GREEN("Scope")}: ${commit.scope ?? "None"}
+    ${Color.GREEN("Breaking Change")}: ${
+      commit.breakingChange ? Color.RED("Yes") : Color.GREEN("No")
+    }
+    ${Color.GREEN("Bump")}: ${SemVerType[commit.bump]}
+    ${Color.GREEN("Description")}: ${commit.description}
+    ${Color.GREEN("Body")}: ${Color.GRAY(commit.body ?? "None")}
+    ${Color.GREEN("Footers")}:
+    ${commit.footers
+      .map(footer => `${footer.token}: ${Color.GRAY(footer.value)}`)
+      .join(os.EOL)}
+    `)
+  );
 }

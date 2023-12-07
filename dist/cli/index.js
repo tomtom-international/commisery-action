@@ -32312,17 +32312,13 @@ const dedent_1 = __importDefault(__nccwpck_require__(5281));
 const core = __importStar(__nccwpck_require__(2186));
 const fs = __importStar(__nccwpck_require__(7147));
 const os = __importStar(__nccwpck_require__(2037));
+const Color = __importStar(__nccwpck_require__(7871));
 const commit_1 = __nccwpck_require__(1730);
 const config_1 = __nccwpck_require__(6373);
 const errors_1 = __nccwpck_require__(6976);
 const commander_1 = __nccwpck_require__(4379);
 const utils_1 = __nccwpck_require__(2449);
 const program = new commander_1.Command();
-const gray = "\x1b[90m";
-const red = "\x1b[91m";
-const green = "\x1b[92m";
-const yellow = "\x1b[93m";
-const reset = "\x1b[0m";
 program
     .name("commisery")
     .description("Commisery Conventional Commit Message Manager")
@@ -32330,26 +32326,35 @@ program
 program
     .command("check")
     .description("Checks whether commit messages adhere to the Conventional Commits standard.")
+    .option("-v, --verbose", "also print commit message metadata.", false)
     .argument("[TARGET...]", `The \`TARGET\` can be:
   - a single commit hash
   - a file containing the commit message to check
   - a revision range that \`git rev-list\` can interpret
  When TARGET is omitted, 'HEAD' is implied.`)
-    .action(async (target) => {
+    .action(async (target, options) => {
     const config = new config_1.Configuration(program.opts().config);
     if (target.length === 0) {
         target = ["HEAD"];
     }
     let messages = [];
     if (fs.existsSync(target.join(" "))) {
-        messages = [fs.readFileSync(target.join(" "), "utf8")];
+        messages = [
+            {
+                sha: target.join(" "),
+                body: fs.readFileSync(target.join(" "), "utf8"),
+            },
+        ];
     }
     else {
         messages = await (0, utils_1.getCommitMessages)(target);
     }
     for (const message of messages) {
         try {
-            new commit_1.ConventionalCommitMessage(message, undefined, config);
+            const commitmessage = new commit_1.ConventionalCommitMessage(message.body, message.sha, config);
+            if (options.verbose) {
+                (0, utils_1.prettyPrintCommitMessage)(commitmessage);
+            }
         }
         catch (error) {
             if (error instanceof errors_1.ConventionalCommitError) {
@@ -32366,38 +32371,73 @@ program
     .command("overview")
     .description("Lists the accepted Conventional Commit types and Rules (including description)")
     .action(() => {
-    var _a, _b;
+    var _a;
     const config = new config_1.Configuration(program.opts().config);
     core.info((0, dedent_1.default)(`
     Conventional Commit types
     -------------------------`));
     for (const key in config.tags) {
         const bumps = config.tags[key].bump && key !== "fix"
-            ? ` ${yellow}(bumps patch)${reset}`
+            ? ` ${Color.YELLOW("(bumps patch)")}`
             : "";
-        core.info(`${key}: ${gray}${config.tags[key].description}${reset}${bumps}`);
+        core.info(`${key}: ${Color.GRAY((_a = config.tags[key].description) !== null && _a !== void 0 ? _a : "")}${bumps}`);
     }
     core.info(os.EOL);
     core.info((0, dedent_1.default)(`
     Commisery Validation rules
     --------------------------
-    [${green}o${reset}]: ${gray}rule is enabled${reset}, [${red}x${reset}]: ${gray}rule is disabled${reset}
+    [${Color.GREEN("o")}]: ${Color.GRAY("rule is enabled")}, [${Color.RED("x")}]: ${Color.GRAY("rule is disabled")}
     `));
     core.info(os.EOL);
-    for (const rule in config.rules) {
-        const status = ((_a = config.rules.get(rule)) === null || _a === void 0 ? void 0 : _a.enabled)
-            ? `${green}o${reset}`
-            : `${red}x${reset}`;
-        core.info(`[${status}] ${rule}: ${gray}${(_b = config.rules.get(rule)) === null || _b === void 0 ? void 0 : _b.description}${reset}`);
-    }
+    config.rules.forEach((rule, key) => {
+        var _a;
+        const status = rule.enabled
+            ? `${Color.GREEN("o")}`
+            : `${Color.RED("x")}`;
+        core.info(`[${status}] ${key}: ${Color.GRAY((_a = rule.description) !== null && _a !== void 0 ? _a : "")}`);
+    });
 });
 program.parse();
 
 
 /***/ }),
 
+/***/ 7871:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/**
+ * Copyright (C) 2023, TomTom (http://tomtom.com).
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.YELLOW = exports.GREEN = exports.RED = exports.GRAY = void 0;
+const GRAY = (message) => `\x1b[90m${message}\x1b[0m`;
+exports.GRAY = GRAY;
+const RED = (message) => `\x1b[91m${message}\x1b[0m`;
+exports.RED = RED;
+const GREEN = (message) => `\x1b[92m${message}\x1b[0m`;
+exports.GREEN = GREEN;
+const YELLOW = (message) => `\x1b[93m${message}\x1b[0m`;
+exports.YELLOW = YELLOW;
+
+
+/***/ }),
+
 /***/ 2449:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
@@ -32416,9 +32456,39 @@ program.parse();
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getCommitMessages = exports.getRootPath = void 0;
+exports.prettyPrintCommitMessage = exports.getCommitMessages = exports.getRootPath = void 0;
 const simple_git_1 = __nccwpck_require__(9103);
+const Color = __importStar(__nccwpck_require__(7871));
+const os = __importStar(__nccwpck_require__(2037));
+const dedent_1 = __importDefault(__nccwpck_require__(5281));
+const semver_1 = __nccwpck_require__(8593);
 let __ROOT_PATH = undefined;
 /**
  * Determine the root path of the GIT project
@@ -32475,7 +32545,7 @@ async function getCommitMessages(target) {
     const messages = [];
     for (const hash of commitHashes) {
         try {
-            messages.push(await getCommitMessage(hash));
+            messages.push({ sha: hash, body: await getCommitMessage(hash) });
         }
         catch (error) {
             continue;
@@ -32484,6 +32554,24 @@ async function getCommitMessages(target) {
     return messages;
 }
 exports.getCommitMessages = getCommitMessages;
+function prettyPrintCommitMessage(commit) {
+    var _a, _b;
+    console.log("");
+    console.log((0, dedent_1.default)(`
+    ${Color.RED(`[[---- (Commit ${commit.hexsha}) ----]]`)}
+    ${Color.GREEN("Type")}: ${commit.type}
+    ${Color.GREEN("Scope")}: ${(_a = commit.scope) !== null && _a !== void 0 ? _a : "None"}
+    ${Color.GREEN("Breaking Change")}: ${commit.breakingChange ? Color.RED("Yes") : Color.GREEN("No")}
+    ${Color.GREEN("Bump")}: ${semver_1.SemVerType[commit.bump]}
+    ${Color.GREEN("Description")}: ${commit.description}
+    ${Color.GREEN("Body")}: ${Color.GRAY((_b = commit.body) !== null && _b !== void 0 ? _b : "None")}
+    ${Color.GREEN("Footers")}:
+    ${commit.footers
+        .map(footer => `${footer.token}: ${Color.GRAY(footer.value)}`)
+        .join(os.EOL)}
+    `));
+}
+exports.prettyPrintCommitMessage = prettyPrintCommitMessage;
 
 
 /***/ }),
