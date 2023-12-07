@@ -112,9 +112,8 @@ export function getConventionalCommitMetadata(
     }
   }
 
-  const conventionalSubject = message[0].match(
-    CONVENTIONAL_COMMIT_REGEX
-  )?.groups;
+  const conventionalSubject = message[0].match(CONVENTIONAL_COMMIT_REGEX)
+    ?.groups;
 
   if (conventionalSubject === undefined) {
     throw new Error(
