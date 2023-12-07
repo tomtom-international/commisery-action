@@ -89,7 +89,7 @@ function outputCommitErrors(
  */
 export function outputCommitListErrors(
   validationResults: IValidationResult[],
-  useErrorLevel
+  useErrorLevel: boolean
 ): void {
   for (const c of validationResults) {
     if (c.errors.length > 0) {
@@ -114,19 +114,22 @@ export function processCommits(
     try {
       const cc = new ConventionalCommitMessage(message, undefined, config);
       results.push({ input: commit, message: cc, errors: [] });
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof ConventionalCommitError) {
         results.push({
           input: commit,
           message: undefined,
           errors: error.errors,
         });
+        continue;
       } else if (
         error instanceof MergeCommitError ||
         error instanceof FixupCommitError
       ) {
         continue;
       }
+
+      throw error;
     }
   }
   return results;
@@ -189,17 +192,20 @@ export async function validatePrTitle(
     "with the Conventional Commits specification";
   try {
     conventionalCommitMessage = new ConventionalCommitMessage(prTitleText);
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof ConventionalCommitError) {
       errors = error.errors;
-    } else {
-      if (error instanceof MergeCommitError) {
-        errorMessage = `${errorMessage} (it describes a merge commit)`;
-      } else if (error instanceof FixupCommitError) {
-        errorMessage = `${errorMessage} (it describes a fixup commit)`;
-      }
+    } else if (
+      error instanceof MergeCommitError ||
+      error instanceof FixupCommitError
+    ) {
+      errorMessage = `${errorMessage} (it describes a ${
+        error instanceof MergeCommitError ? "merge" : "fixup"
+      } commit)`;
       core.setFailed(errorMessage);
       return undefined;
+    } else {
+      throw error;
     }
   }
   if (errors.length > 0) {

@@ -605,7 +605,7 @@ describe("Rules", () => {
    */
   test(`[C026] A ticket reference is required in at least one footer value`, () => {
     const config = new Configuration();
-    config.rules["C026"].enabled = true;
+    config.setRuleActivationStatus("C026", true);
 
     for (const message of [
       "test: no footer",

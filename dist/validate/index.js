@@ -33641,17 +33641,8 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.exportedForTesting = void 0;
+exports.run = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const bump_1 = __nccwpck_require__(1692);
 const config_1 = __nccwpck_require__(6373);
@@ -33662,59 +33653,58 @@ const validate_1 = __nccwpck_require__(4953);
 /**
  * Determine labels to add based on the provided conventional commits
  */
-function determineLabels(conventionalCommits, config) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const highestBumpType = (0, bump_1.getVersionBumpType)(conventionalCommits);
-        if (highestBumpType === semver_1.SemVerType.NONE) {
-            return [];
-        }
-        const labels = [];
-        if (config.initialDevelopment) {
-            labels.push(Label.create("initial development"));
-        }
-        labels.push(Label.create("bump", semver_1.SemVerType[highestBumpType]));
-        return labels;
-    });
+async function determineLabels(conventionalCommits, config) {
+    const highestBumpType = (0, bump_1.getVersionBumpType)(conventionalCommits);
+    if (highestBumpType === semver_1.SemVerType.NONE) {
+        return [];
+    }
+    const labels = [];
+    if (config.initialDevelopment) {
+        labels.push(Label.create("initial development"));
+    }
+    labels.push(Label.create("bump", semver_1.SemVerType[highestBumpType]));
+    return labels;
 }
-function run() {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            if (!(0, github_1.isPullRequestEvent)()) {
-                core.warning("Conventional Commit Message validation requires a workflow using the `pull_request` trigger!");
-                return;
-            }
-            yield (0, github_1.getConfig)(core.getInput("config"));
-            const config = new config_1.Configuration(".commisery.yml");
-            let compliant = true;
-            if (core.getBooleanInput("validate-commits")) {
-                // Validate the current PR's commit messages
-                const result = yield (0, validate_1.validateCommitsInCurrentPR)(config);
-                compliant && (compliant = result.compliant);
-                yield (0, github_1.updateLabels)(yield determineLabels(result.messages, config));
-            }
-            if (core.getBooleanInput("validate-pull-request-title-bump")) {
-                const ok = yield (0, validate_1.validatePrTitleBump)(config);
-                compliant && (compliant = ok);
-                // Validating the PR title bump level implies validating the title itself
-            }
-            else if (core.getBooleanInput("validate-pull-request")) {
-                const ok = (yield (0, validate_1.validatePrTitle)(config)) !== undefined;
-                compliant && (compliant = ok);
-            }
-            core.info(""); // add vertical whitespace
-            if (compliant) {
-                core.info("✅ The pull request passed all configured checks");
-            }
+/**
+ * Validate action entrypoint
+ *
+ * Validates commits agains the Conventional Commits specification.
+ * @internal
+ */
+async function run() {
+    try {
+        if (!(0, github_1.isPullRequestEvent)()) {
+            core.warning("Conventional Commit Message validation requires a workflow using the `pull_request` trigger!");
+            return;
         }
-        catch (ex) {
-            core.setFailed(ex.message);
+        await (0, github_1.getConfig)(core.getInput("config"));
+        const config = new config_1.Configuration(".commisery.yml");
+        let compliant = true;
+        if (core.getBooleanInput("validate-commits")) {
+            // Validate the current PR's commit messages
+            const result = await (0, validate_1.validateCommitsInCurrentPR)(config);
+            compliant && (compliant = result.compliant);
+            await (0, github_1.updateLabels)(await determineLabels(result.messages, config));
         }
-    });
+        if (core.getBooleanInput("validate-pull-request-title-bump")) {
+            const ok = await (0, validate_1.validatePrTitleBump)(config);
+            compliant && (compliant = ok);
+            // Validating the PR title bump level implies validating the title itself
+        }
+        else if (core.getBooleanInput("validate-pull-request")) {
+            const ok = (await (0, validate_1.validatePrTitle)(config)) !== undefined;
+            compliant && (compliant = ok);
+        }
+        core.info(""); // add vertical whitespace
+        if (compliant) {
+            core.info("✅ The pull request passed all configured checks");
+        }
+    }
+    catch (ex) {
+        core.setFailed(ex.message);
+    }
 }
-run();
-exports.exportedForTesting = {
-    run,
-};
+exports.run = run;
 
 
 /***/ }),
@@ -33761,15 +33751,6 @@ var __importStar = (this && this.__importStar) || function (mod) {
     if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
     __setModuleDefault(result, mod);
     return result;
-};
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.bumpSdkVer = exports.bumpSemVer = exports.publishBump = exports.printNonCompliance = exports.bumpDraftRelease = exports.getVersionBumpTypeAndMessages = exports.getVersionBumpType = void 0;
@@ -33835,9 +33816,9 @@ function processCommitsForBump(commits, config) {
     // commits/pull request titles that (ideally) have been validated
     // _before_ they were merged, and certain GitHub CI settings may append
     // a reference to the PR number in merge commits.
-    const configCopy = JSON.parse(JSON.stringify(config));
-    configCopy.rules["C014"].enabled = false; // SubjectExceedsLineLengthLimit
-    configCopy.rules["C019"].enabled = false; // SubjectContainsIssueReference
+    const configCopy = Object.create(config);
+    configCopy.setRuleActivationStatus("C014", false); // SubjectExceedsLineLengthLimit
+    configCopy.setRuleActivationStatus("C019", false); // SubjectContainsIssueReference
     return (0, validate_1.processCommits)(commits, configCopy);
 }
 /**
@@ -33879,57 +33860,55 @@ exports.getVersionBumpType = getVersionBumpType;
                  - state of "initial development"; if no version is found, err on the
                    safe side and declare "initial development" (if configured as such)
  */
-function getVersionBumpTypeAndMessages(targetSha, config) {
-    return __awaiter(this, void 0, void 0, function* () {
-        core.debug(`Fetching last ${PAGE_SIZE} tags from ${targetSha}..`);
-        const tags = yield (0, github_1.getLatestTags)(PAGE_SIZE);
-        core.debug("Fetch complete");
-        const tagMatcher = (commitMessage, commitSha) => {
-            // Try and match this commit's hash to one of the tags in `tags`
-            for (const tag of tags) {
-                let semVer = null;
-                core.debug(`Considering tag ${tag.name} (${tag.commitSha}) on ${commitSha}`);
-                semVer = getSemVerIfMatches(config.versionPrefix, tag.name, tag.commitSha, commitSha);
-                if (semVer) {
-                    // We've found a tag that matches to this commit. Now, we need to
-                    // make sure that we return the _highest_ version tag_ associated with
-                    // this commit
-                    core.debug(`Matching tag found (${tag.name}), checking other tags for commit ${commitSha}..`);
-                    const matchTags = tags.filter(t => t.commitSha === commitSha);
-                    if (matchTags.length > 1) {
-                        core.debug(`${matchTags.length} other tags found`);
-                        matchTags.sort((lhs, rhs) => semver_1.SemVer.sortSemVer(lhs.name, rhs.name));
-                        semVer = null;
-                        while (semVer === null && matchTags.length !== 0) {
-                            const t = matchTags.pop();
-                            if (!t)
-                                break;
-                            semVer = getSemVerIfMatches(config.versionPrefix, t.name, t.commitSha, commitSha);
-                        }
+async function getVersionBumpTypeAndMessages(targetSha, config) {
+    core.debug(`Fetching last ${PAGE_SIZE} tags from ${targetSha}..`);
+    const tags = await (0, github_1.getLatestTags)(PAGE_SIZE);
+    core.debug("Fetch complete");
+    const tagMatcher = (commitSha) => {
+        // Try and match this commit's hash to one of the tags in `tags`
+        for (const tag of tags) {
+            let semVer = null;
+            core.debug(`Considering tag ${tag.name} (${tag.commitSha}) on ${commitSha}`);
+            semVer = getSemVerIfMatches(config.versionPrefix, tag.name, tag.commitSha, commitSha);
+            if (semVer) {
+                // We've found a tag that matches to this commit. Now, we need to
+                // make sure that we return the _highest_ version tag_ associated with
+                // this commit
+                core.debug(`Matching tag found (${tag.name}), checking other tags for commit ${commitSha}..`);
+                const matchTags = tags.filter(t => t.commitSha === commitSha);
+                if (matchTags.length > 1) {
+                    core.debug(`${matchTags.length} other tags found`);
+                    matchTags.sort((lhs, rhs) => semver_1.SemVer.sortSemVer(lhs.name, rhs.name));
+                    semVer = null;
+                    while (semVer === null && matchTags.length !== 0) {
+                        const t = matchTags.pop();
+                        if (!t)
+                            break;
+                        semVer = getSemVerIfMatches(config.versionPrefix, t.name, t.commitSha, commitSha);
                     }
-                    else {
-                        core.debug(`No other tags found`);
-                        // Just the one tag; carry on.
-                    }
-                    return semVer;
                 }
+                else {
+                    core.debug(`No other tags found`);
+                    // Just the one tag; carry on.
+                }
+                return semVer;
             }
-            core.debug(`Commit ${commitSha.slice(0, 6)} is not associated with a tag`);
-            return null;
-        };
-        const [version, commitList] = yield (0, github_1.matchTagsToCommits)(targetSha, tagMatcher);
-        const results = processCommitsForBump(commitList, config);
-        const convCommits = results
-            .map(r => r.message)
-            .filter((r) => r !== undefined);
-        return {
-            foundVersion: version,
-            requiredBump: getVersionBumpType(convCommits),
-            processedCommits: results,
-            initialDevelopment: config.initialDevelopment &&
-                (!version || (version && version.major === 0)),
-        };
-    });
+        }
+        core.debug(`Commit ${commitSha.slice(0, 6)} is not associated with a tag`);
+        return null;
+    };
+    const [version, commitList] = await (0, github_1.matchTagsToCommits)(targetSha, tagMatcher);
+    const results = processCommitsForBump(commitList, config);
+    const convCommits = results
+        .map(r => r.message)
+        .filter((r) => r !== undefined);
+    return {
+        foundVersion: version,
+        requiredBump: getVersionBumpType(convCommits),
+        processedCommits: results,
+        initialDevelopment: config.initialDevelopment &&
+            (!version || (version && version.major === 0)),
+    };
 }
 exports.getVersionBumpTypeAndMessages = getVersionBumpTypeAndMessages;
 /**
@@ -33944,57 +33923,51 @@ exports.getVersionBumpTypeAndMessages = getVersionBumpTypeAndMessages;
  * Returns the new prerelease version name if update was successful,
  * `undefined` otherwise.
  */
-function tryUpdateDraftRelease(cv, changelog, sha) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const latestDraftRelease = yield (0, github_1.getRelease)({
-            prefixToMatch: cv.prefix,
-            draftOnly: true,
-            fullReleasesOnly: false,
-        });
-        if (!latestDraftRelease)
-            return;
-        const currentDraftVersion = semver_1.SemVer.fromString(latestDraftRelease.name);
-        if (!currentDraftVersion) {
-            core.info(`Couldn't parse ${latestDraftRelease.name} as SemVer`);
-            return;
-        }
-        const npv = currentDraftVersion.nextPrerelease();
-        if (!npv)
-            return;
-        npv.build = shortSha(sha);
-        const updateSuccess = yield (0, github_1.updateDraftRelease)(latestDraftRelease.id, npv.toString(), npv.toString(), sha, changelog);
-        if (!updateSuccess) {
-            core.info(`Error renaming existing draft release.`);
-            return;
-        }
-        return npv.toString();
+async function tryUpdateDraftRelease(cv, changelog, sha) {
+    const latestDraftRelease = await (0, github_1.getRelease)({
+        prefixToMatch: cv.prefix,
+        draftOnly: true,
+        fullReleasesOnly: false,
     });
+    if (!latestDraftRelease)
+        return;
+    const currentDraftVersion = semver_1.SemVer.fromString(latestDraftRelease.name);
+    if (!currentDraftVersion) {
+        core.info(`Couldn't parse ${latestDraftRelease.name} as SemVer`);
+        return;
+    }
+    const npv = currentDraftVersion.nextPrerelease();
+    if (!npv)
+        return;
+    npv.build = shortSha(sha);
+    const updateSuccess = await (0, github_1.updateDraftRelease)(latestDraftRelease.id, npv.toString(), npv.toString(), sha, changelog);
+    if (!updateSuccess) {
+        core.info(`Error renaming existing draft release.`);
+        return;
+    }
+    return npv.toString();
 }
-function newDraftRelease(currentVersion, changelog, sha, prefix) {
-    return __awaiter(this, void 0, void 0, function* () {
-        // Either update went wrong or there was nothing to update
-        const nextPrereleaseVersion = currentVersion.nextPatch();
-        nextPrereleaseVersion.build = currentVersion.build;
-        if (prefix === "dev") {
-            nextPrereleaseVersion.prerelease = `${prefix}001.${shortSha(sha)}`;
-        }
-        else {
-            nextPrereleaseVersion.prerelease = `${prefix}001`;
-        }
-        yield (0, github_1.createRelease)(nextPrereleaseVersion.toString(), sha, changelog, true, false);
-        return nextPrereleaseVersion.toString();
-    });
+async function newDraftRelease(currentVersion, changelog, sha, prefix) {
+    // Either update went wrong or there was nothing to update
+    const nextPrereleaseVersion = currentVersion.nextPatch();
+    nextPrereleaseVersion.build = currentVersion.build;
+    if (prefix === "dev") {
+        nextPrereleaseVersion.prerelease = `${prefix}001.${shortSha(sha)}`;
+    }
+    else {
+        nextPrereleaseVersion.prerelease = `${prefix}001`;
+    }
+    await (0, github_1.createRelease)(nextPrereleaseVersion.toString(), sha, changelog, true, false);
+    return nextPrereleaseVersion.toString();
 }
-function bumpDraftRelease(bumpInfo, changelog, sha, preRelPrefix) {
+async function bumpDraftRelease(bumpInfo, changelog, sha, preRelPrefix) {
     var _a;
-    return __awaiter(this, void 0, void 0, function* () {
-        const cv = bumpInfo.foundVersion;
-        if (!cv)
-            throw Error("Found version is falsy"); // should never happen
-        const result = (_a = (yield tryUpdateDraftRelease(cv, changelog, sha))) !== null && _a !== void 0 ? _a : (yield newDraftRelease(cv, changelog, sha, preRelPrefix));
-        core.info(`ℹ️ Next prerelease: ${result}`);
-        return result;
-    });
+    const cv = bumpInfo.foundVersion;
+    if (!cv)
+        throw Error("Found version is falsy"); // should never happen
+    const result = (_a = (await tryUpdateDraftRelease(cv, changelog, sha))) !== null && _a !== void 0 ? _a : (await newDraftRelease(cv, changelog, sha, preRelPrefix));
+    core.info(`ℹ️ Next prerelease: ${result}`);
+    return result;
 }
 exports.bumpDraftRelease = bumpDraftRelease;
 /**
@@ -34027,146 +34000,142 @@ function printNonCompliance(commits) {
     }
 }
 exports.printNonCompliance = printNonCompliance;
-function publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish, updateDraftId) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const nv = nextVersion.toString();
-        core.info(`ℹ️ Next version: ${nv}`);
-        core.setOutput("next-version", nv);
-        core.endGroup();
-        if (releaseMode !== "none") {
-            if (!isBranchAllowedToPublish) {
-                return false;
-            }
-            if ((0, github_1.isPullRequestEvent)()) {
-                core.startGroup(`ℹ️ Not creating ${releaseMode} on a pull request event.`);
-                core.info("We cannot create a release or tag in a pull request context, due to " +
-                    "potential parallelism (i.e. races) in pull request builds.");
-                return false;
-            }
-            core.startGroup(`ℹ️ Creating ${releaseMode} ${nv}..`);
-            try {
-                if (releaseMode === "tag") {
-                    yield (0, github_1.createTag)(nv, headSha);
-                }
-                else {
-                    // If version is a prerelease, but not an RC, create a draft release
-                    // If version is an RC, create a GitHub "pre-release"
-                    const isRc = nextVersion.prerelease.startsWith(RC_PREFIX);
-                    const isDev = nextVersion.prerelease !== "" && !isRc;
-                    let updated = false;
-                    if (updateDraftId) {
-                        updated = yield (0, github_1.updateDraftRelease)(updateDraftId, nv, nv, headSha, changelog, isDev, // draft
-                        isRc // prerelease
-                        );
-                        if (!updated) {
-                            core.info(`Error renaming existing draft release, ` +
-                                `creating new draft release.`);
-                        }
-                    }
-                    if (!updated) {
-                        yield (0, github_1.createRelease)(nv, headSha, changelog, isDev, isRc);
-                    }
-                }
-            }
-            catch (ex) {
-                // The most likely failure is a preexisting tag, in which case
-                // a RequestError with statuscode 422 will be thrown
-                const commit = yield (0, github_1.getShaForTag)(`refs/tags/${nv}`);
-                if (ex instanceof request_error_1.RequestError && ex.status === 422 && commit) {
-                    core.setFailed(`Unable to create ${releaseMode}; the tag "${nv}" already exists in the repository, ` +
-                        `it currently points to ${commit}.\n` +
-                        "You can find the branch(es) associated with the tag with:\n" +
-                        `  git fetch -t; git branch --contains ${nv}`);
-                }
-                else if (ex instanceof request_error_1.RequestError) {
-                    core.setFailed(`Unable to create ${releaseMode} with the name "${nv}" due to ` +
-                        `HTTP request error (status ${ex.status}):\n${ex.message}`);
-                }
-                else if (ex instanceof Error) {
-                    core.setFailed(`Unable to create ${releaseMode} with the name "${nv}":\n${ex.message}`);
-                }
-                else {
-                    core.setFailed(`Unknown error during ${releaseMode} creation`);
-                    throw ex;
-                }
-                core.endGroup();
-                return false;
-            }
-            core.info("Succeeded");
-        }
-        else {
-            core.startGroup(`ℹ️ Not creating tag or release for ${nv}..`);
-            core.info("To create a lightweight Git tag or GitHub release when the version is bumped, run this action with:\n" +
-                ' - "create-release" set to "true" to create a GitHub release, or\n' +
-                ' - "create-tag" set to "true" for a lightweight Git tag.\n' +
-                "Note that setting both options is not needed, since a GitHub release implicitly creates a Git tag.");
+async function publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish, updateDraftId) {
+    const nv = nextVersion.toString();
+    core.info(`ℹ️ Next version: ${nv}`);
+    core.setOutput("next-version", nv);
+    core.endGroup();
+    if (releaseMode !== "none") {
+        if (!isBranchAllowedToPublish) {
             return false;
         }
-        return true;
-    });
-}
-exports.publishBump = publishBump;
-function bumpSemVer(config, bumpInfo, releaseMode, branchName, headSha, isBranchAllowedToPublish, createChangelog) {
-    var _a;
-    return __awaiter(this, void 0, void 0, function* () {
-        const compliantCommits = bumpInfo.processedCommits
-            .filter(c => c.message !== undefined)
-            .map(c => ({
-            msg: c.message,
-            sha: c.input.sha.slice(0, 8),
-        }));
-        for (const { msg, sha } of compliantCommits) {
-            const bumpString = msg.bump === 0 ? "No" : semver_1.SemVerType[msg.bump];
-            core.info(`- ${bumpString} bump for commit (${sha}): ${msg.subject}`);
-        }
-        // Reject MAJOR and MINOR version bumps if we're on a release branch
-        // (Purposefully do this check _after_ listing the processed commits.)
-        if (branchName.match(config.releaseBranches) &&
-            [semver_1.SemVerType.MAJOR, semver_1.SemVerType.MINOR].includes(bumpInfo.requiredBump)) {
-            core.setFailed(`A ${semver_1.SemVerType[bumpInfo.requiredBump]} bump is requested, but ` +
-                `we can only create PATCH bumps on a release branch.`);
+        if ((0, github_1.isPullRequestEvent)()) {
+            core.startGroup(`ℹ️ Not creating ${releaseMode} on a pull request event.`);
+            core.info("We cannot create a release or tag in a pull request context, due to " +
+                "potential parallelism (i.e. races) in pull request builds.");
             return false;
         }
-        const nextVersion = (_a = bumpInfo.foundVersion) === null || _a === void 0 ? void 0 : _a.bump(bumpInfo.requiredBump, config.initialDevelopment);
-        let changelog = "";
-        if (createChangelog)
-            changelog = yield (0, changelog_1.generateChangelog)(bumpInfo);
-        let bumped = false;
-        if (nextVersion) {
-            const buildMetadata = core.getInput("build-metadata");
-            if (buildMetadata) {
-                nextVersion.build = buildMetadata;
-            }
-            bumped = yield publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish);
-        }
-        else {
-            core.info("ℹ️ No bump necessary");
-            core.setOutput("next-version", "");
-        }
-        core.endGroup();
-        if (!bumped && config.prereleasePrefix !== undefined) {
-            // When configured to create GitHub releases, and the `bump-prereleases` config item
-            // evaluates to `true`.
-            if (isBranchAllowedToPublish &&
-                !(0, github_1.isPullRequestEvent)() &&
-                releaseMode === "release") {
-                // Create/rename draft release
-                const ver = yield bumpDraftRelease(bumpInfo, changelog, headSha, config.prereleasePrefix);
-                core.info(`ℹ️ Created draft prerelease version ${ver}`);
+        core.startGroup(`ℹ️ Creating ${releaseMode} ${nv}..`);
+        try {
+            if (releaseMode === "tag") {
+                await (0, github_1.createTag)(nv, headSha);
             }
             else {
-                const reason = isBranchAllowedToPublish !== true
-                    ? `the current branch is not allowed to publish`
-                    : (0, github_1.isPullRequestEvent)()
-                        ? "we cannot publish from a pull request event"
-                        : releaseMode !== "release"
-                            ? `we can only do so when the 'create-release' input is provided to be 'true'`
-                            : "we didn't think of writing an error message here";
-                core.info(`ℹ️ While configured to bump prereleases, ${reason}.`);
+                // If version is a prerelease, but not an RC, create a draft release
+                // If version is an RC, create a GitHub "pre-release"
+                const isRc = nextVersion.prerelease.startsWith(RC_PREFIX);
+                const isDev = nextVersion.prerelease !== "" && !isRc;
+                let updated = false;
+                if (updateDraftId) {
+                    updated = await (0, github_1.updateDraftRelease)(updateDraftId, nv, nv, headSha, changelog, isDev, // draft
+                    isRc // prerelease
+                    );
+                    if (!updated) {
+                        core.info(`Error renaming existing draft release, ` +
+                            `creating new draft release.`);
+                    }
+                }
+                if (!updated) {
+                    await (0, github_1.createRelease)(nv, headSha, changelog, isDev, isRc);
+                }
             }
         }
-        return bumped;
-    });
+        catch (ex) {
+            // The most likely failure is a preexisting tag, in which case
+            // a RequestError with statuscode 422 will be thrown
+            const commit = await (0, github_1.getShaForTag)(`refs/tags/${nv}`);
+            if (ex instanceof request_error_1.RequestError && ex.status === 422 && commit) {
+                core.setFailed(`Unable to create ${releaseMode}; the tag "${nv}" already exists in the repository, ` +
+                    `it currently points to ${commit}.\n` +
+                    "You can find the branch(es) associated with the tag with:\n" +
+                    `  git fetch -t; git branch --contains ${nv}`);
+            }
+            else if (ex instanceof request_error_1.RequestError) {
+                core.setFailed(`Unable to create ${releaseMode} with the name "${nv}" due to ` +
+                    `HTTP request error (status ${ex.status}):\n${ex.message}`);
+            }
+            else if (ex instanceof Error) {
+                core.setFailed(`Unable to create ${releaseMode} with the name "${nv}":\n${ex.message}`);
+            }
+            else {
+                core.setFailed(`Unknown error during ${releaseMode} creation`);
+                throw ex;
+            }
+            core.endGroup();
+            return false;
+        }
+        core.info("Succeeded");
+    }
+    else {
+        core.startGroup(`ℹ️ Not creating tag or release for ${nv}..`);
+        core.info("To create a lightweight Git tag or GitHub release when the version is bumped, run this action with:\n" +
+            ' - "create-release" set to "true" to create a GitHub release, or\n' +
+            ' - "create-tag" set to "true" for a lightweight Git tag.\n' +
+            "Note that setting both options is not needed, since a GitHub release implicitly creates a Git tag.");
+        return false;
+    }
+    return true;
+}
+exports.publishBump = publishBump;
+async function bumpSemVer(config, bumpInfo, releaseMode, branchName, headSha, isBranchAllowedToPublish, createChangelog) {
+    var _a;
+    const compliantCommits = bumpInfo.processedCommits
+        .filter(c => c.message !== undefined)
+        .map(c => ({
+        msg: c.message,
+        sha: c.input.sha.slice(0, 8),
+    }));
+    for (const { msg, sha } of compliantCommits) {
+        const bumpString = msg.bump === 0 ? "No" : semver_1.SemVerType[msg.bump];
+        core.info(`- ${bumpString} bump for commit (${sha}): ${msg.subject}`);
+    }
+    // Reject MAJOR and MINOR version bumps if we're on a release branch
+    // (Purposefully do this check _after_ listing the processed commits.)
+    if (branchName.match(config.releaseBranches) &&
+        [semver_1.SemVerType.MAJOR, semver_1.SemVerType.MINOR].includes(bumpInfo.requiredBump)) {
+        core.setFailed(`A ${semver_1.SemVerType[bumpInfo.requiredBump]} bump is requested, but ` +
+            `we can only create PATCH bumps on a release branch.`);
+        return false;
+    }
+    const nextVersion = (_a = bumpInfo.foundVersion) === null || _a === void 0 ? void 0 : _a.bump(bumpInfo.requiredBump, config.initialDevelopment);
+    let changelog = "";
+    if (createChangelog)
+        changelog = await (0, changelog_1.generateChangelog)(bumpInfo);
+    let bumped = false;
+    if (nextVersion) {
+        const buildMetadata = core.getInput("build-metadata");
+        if (buildMetadata) {
+            nextVersion.build = buildMetadata;
+        }
+        bumped = await publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish);
+    }
+    else {
+        core.info("ℹ️ No bump necessary");
+        core.setOutput("next-version", "");
+    }
+    core.endGroup();
+    if (!bumped && config.prereleasePrefix !== undefined) {
+        // When configured to create GitHub releases, and the `bump-prereleases` config item
+        // evaluates to `true`.
+        if (isBranchAllowedToPublish &&
+            !(0, github_1.isPullRequestEvent)() &&
+            releaseMode === "release") {
+            // Create/rename draft release
+            const ver = await bumpDraftRelease(bumpInfo, changelog, headSha, config.prereleasePrefix);
+            core.info(`ℹ️ Created draft prerelease version ${ver}`);
+        }
+        else {
+            const reason = isBranchAllowedToPublish !== true
+                ? `the current branch is not allowed to publish`
+                : (0, github_1.isPullRequestEvent)()
+                    ? "we cannot publish from a pull request event"
+                    : releaseMode !== "release"
+                        ? `we can only do so when the 'create-release' input is provided to be 'true'`
+                        : "we didn't think of writing an error message here";
+            core.info(`ℹ️ While configured to bump prereleases, ${reason}.`);
+        }
+    }
+    return bumped;
 }
 exports.bumpSemVer = bumpSemVer;
 function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatchesTag, hasBreakingChange, devPrereleaseText, headSha, isInitialDevelopment) {
@@ -34338,115 +34307,113 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
 /**
  * Bump and release/tag SDK versions
  */
-function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, branchName, isBranchAllowedToPublish, createChangelog) {
+async function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, branchName, isBranchAllowedToPublish, createChangelog) {
     var _a, _b, _c, _d, _e, _f;
-    return __awaiter(this, void 0, void 0, function* () {
-        const isReleaseBranch = branchName.match(config.releaseBranches);
-        const hasBreakingChange = bumpInfo.processedCommits.some(c => { var _a; return (_a = c.message) === null || _a === void 0 ? void 0 : _a.breakingChange; });
-        if (!bumpInfo.foundVersion)
-            return false; // should never happen
-        // SdkVer requires a prerelease, so apply the default if not set
-        config.prereleasePrefix = (_a = config.prereleasePrefix) !== null && _a !== void 0 ? _a : "dev";
-        let cv = semver_1.SemVer.copy(bumpInfo.foundVersion);
-        // Get the latest draft release matching our current version's prefix.
-        // Don't look at the draft version on a release branch; the current version
-        // should always reflect the version to be bumped (as no dev releases are
-        // allowed on a release branch)
-        const latestDraft = yield (0, github_1.getRelease)({
-            prefixToMatch: cv.prefix,
-            draftOnly: true,
-            fullReleasesOnly: false,
-        });
-        const latestRelease = yield (0, github_1.getRelease)({
-            prefixToMatch: cv.prefix,
+    const isReleaseBranch = branchName.match(config.releaseBranches) !== null;
+    const hasBreakingChange = bumpInfo.processedCommits.some(c => { var _a; return (_a = c.message) === null || _a === void 0 ? void 0 : _a.breakingChange; });
+    if (!bumpInfo.foundVersion)
+        return false; // should never happen
+    // SdkVer requires a prerelease, so apply the default if not set
+    config.prereleasePrefix = (_a = config.prereleasePrefix) !== null && _a !== void 0 ? _a : "dev";
+    let cv = semver_1.SemVer.copy(bumpInfo.foundVersion);
+    // Get the latest draft release matching our current version's prefix.
+    // Don't look at the draft version on a release branch; the current version
+    // should always reflect the version to be bumped (as no dev releases are
+    // allowed on a release branch)
+    const latestDraft = await (0, github_1.getRelease)({
+        prefixToMatch: cv.prefix,
+        draftOnly: true,
+        fullReleasesOnly: false,
+    });
+    const latestRelease = await (0, github_1.getRelease)({
+        prefixToMatch: cv.prefix,
+        draftOnly: false,
+        fullReleasesOnly: true,
+    });
+    core.info(`Current version: ${cv.toString()}, latest GitHub release draft: ${(_b = latestDraft === null || latestDraft === void 0 ? void 0 : latestDraft.name) !== null && _b !== void 0 ? _b : "NONE"}, latest GitHub release: ${(_c = latestRelease === null || latestRelease === void 0 ? void 0 : latestRelease.name) !== null && _c !== void 0 ? _c : "NONE"}`);
+    if (!isReleaseBranch && latestDraft) {
+        // If we're not on a release branch and a draft version exists that is
+        // newer than the latest tag, we continue with that
+        const draftVersion = semver_1.SemVer.fromString(latestDraft.name);
+        if (draftVersion && cv.lessThan(draftVersion)) {
+            cv = draftVersion;
+        }
+    }
+    // TODO: This is wasteful, as this info has already been available before
+    const headMatchesTag = await (0, github_1.currentHeadMatchesTag)(cv.toString());
+    const nextVersion = getNextSdkVer(cv, sdkVerBumpType, isReleaseBranch, headMatchesTag, hasBreakingChange, (_d = config.prereleasePrefix) !== null && _d !== void 0 ? _d : "dev", headSha, config.initialDevelopment);
+    let bumped = false;
+    if (nextVersion) {
+        // Since we want the changelog since the last _full_ release, we
+        // can only rely on the `bumpInfo` if the "current version" is a
+        // full release. In other cases, we need to gather some information
+        // to generate the proper changelog.
+        const previousRelease = await (0, github_1.getRelease)({
+            prefixToMatch: nextVersion.prefix,
             draftOnly: false,
             fullReleasesOnly: true,
+            constraint: {
+                major: nextVersion.major,
+                minor: nextVersion.minor,
+            },
         });
-        core.info(`Current version: ${cv.toString()}, latest GitHub release draft: ${(_b = latestDraft === null || latestDraft === void 0 ? void 0 : latestDraft.name) !== null && _b !== void 0 ? _b : "NONE"}, latest GitHub release: ${(_c = latestRelease === null || latestRelease === void 0 ? void 0 : latestRelease.name) !== null && _c !== void 0 ? _c : "NONE"}`);
-        if (!isReleaseBranch && latestDraft) {
-            // If we're not on a release branch and a draft version exists that is
-            // newer than the latest tag, we continue with that
-            const draftVersion = semver_1.SemVer.fromString(latestDraft.name);
-            if (draftVersion && cv.lessThan(draftVersion)) {
-                cv = draftVersion;
+        core.info(`The full release preceding the current one is ${(_e = previousRelease === null || previousRelease === void 0 ? void 0 : previousRelease.name) !== null && _e !== void 0 ? _e : "undefined"}`);
+        let changelog = "";
+        if (createChangelog) {
+            if (previousRelease && cv.prerelease) {
+                const toVersion = 
+                // Since "dev" releases on non-release-branches result in a draft
+                // release, we'll need to use the commit sha.
+                sdkVerBumpType === "dev" && !isReleaseBranch
+                    ? shortSha(headSha)
+                    : nextVersion.toString();
+                changelog = await (0, changelog_1.generateChangelogForCommits)(previousRelease.name, toVersion, await collectChangelogCommits(previousRelease.name, config));
+            }
+            else {
+                changelog = await (0, changelog_1.generateChangelog)(bumpInfo);
             }
         }
-        // TODO: This is wasteful, as this info has already been available before
-        const headMatchesTag = yield (0, github_1.currentHeadMatchesTag)(cv.toString());
-        const nextVersion = getNextSdkVer(cv, sdkVerBumpType, isReleaseBranch, headMatchesTag, hasBreakingChange, (_d = config.prereleasePrefix) !== null && _d !== void 0 ? _d : "dev", headSha, config.initialDevelopment);
-        let bumped = false;
-        if (nextVersion) {
-            // Since we want the changelog since the last _full_ release, we
-            // can only rely on the `bumpInfo` if the "current version" is a
-            // full release. In other cases, we need to gather some information
-            // to generate the proper changelog.
-            const previousRelease = yield (0, github_1.getRelease)({
-                prefixToMatch: nextVersion.prefix,
-                draftOnly: false,
-                fullReleasesOnly: true,
-                constraint: {
-                    major: nextVersion.major,
-                    minor: nextVersion.minor,
-                },
-            });
-            core.info(`The full release preceding the current one is ${(_e = previousRelease === null || previousRelease === void 0 ? void 0 : previousRelease.name) !== null && _e !== void 0 ? _e : "undefined"}`);
-            let changelog = "";
-            if (createChangelog) {
-                if (previousRelease && cv.prerelease) {
-                    const toVersion = 
-                    // Since "dev" releases on non-release-branches result in a draft
-                    // release, we'll need to use the commit sha.
-                    sdkVerBumpType === "dev" && !isReleaseBranch
-                        ? shortSha(headSha)
-                        : nextVersion.toString();
-                    changelog = yield (0, changelog_1.generateChangelogForCommits)(previousRelease.name, toVersion, yield collectChangelogCommits(previousRelease.name, config));
+        bumped = await publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish, 
+        // Re-use the latest draft release only when not running on a release branch,
+        // otherwise we might randomly reset a `dev-N` number chain.
+        !isReleaseBranch ? latestDraft === null || latestDraft === void 0 ? void 0 : latestDraft.id : undefined);
+    }
+    if (!bumped) {
+        core.info("ℹ️ No bump was performed");
+    }
+    else {
+        // Create a release branch for releases and RC's if we're configured to do so
+        // and are currently not running on a release branch.
+        if (config.sdkverCreateReleaseBranches !== undefined &&
+            !isReleaseBranch &&
+            sdkVerBumpType !== "dev") {
+            const releaseBranchName = `${config.sdkverCreateReleaseBranches}${nextVersion.major}.${nextVersion.minor}`;
+            core.info(`Creating release branch ${releaseBranchName}..`);
+            try {
+                await (0, github_1.createBranch)(`refs/heads/${releaseBranchName}`, headSha);
+            }
+            catch (ex) {
+                if (ex instanceof request_error_1.RequestError && ex.status === 422) {
+                    core.warning(`The branch '${releaseBranchName}' already exists` +
+                        `${(0, github_1.getRunNumber)() !== 1 ? " (NOTE: this is a re-run)." : "."}`);
+                }
+                else if (ex instanceof request_error_1.RequestError) {
+                    core.warning(`Unable to create release branch '${releaseBranchName}' due to ` +
+                        `HTTP request error (status ${ex.status}):\n${ex.message}`);
+                }
+                else if (ex instanceof Error) {
+                    core.warning(`Unable to create release branch '${releaseBranchName}':\n${ex.message}`);
                 }
                 else {
-                    changelog = yield (0, changelog_1.generateChangelog)(bumpInfo);
-                }
-            }
-            bumped = yield publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish, 
-            // Re-use the latest draft release only when not running on a release branch,
-            // otherwise we might randomly reset a `dev-N` number chain.
-            !isReleaseBranch ? latestDraft === null || latestDraft === void 0 ? void 0 : latestDraft.id : undefined);
-        }
-        if (!bumped) {
-            core.info("ℹ️ No bump was performed");
-        }
-        else {
-            // Create a release branch for releases and RC's if we're configured to do so
-            // and are currently not running on a release branch.
-            if (config.sdkverCreateReleaseBranches !== undefined &&
-                !isReleaseBranch &&
-                sdkVerBumpType !== "dev") {
-                const releaseBranchName = `${config.sdkverCreateReleaseBranches}${nextVersion.major}.${nextVersion.minor}`;
-                core.info(`Creating release branch ${releaseBranchName}..`);
-                try {
-                    yield (0, github_1.createBranch)(`refs/heads/${releaseBranchName}`, headSha);
-                }
-                catch (ex) {
-                    if (ex instanceof request_error_1.RequestError && ex.status === 422) {
-                        core.warning(`The branch '${releaseBranchName}' already exists` +
-                            `${(0, github_1.getRunNumber)() !== 1 ? " (NOTE: this is a re-run)." : "."}`);
-                    }
-                    else if (ex instanceof request_error_1.RequestError) {
-                        core.warning(`Unable to create release branch '${releaseBranchName}' due to ` +
-                            `HTTP request error (status ${ex.status}):\n${ex.message}`);
-                    }
-                    else if (ex instanceof Error) {
-                        core.warning(`Unable to create release branch '${releaseBranchName}':\n${ex.message}`);
-                    }
-                    else {
-                        core.warning(`Unknown error during ${releaseMode} creation`);
-                        throw ex;
-                    }
+                    core.warning(`Unknown error during ${releaseMode} creation`);
+                    throw ex;
                 }
             }
         }
-        core.setOutput("next-version", (_f = nextVersion === null || nextVersion === void 0 ? void 0 : nextVersion.toString()) !== null && _f !== void 0 ? _f : "");
-        core.endGroup();
-        return bumped;
-    });
+    }
+    core.setOutput("next-version", (_f = nextVersion === null || nextVersion === void 0 ? void 0 : nextVersion.toString()) !== null && _f !== void 0 ? _f : "");
+    core.endGroup();
+    return bumped;
 }
 exports.bumpSdkVer = bumpSdkVer;
 /**
@@ -34458,19 +34425,17 @@ exports.bumpSdkVer = bumpSdkVer;
  *   - the name of the last full release reachable from our current version
  *   - the list of valid Conventional Commit objects since that release
  */
-function collectChangelogCommits(previousRelease, config) {
-    return __awaiter(this, void 0, void 0, function* () {
-        core.startGroup(`📜 Gathering changelog information`);
-        const commits = yield (0, github_1.getCommitsBetweenRefs)(previousRelease);
-        core.info(`Processing commit list (since ${previousRelease}) ` +
-            `for changelog generation:\n-> ` +
-            `${commits.map(c => c.message.split("\n")[0]).join("\n-> ")}`);
-        const processedCommits = processCommitsForBump(commits, config);
-        core.endGroup();
-        return processedCommits
-            .map(c => c.message)
-            .filter(c => c);
-    });
+async function collectChangelogCommits(previousRelease, config) {
+    core.startGroup(`📜 Gathering changelog information`);
+    const commits = await (0, github_1.getCommitsBetweenRefs)(previousRelease);
+    core.info(`Processing commit list (since ${previousRelease}) ` +
+        `for changelog generation:\n-> ` +
+        `${commits.map(c => c.message.split("\n")[0]).join("\n-> ")}`);
+    const processedCommits = processCommitsForBump(commits, config);
+    core.endGroup();
+    return processedCommits
+        .map(c => c.message)
+        .filter(c => c);
 }
 
 
@@ -34519,15 +34484,6 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.generateChangelog = exports.generateChangelogForCommits = exports.getChangelogConfiguration = void 0;
 const github_1 = __nccwpck_require__(5438);
@@ -34570,20 +34526,18 @@ const DEFAULT_CONFIG = {
  * Generates a Pull Request suffix `(#123)` in case this is not yet present
  * in the commit description.
  */
-function getPullRequestSuffix(commit) {
-    return __awaiter(this, void 0, void 0, function* () {
-        if (commit.hexsha && !commit.description.match(/\s\(#[0-9]+\)$/)) {
-            const pull_requests = yield (0, github_2.getAssociatedPullRequests)(commit.hexsha);
-            const pr_references = [];
-            for (const pull_request of pull_requests) {
-                pr_references.push(`#${pull_request.number}`);
-            }
-            if (pr_references.length > 0) {
-                return ` (${pr_references.join(", ")})`;
-            }
+async function getPullRequestSuffix(commit) {
+    if (commit.hexsha && !commit.description.match(/\s\(#[0-9]+\)$/)) {
+        const pull_requests = await (0, github_2.getAssociatedPullRequests)(commit.hexsha);
+        const pr_references = [];
+        for (const pull_request of pull_requests) {
+            pr_references.push(`#${pull_request.number}`);
         }
-        return "";
-    });
+        if (pr_references.length > 0) {
+            return ` (${pr_references.join(", ")})`;
+        }
+    }
+    return "";
 }
 /**
  * Generates an Issue suffix `(TEST-123, TEST-456)` based on the issue
@@ -34607,37 +34561,33 @@ function getIssueReferenceSuffix(commit) {
  * Creates an entry in the Changelog based on the provided
  * Conventional Commit message.
  */
-function generateChangelogEntry(commit) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const { owner, repo } = github_1.context.repo;
-        let changelogEntry = `${commit.description
-            .charAt(0)
-            .toUpperCase()}${commit.description.slice(1)}`;
-        changelogEntry += yield getPullRequestSuffix(commit);
-        changelogEntry += getIssueReferenceSuffix(commit);
-        if (commit.hexsha) {
-            const sha_link = `[${commit.hexsha.slice(0, 6)}](https://github.com/${owner}/${repo}/commit/${commit.hexsha})`;
-            changelogEntry += ` [${sha_link}]`;
-        }
-        return changelogEntry;
-    });
+async function generateChangelogEntry(commit) {
+    const { owner, repo } = github_1.context.repo;
+    let changelogEntry = `${commit.description
+        .charAt(0)
+        .toUpperCase()}${commit.description.slice(1)}`;
+    changelogEntry += await getPullRequestSuffix(commit);
+    changelogEntry += getIssueReferenceSuffix(commit);
+    if (commit.hexsha) {
+        const sha_link = `[${commit.hexsha.slice(0, 6)}](https://github.com/${owner}/${repo}/commit/${commit.hexsha})`;
+        changelogEntry += ` [${sha_link}]`;
+    }
+    return changelogEntry;
 }
 /**
  * Returns the Changelog configuration;
  *   - The contents of the .github/release.y[a]ml file
  *   - Otherwise, the internal default configuration
  */
-function getChangelogConfiguration() {
-    return __awaiter(this, void 0, void 0, function* () {
-        const githubReleaseConfig = yield (0, github_2.getReleaseConfiguration)();
-        if (githubReleaseConfig.length > 0) {
-            const data = yaml.parse(githubReleaseConfig);
-            if (data["changelog"] !== undefined) {
-                return data;
-            }
+async function getChangelogConfiguration() {
+    const githubReleaseConfig = await (0, github_2.getReleaseConfiguration)();
+    if (githubReleaseConfig.length > 0) {
+        const data = yaml.parse(githubReleaseConfig);
+        if (data["changelog"] !== undefined) {
+            return data;
         }
-        return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
-    });
+    }
+    return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
 }
 exports.getChangelogConfiguration = getChangelogConfiguration;
 /**
@@ -34650,116 +34600,112 @@ exports.getChangelogConfiguration = getChangelogConfiguration;
  * `endVersion` can be an empty string, in which case the current HEAD sha
  * will be used.
  */
-function generateChangelogForCommits(startVersion, endVersion, commitList) {
+async function generateChangelogForCommits(startVersion, endVersion, commitList) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j;
-    return __awaiter(this, void 0, void 0, function* () {
-        if (startVersion === "") {
-            return "";
-        }
-        const config = yield getChangelogConfiguration();
-        const changelog = new Map();
-        for (const commit of commitList) {
-            if (!commit)
-                continue;
-            const bumpLabel = Label.create("bump", semver_1.SemVerType[commit.bump]);
-            const typeLabel = Label.create("type", commit.type);
-            const scopeLabel = Label.create("scope", ((_a = commit.scope) === null || _a === void 0 ? void 0 : _a.toLowerCase()) || "*");
-            // Adds the following items as "virtual" labels for each commit:
-            // * The version bump (`bump:<version>`)
-            // * The conventional commit type (`type:<type>`)
-            // * The conventional commit scope (`scope:<scope>`)
-            let labels = [bumpLabel, typeLabel, scopeLabel];
-            // We will reuse the labels and author associated with a Pull Request
-            // (with the exception of `bump:<version>` and `scope:<scope>`) for all
-            // commits associated with the PR.
-            if (commit.hexsha) {
-                const pullRequests = yield (0, github_2.getAssociatedPullRequests)(commit.hexsha);
-                if (pullRequests.length > 0) {
-                    const pullRequest = pullRequests[0];
-                    // Append the labels of the associated Pull Request
-                    // NOTE: we ignore the version bump and scope label on the PR as this is
-                    //       and instead rely on version bump label associated with this
-                    //       commit.
-                    labels = labels.concat(pullRequest.labels
-                        .filter(label => !Label.isCategory(label.name, "bump") &&
-                        !Label.isCategory(label.name, "scope"))
-                        .map(label => label.name));
-                    // Check if the author of the Pull Request is part of the exclude list
-                    if (pullRequest.user &&
-                        ((_c = (_b = config.changelog.exclude) === null || _b === void 0 ? void 0 : _b.authors) === null || _c === void 0 ? void 0 : _c.includes(pullRequest.user.login))) {
-                        continue;
-                    }
-                }
-            }
-            // Check if any of the labels is part of the global exclusion list
-            if (labels.some(label => { var _a, _b; return (_b = (_a = config.changelog.exclude) === null || _a === void 0 ? void 0 : _a.labels) === null || _b === void 0 ? void 0 : _b.includes(label); })) {
-                continue;
-            }
-            // Either group commits per Conventional Commit scope, or group them all
-            // together (*)
-            const scope = config.changelog.group === "scope"
-                ? ((_d = commit === null || commit === void 0 ? void 0 : commit.scope) === null || _d === void 0 ? void 0 : _d.toLowerCase()) || "*"
-                : "*";
-            changelog.set(scope, (_e = changelog.get(scope)) !== null && _e !== void 0 ? _e : new Map());
-            for (const category of config.changelog.categories) {
-                // Apply all exclusion patterns from Pull Request metadata on Category
-                if (labels.some(label => { var _a, _b; return (_b = (_a = category.exclude) === null || _a === void 0 ? void 0 : _a.labels) === null || _b === void 0 ? void 0 : _b.includes(label); })) {
+    if (startVersion === "") {
+        return "";
+    }
+    const config = await getChangelogConfiguration();
+    const changelog = new Map();
+    for (const commit of commitList) {
+        if (!commit)
+            continue;
+        const bumpLabel = Label.create("bump", semver_1.SemVerType[commit.bump]);
+        const typeLabel = Label.create("type", commit.type);
+        const scopeLabel = Label.create("scope", ((_a = commit.scope) === null || _a === void 0 ? void 0 : _a.toLowerCase()) || "*");
+        // Adds the following items as "virtual" labels for each commit:
+        // * The version bump (`bump:<version>`)
+        // * The conventional commit type (`type:<type>`)
+        // * The conventional commit scope (`scope:<scope>`)
+        let labels = [bumpLabel, typeLabel, scopeLabel];
+        // We will reuse the labels and author associated with a Pull Request
+        // (with the exception of `bump:<version>` and `scope:<scope>`) for all
+        // commits associated with the PR.
+        if (commit.hexsha) {
+            const pullRequests = await (0, github_2.getAssociatedPullRequests)(commit.hexsha);
+            if (pullRequests.length > 0) {
+                const pullRequest = pullRequests[0];
+                // Append the labels of the associated Pull Request
+                // NOTE: we ignore the version bump and scope label on the PR as this is
+                //       and instead rely on version bump label associated with this
+                //       commit.
+                labels = labels.concat(pullRequest.labels
+                    .filter(label => !Label.isCategory(label.name, "bump") &&
+                    !Label.isCategory(label.name, "scope"))
+                    .map(label => label.name));
+                // Check if the author of the Pull Request is part of the exclude list
+                if (pullRequest.user &&
+                    ((_c = (_b = config.changelog.exclude) === null || _b === void 0 ? void 0 : _b.authors) === null || _c === void 0 ? void 0 : _c.includes(pullRequest.user.login))) {
                     continue;
                 }
-                // Validate whether the commit matches any of the inclusion patterns
-                if (!labels
-                    .concat([bumpLabel, "*"])
-                    .some(label => { var _a; return (_a = category.labels) === null || _a === void 0 ? void 0 : _a.includes(label); })) {
-                    continue;
-                }
-                if (((_f = changelog.get(scope)) === null || _f === void 0 ? void 0 : _f.get(category.title)) === undefined) {
-                    (_g = changelog.get(scope)) === null || _g === void 0 ? void 0 : _g.set(category.title, []);
-                }
-                (_j = (_h = changelog
-                    .get(scope)) === null || _h === void 0 ? void 0 : _h.get(category.title)) === null || _j === void 0 ? void 0 : _j.push(yield generateChangelogEntry(commit));
-                break;
             }
         }
-        // Sort changelog, with the all (*) scope always as last item
-        const sortedChangelog = [...changelog].sort((a, b) => a[0] === "*" ? 1 : b[0] === "*" ? -1 : a[0].localeCompare(b[0]));
-        // Generate Changelog
-        let formattedChangelog = "## What's changed\n";
-        for (const [scope, categories] of sortedChangelog) {
-            const isGrouped = scope !== "*";
-            if (isGrouped) {
-                formattedChangelog += `### ${capitalizeFirstLetter(scope)}\n`;
+        // Check if any of the labels is part of the global exclusion list
+        if (labels.some(label => { var _a, _b; return (_b = (_a = config.changelog.exclude) === null || _a === void 0 ? void 0 : _a.labels) === null || _b === void 0 ? void 0 : _b.includes(label); })) {
+            continue;
+        }
+        // Either group commits per Conventional Commit scope, or group them all
+        // together (*)
+        const scope = config.changelog.group === "scope"
+            ? ((_d = commit === null || commit === void 0 ? void 0 : commit.scope) === null || _d === void 0 ? void 0 : _d.toLowerCase()) || "*"
+            : "*";
+        changelog.set(scope, (_e = changelog.get(scope)) !== null && _e !== void 0 ? _e : new Map());
+        for (const category of config.changelog.categories) {
+            // Apply all exclusion patterns from Pull Request metadata on Category
+            if (labels.some(label => { var _a, _b; return (_b = (_a = category.exclude) === null || _a === void 0 ? void 0 : _a.labels) === null || _b === void 0 ? void 0 : _b.includes(label); })) {
+                continue;
             }
-            for (const [category, messages] of categories) {
-                if (messages.length > 0) {
-                    formattedChangelog += isGrouped
-                        ? `#### ${category}\n`
-                        : `### ${category}\n`;
-                    for (const message of messages) {
-                        formattedChangelog += `* ${message}\n`;
-                    }
+            // Validate whether the commit matches any of the inclusion patterns
+            if (!labels
+                .concat([bumpLabel, "*"])
+                .some(label => { var _a; return (_a = category.labels) === null || _a === void 0 ? void 0 : _a.includes(label); })) {
+                continue;
+            }
+            if (((_f = changelog.get(scope)) === null || _f === void 0 ? void 0 : _f.get(category.title)) === undefined) {
+                (_g = changelog.get(scope)) === null || _g === void 0 ? void 0 : _g.set(category.title, []);
+            }
+            (_j = (_h = changelog
+                .get(scope)) === null || _h === void 0 ? void 0 : _h.get(category.title)) === null || _j === void 0 ? void 0 : _j.push(await generateChangelogEntry(commit));
+            break;
+        }
+    }
+    // Sort changelog, with the all (*) scope always as last item
+    const sortedChangelog = [...changelog].sort((a, b) => a[0] === "*" ? 1 : b[0] === "*" ? -1 : a[0].localeCompare(b[0]));
+    // Generate Changelog
+    let formattedChangelog = "## What's changed\n";
+    for (const [scope, categories] of sortedChangelog) {
+        const isGrouped = scope !== "*";
+        if (isGrouped) {
+            formattedChangelog += `### ${capitalizeFirstLetter(scope)}\n`;
+        }
+        for (const [category, messages] of categories) {
+            if (messages.length > 0) {
+                formattedChangelog += isGrouped
+                    ? `#### ${category}\n`
+                    : `### ${category}\n`;
+                for (const message of messages) {
+                    formattedChangelog += `* ${message}\n`;
                 }
             }
         }
-        const { owner, repo } = github_1.context.repo;
-        const diffRange = `${startVersion}...${endVersion || github_1.context.sha.substring(0, 8)}`;
-        formattedChangelog +=
-            `\n\n*Diff since last release: ` +
-                `[${diffRange}](https://github.com/${owner}/${repo}/compare/${diffRange})*`;
-        return formattedChangelog;
-    });
+    }
+    const { owner, repo } = github_1.context.repo;
+    const diffRange = `${startVersion}...${endVersion || github_1.context.sha.substring(0, 8)}`;
+    formattedChangelog +=
+        `\n\n*Diff since last release: ` +
+            `[${diffRange}](https://github.com/${owner}/${repo}/compare/${diffRange})*`;
+    return formattedChangelog;
 }
 exports.generateChangelogForCommits = generateChangelogForCommits;
 /**
  * Returns a markdown-formatted changelog, based on the info contained
  * in the provided `IVersionBumpTypeAndMessages`.
  */
-function generateChangelog(bump) {
+async function generateChangelog(bump) {
     var _a, _b, _c, _d, _e;
-    return __awaiter(this, void 0, void 0, function* () {
-        return yield generateChangelogForCommits((_b = (_a = bump.foundVersion) === null || _a === void 0 ? void 0 : _a.toString()) !== null && _b !== void 0 ? _b : "", (_e = (_d = (_c = bump.foundVersion) === null || _c === void 0 ? void 0 : _c.bump(bump.requiredBump, bump.initialDevelopment)) === null || _d === void 0 ? void 0 : _d.toString()) !== null && _e !== void 0 ? _e : "", bump.processedCommits
-            .map(c => c.message)
-            .filter(c => c));
-    });
+    return await generateChangelogForCommits((_b = (_a = bump.foundVersion) === null || _a === void 0 ? void 0 : _a.toString()) !== null && _b !== void 0 ? _b : "", (_e = (_d = (_c = bump.foundVersion) === null || _c === void 0 ? void 0 : _c.bump(bump.requiredBump, bump.initialDevelopment)) === null || _d === void 0 ? void 0 : _d.toString()) !== null && _e !== void 0 ? _e : "", bump.processedCommits
+        .map(c => c.message)
+        .filter(c => c));
 }
 exports.generateChangelog = generateChangelog;
 
@@ -35090,11 +35036,7 @@ const VERSION_SCHEMES = ["semver", "sdkver"];
 /**
  * This function takes two values and throws when their types don't match.
  */
-function verifyTypeMatches(name, 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-typeToTest, 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-typeItShouldBe) {
+function verifyTypeMatches(name, typeToTest, typeItShouldBe) {
     if (typeof typeToTest !== typeof typeItShouldBe) {
         throw new Error(`Incorrect type '${typeof typeToTest}' for '${name}', must be '${typeof typeItShouldBe}'`);
     }
@@ -35109,9 +35051,19 @@ class Configuration {
     get initialDevelopment() {
         return this._initialDevelopment;
     }
+    setRuleActivationStatus(ruleId, enabled) {
+        const rule = this.rules.get(ruleId);
+        if (rule !== undefined) {
+            rule.enabled = enabled;
+        }
+        else {
+            core.warning(`Rule "${ruleId}" is unknown; enabling or disabling it has no effect.`);
+        }
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     loadFromData(data) {
-        var _a, _b;
-        var _c;
+        var _a, _b, _c;
+        var _d;
         for (const key in data) {
             if (!CONFIG_ITEMS.includes(key)) {
                 throw new Error(`Unknown configuration item '${key}' detected!`);
@@ -35128,12 +35080,7 @@ class Configuration {
                      */
                     if (typeof data[key] === "object") {
                         for (const item of data[key]) {
-                            if (item in this.rules) {
-                                this.rules[item].enabled = key === "enable";
-                            }
-                            else {
-                                core.warning(`Rule "${item}" is unknown; enabling or disabling it has no effect.`);
-                            }
+                            this.setRuleActivationStatus(item, key === "enable");
                         }
                     }
                     else {
@@ -35170,20 +35117,24 @@ class Configuration {
                                 this.tags[typ] = { description: typeValue, bump: false };
                                 break;
                             case "object":
-                                for (const entry of Object.keys(typeValue)) {
-                                    if (["description", "bump"].includes(entry)) {
-                                        if (entry === "description") {
-                                            verifyTypeMatches(`${typ}.${entry}`, typeValue[entry], "");
+                                {
+                                    const tagObject = (_a = this.tags[typ]) !== null && _a !== void 0 ? _a : {};
+                                    for (const entry of Object.keys(typeValue)) {
+                                        if (["description", "bump"].includes(entry)) {
+                                            if (entry === "description") {
+                                                verifyTypeMatches(`${typ}.${entry}`, typeValue[entry], "");
+                                                tagObject.description = typeValue[entry];
+                                            }
+                                            else if (entry === "bump") {
+                                                verifyTypeMatches(`${typ}.${entry}`, typeValue[entry], true);
+                                                tagObject.bump = typeValue[entry];
+                                            }
                                         }
-                                        else if (entry === "bump") {
-                                            verifyTypeMatches(`${typ}.${entry}`, typeValue[entry], true);
+                                        else {
+                                            core.info(`Warning: "${key}.${typ}.${entry}" is unknown and has no effect.`);
                                         }
-                                        this.tags[typ] = this.tags[typ] ? this.tags[typ] : {};
-                                        this.tags[typ][entry] = typeValue[entry];
                                     }
-                                    else {
-                                        core.info(`Warning: "${key}.${typ}.${entry}" is unknown and has no effect.`);
-                                    }
+                                    this.tags[typ] = tagObject;
                                 }
                                 break;
                             default:
@@ -35202,11 +35153,11 @@ class Configuration {
                             let desc = "";
                             // Use the default description if it's one of the default tags
                             if (typ in DEFAULT_ACCEPTED_TAGS) {
-                                desc = (_a = DEFAULT_ACCEPTED_TAGS[typ].description) !== null && _a !== void 0 ? _a : "";
+                                desc = (_b = DEFAULT_ACCEPTED_TAGS[typ].description) !== null && _b !== void 0 ? _b : "";
                             }
                             this.tags[typ].description = desc;
                         }
-                        (_b = (_c = this.tags[typ]).bump) !== null && _b !== void 0 ? _b : (_c.bump = false);
+                        (_c = (_d = this.tags[typ]).bump) !== null && _c !== void 0 ? _c : (_d.bump = false);
                     }
                     break;
                 case "allowed-branches":
@@ -35321,10 +35272,10 @@ class Configuration {
         this.rules = new Map();
         this.sdkverCreateReleaseBranches = undefined;
         for (const rule of rules_1.ALL_RULES) {
-            this.rules[rule.id] = {
+            this.rules.set(rule.id, {
                 description: rule.description,
                 enabled: rule.default,
-            };
+            });
         }
         if (fs.existsSync(configPath)) {
             const data = yaml.parse(fs.readFileSync(configPath, "utf8"));
@@ -35444,22 +35395,6 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var __asyncValues = (this && this.__asyncValues) || function (o) {
-    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
-    var m = o[Symbol.asyncIterator], i;
-    return m ? m.call(o) : (o = typeof __values === "function" ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i);
-    function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
-    function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.createBranch = exports.getCommitsBetweenRefs = exports.currentHeadMatchesTag = exports.getContent = exports.updateLabels = exports.getAssociatedPullRequests = exports.getLatestTags = exports.getShaForTag = exports.matchTagsToCommits = exports.getReleaseConfiguration = exports.getConfig = exports.createTag = exports.updateDraftRelease = exports.getRelease = exports.createRelease = exports.getPullRequest = exports.getCommitsInPR = exports.getPullRequestTitle = exports.getRunNumber = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
 const core = __importStar(__nccwpck_require__(2186));
@@ -35510,10 +35445,8 @@ exports.getRunNumber = getRunNumber;
 /**
  * The current pull request's title
  */
-function getPullRequestTitle() {
-    return __awaiter(this, void 0, void 0, function* () {
-        return (yield getPullRequest(getPullRequestId())).title;
-    });
+async function getPullRequestTitle() {
+    return (await getPullRequest(getPullRequestId())).title;
 }
 exports.getPullRequestTitle = getPullRequestTitle;
 /**
@@ -35521,12 +35454,13 @@ exports.getPullRequestTitle = getPullRequestTitle;
  * @param pullRequestId GitHub pull request ID
  * @returns ICommit[] List of ICommit objects
  */
-function getCommitsInPR(pullRequestId) {
-    return __awaiter(this, void 0, void 0, function* () {
-        // Retrieve commits from provided pull request
-        const { data: commits } = yield getOctokit().rest.pulls.listCommits(Object.assign(Object.assign({}, github.context.repo), { pull_number: pullRequestId }));
-        return githubCommitsAsICommits(commits);
+async function getCommitsInPR(pullRequestId) {
+    // Retrieve commits from provided pull request
+    const { data: commits } = await getOctokit().rest.pulls.listCommits({
+        ...github.context.repo,
+        pull_number: pullRequestId,
     });
+    return githubCommitsAsICommits(commits);
 }
 exports.getCommitsInPR = getCommitsInPR;
 /**
@@ -35534,11 +35468,12 @@ exports.getCommitsInPR = getCommitsInPR;
  * @param pullRequestId GitHub Pullrequest ID
  * @returns Pull Request
  */
-function getPullRequest(pullRequestId) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const { data: pr } = yield getOctokit().rest.pulls.get(Object.assign(Object.assign({}, github.context.repo), { pull_number: pullRequestId }));
-        return pr;
+async function getPullRequest(pullRequestId) {
+    const { data: pr } = await getOctokit().rest.pulls.get({
+        ...github.context.repo,
+        pull_number: pullRequestId,
     });
+    return pr;
 }
 exports.getPullRequest = getPullRequest;
 /**
@@ -35548,11 +35483,15 @@ exports.getPullRequest = getPullRequest;
  * @param body The release's text description
  * @param draft Create this release as a 'draft' release
  */
-function createRelease(tagName, commitish, body, draft, prerelease) {
-    return __awaiter(this, void 0, void 0, function* () {
-        yield getOctokit().rest.repos.createRelease(Object.assign(Object.assign({}, github.context.repo), { tag_name: tagName, target_commitish: commitish, name: tagName, body,
-            draft,
-            prerelease }));
+async function createRelease(tagName, commitish, body, draft, prerelease) {
+    await getOctokit().rest.repos.createRelease({
+        ...github.context.repo,
+        tag_name: tagName,
+        target_commitish: commitish,
+        name: tagName,
+        body,
+        draft,
+        prerelease,
     });
 }
 exports.createRelease = createRelease;
@@ -35564,50 +35503,50 @@ exports.createRelease = createRelease;
  *
  * Returns an object {id, name}, or `undefined` if no tag was found.
  */
-function getRelease(params) {
-    return __awaiter(this, void 0, void 0, function* () {
-        core.info(`getRelease: finding ${params.draftOnly ? "draft " : ""}release with the prefix: ${params.prefixToMatch}`);
-        const octo = getOctokit();
-        const result = (yield octo.paginate(octo.rest.repos.listReleases, Object.assign({}, github.context.repo))).map(r => ({ isDraft: r.draft, tagName: r.tag_name, id: r.id }));
-        core.debug(`getRelease: listReleases returned:\n${JSON.stringify(result)}`);
-        /**
-         * We need to:
-         *  - only consider releases starting with the provided prefix, draft and
-         *    release parameters
-         *  - consider the major/minor constraint, if provided
-         *  - _NOT_ rely on the temporal data; the precendence of the existing tags
-         *    shall determined according to a "SemVer-esque prerelease", that is:
-         *      * componentX-1.2.3-9 < componentX-1.2.3-10
-         *  - return the highest-precedence item
-         */
-        const releaseList = result
-            .filter(r => r.isDraft === params.draftOnly)
-            .filter(r => {
-            const asSemVer = semver_1.SemVer.fromString(r.tagName);
-            return ((asSemVer === null || asSemVer === void 0 ? void 0 : asSemVer.prefix) === params.prefixToMatch &&
-                (params.fullReleasesOnly ? (asSemVer === null || asSemVer === void 0 ? void 0 : asSemVer.prerelease) === "" : true));
-        })
-            .map(r => ({ id: r.id, name: r.tagName }))
-            .sort((lhs, rhs) => semver_1.SemVer.sortSemVer(lhs.name, rhs.name));
-        core.debug(`getRelease: sorted list of releases:\n${JSON.stringify(releaseList)}`);
-        if (params.constraint) {
-            // We're sorted by precedence, highest last, so let's reverse it and we can
-            // take the first major/minor version lower than the constraint we encounter.
-            releaseList.reverse();
-            for (const r of releaseList) {
-                core.debug(`checking release ${r.name} against constraint ` +
-                    `${params.constraint.major}.${params.constraint.minor}.*`);
-                const sv = semver_1.SemVer.fromString(r.name);
-                if (sv &&
-                    sv.major <= params.constraint.major &&
-                    sv.minor <= params.constraint.minor) {
-                    return r;
-                }
+async function getRelease(params) {
+    core.info(`getRelease: finding ${params.draftOnly ? "draft " : ""}release with the prefix: ${params.prefixToMatch}`);
+    const octo = getOctokit();
+    const result = (await octo.paginate(octo.rest.repos.listReleases, {
+        ...github.context.repo,
+    })).map(r => ({ isDraft: r.draft, tagName: r.tag_name, id: r.id }));
+    core.debug(`getRelease: listReleases returned:\n${JSON.stringify(result)}`);
+    /**
+     * We need to:
+     *  - only consider releases starting with the provided prefix, draft and
+     *    release parameters
+     *  - consider the major/minor constraint, if provided
+     *  - _NOT_ rely on the temporal data; the precendence of the existing tags
+     *    shall determined according to a "SemVer-esque prerelease", that is:
+     *      * componentX-1.2.3-9 < componentX-1.2.3-10
+     *  - return the highest-precedence item
+     */
+    const releaseList = result
+        .filter(r => r.isDraft === params.draftOnly)
+        .filter(r => {
+        const asSemVer = semver_1.SemVer.fromString(r.tagName);
+        return ((asSemVer === null || asSemVer === void 0 ? void 0 : asSemVer.prefix) === params.prefixToMatch &&
+            (params.fullReleasesOnly ? (asSemVer === null || asSemVer === void 0 ? void 0 : asSemVer.prerelease) === "" : true));
+    })
+        .map(r => ({ id: r.id, name: r.tagName }))
+        .sort((lhs, rhs) => semver_1.SemVer.sortSemVer(lhs.name, rhs.name));
+    core.debug(`getRelease: sorted list of releases:\n${JSON.stringify(releaseList)}`);
+    if (params.constraint) {
+        // We're sorted by precedence, highest last, so let's reverse it and we can
+        // take the first major/minor version lower than the constraint we encounter.
+        releaseList.reverse();
+        for (const r of releaseList) {
+            core.debug(`checking release ${r.name} against constraint ` +
+                `${params.constraint.major}.${params.constraint.minor}.*`);
+            const sv = semver_1.SemVer.fromString(r.name);
+            if (sv &&
+                sv.major <= params.constraint.major &&
+                sv.minor <= params.constraint.minor) {
+                return r;
             }
-            return;
         }
-        return releaseList.pop();
-    });
+        return;
+    }
+    return releaseList.pop();
 }
 exports.getRelease = getRelease;
 /**
@@ -35615,13 +35554,20 @@ exports.getRelease = getRelease;
  *
  * Returns `true` if successful
  */
-function updateDraftRelease(id, newName, tagName, sha, bodyContents, isDraft = true, isPrerelease = false) {
-    return __awaiter(this, void 0, void 0, function* () {
-        core.debug(`Update existing draft release with id ${id} to ${newName} (${tagName}) sha: ${sha}, ` +
-            `and body below:\n${bodyContents}`);
-        const result = yield getOctokit().rest.repos.updateRelease(Object.assign(Object.assign({}, github.context.repo), { release_id: id, target_commitish: sha, draft: isDraft, prerelease: isPrerelease, body: bodyContents, name: newName, tag_name: tagName }));
-        return result.status < 400;
+async function updateDraftRelease(id, newName, tagName, sha, bodyContents, isDraft = true, isPrerelease = false) {
+    core.debug(`Update existing draft release with id ${id} to ${newName} (${tagName}) sha: ${sha}, ` +
+        `and body below:\n${bodyContents}`);
+    const result = await getOctokit().rest.repos.updateRelease({
+        ...github.context.repo,
+        release_id: id,
+        target_commitish: sha,
+        draft: isDraft,
+        prerelease: isPrerelease,
+        body: bodyContents,
+        name: newName,
+        tag_name: tagName,
     });
+    return result.status < 400;
 }
 exports.updateDraftRelease = updateDraftRelease;
 /**
@@ -35629,9 +35575,11 @@ exports.updateDraftRelease = updateDraftRelease;
  * @param tagName Name of the tag
  * @param sha The SHA1 value of the tag
  */
-function createTag(tagName, sha) {
-    return __awaiter(this, void 0, void 0, function* () {
-        yield getOctokit().rest.git.createRef(Object.assign(Object.assign({}, github.context.repo), { ref: tagName.startsWith("refs/tags/") ? tagName : `refs/tags/${tagName}`, sha }));
+async function createTag(tagName, sha) {
+    await getOctokit().rest.git.createRef({
+        ...github.context.repo,
+        ref: tagName.startsWith("refs/tags/") ? tagName : `refs/tags/${tagName}`,
+        sha,
     });
 }
 exports.createTag = createTag;
@@ -35639,29 +35587,25 @@ exports.createTag = createTag;
  * Downloads the requested configuration file in case it exists.
  * @param path Path towards the Commisery configuration file
  */
-function getConfig(path) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const config = yield getContent(path);
-        if (config !== undefined) {
-            fs.writeFileSync(".commisery.yml", config);
-        }
-    });
+async function getConfig(path) {
+    const config = await getContent(path);
+    if (config !== undefined) {
+        fs.writeFileSync(".commisery.yml", config);
+    }
 }
 exports.getConfig = getConfig;
 /**
  * Downloads the release configuration (.github/release.y[a]ml) in the repository.
  * Return empty configuration if the file(s) do not exist.
  */
-function getReleaseConfiguration() {
-    return __awaiter(this, void 0, void 0, function* () {
-        for (const path of [".github/release.yml", ".github/release.yaml"]) {
-            const content = yield getContent(path);
-            if (content !== undefined) {
-                return content;
-            }
+async function getReleaseConfiguration() {
+    for (const path of [".github/release.yml", ".github/release.yaml"]) {
+        const content = await getContent(path);
+        if (content !== undefined) {
+            return content;
         }
-        return "";
-    });
+    }
+    return "";
 }
 exports.getReleaseConfiguration = getReleaseConfiguration;
 /**
@@ -35675,55 +35619,37 @@ exports.getReleaseConfiguration = getReleaseConfiguration;
  * Alternatively, if no match could be made, returns `null` along with all
  * the commits encountered.
  */
-function matchTagsToCommits(sha, matcher) {
-    var _a, e_1, _b, _c;
-    return __awaiter(this, void 0, void 0, function* () {
-        const octo = getOctokit();
-        const commitList = [];
-        let match = null;
-        sha = sha !== null && sha !== void 0 ? sha : github.context.sha;
-        try {
-            for (var _d = true, _e = __asyncValues(octo.paginate.iterator(octo.rest.repos.listCommits, Object.assign(Object.assign({}, github.context.repo), { sha }))), _f; _f = yield _e.next(), _a = _f.done, !_a;) {
-                _c = _f.value;
-                _d = false;
-                try {
-                    const resp = _c;
-                    for (const commit of resp.data) {
-                        match = matcher(commit.commit.message, commit.sha);
-                        if (match) {
-                            core.debug(`Matching on (${commit.sha}):${commit.commit.message.split("\n")[0]}`);
-                            return [match, commitList];
-                        }
-                        commitList.push({ message: commit.commit.message, sha: commit.sha });
-                    }
-                }
-                finally {
-                    _d = true;
-                }
+async function matchTagsToCommits(sha, matcher) {
+    const octo = getOctokit();
+    const commitList = [];
+    let match = null;
+    sha = sha !== null && sha !== void 0 ? sha : github.context.sha;
+    for await (const resp of octo.paginate.iterator(octo.rest.repos.listCommits, {
+        ...github.context.repo,
+        sha,
+    })) {
+        for (const commit of resp.data) {
+            match = matcher(commit.commit.message, commit.sha);
+            if (match) {
+                core.debug(`Matching on (${commit.sha}):${commit.commit.message.split("\n")[0]}`);
+                return [match, commitList];
             }
+            commitList.push({ message: commit.commit.message, sha: commit.sha });
         }
-        catch (e_1_1) { e_1 = { error: e_1_1 }; }
-        finally {
-            try {
-                if (!_d && !_a && (_b = _e.return)) yield _b.call(_e);
-            }
-            finally { if (e_1) throw e_1.error; }
-        }
-        return [match, commitList];
-    });
+    }
+    return [match, commitList];
 }
 exports.matchTagsToCommits = matchTagsToCommits;
 /**
  * Get the commit sha associated with the provided tag, or `undefined` if
  * the tag doesn't exist.
  */
-function getShaForTag(tag) {
+async function getShaForTag(tag) {
     var _a;
-    return __awaiter(this, void 0, void 0, function* () {
-        if (!tag.startsWith("refs/tags/")) {
-            tag = `refs/tags/${tag}`;
-        }
-        const result = yield getOctokit().graphql(`
+    if (!tag.startsWith("refs/tags/")) {
+        tag = `refs/tags/${tag}`;
+    }
+    const result = await getOctokit().graphql(`
       {
         repository(owner: "${github.context.repo.owner}", name: "${github.context.repo.repo}") {
           ref(qualifiedName: "${tag}") {
@@ -35734,16 +35660,14 @@ function getShaForTag(tag) {
         }
       }
     `);
-        return (_a = result.repository.ref) === null || _a === void 0 ? void 0 : _a.target.oid;
-    });
+    return (_a = result.repository.ref) === null || _a === void 0 ? void 0 : _a.target.oid;
 }
 exports.getShaForTag = getShaForTag;
 /**
  * Retrieve `pageSize` tags in the current repo
  */
-function getLatestTags(pageSize) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const result = yield getOctokit().graphql(`
+async function getLatestTags(pageSize) {
+    const result = await getOctokit().graphql(`
       {
         repository(owner: "${github.context.repo.owner}", name: "${github.context.repo.repo}") {
           refs(
@@ -35768,96 +35692,107 @@ function getLatestTags(pageSize) {
         }
       }
     `);
-        const tagList = result.repository.refs.edges.map(x => ({
-            name: x.node.name,
-            commitSha: x.node.reftarget.tagtarget
-                ? x.node.reftarget.tagtarget.commitsha
-                : x.node.reftarget.commitsha,
-        }));
-        return tagList;
-    });
+    const tagList = result.repository.refs.edges.map(x => ({
+        name: x.node.name,
+        commitSha: x.node.reftarget.tagtarget
+            ? x.node.reftarget.tagtarget.commitsha
+            : x.node.reftarget.commitsha,
+    }));
+    return tagList;
 }
 exports.getLatestTags = getLatestTags;
 /**
  * Retrieve the Pull Requests associated with the specified commit SHA
  */
-function getAssociatedPullRequests(sha) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            const { data: prs } = yield getOctokit().rest.repos.listPullRequestsAssociatedWithCommit(Object.assign(Object.assign({}, github.context.repo), { commit_sha: sha }));
-            return prs;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        }
-        catch (error) {
-            if (error.message !== "Resource not accessible by integration") {
-                throw error;
-            }
+async function getAssociatedPullRequests(sha) {
+    try {
+        const { data: prs } = await getOctokit().rest.repos.listPullRequestsAssociatedWithCommit({
+            ...github.context.repo,
+            commit_sha: sha,
+        });
+        return prs;
+    }
+    catch (error) {
+        if (error instanceof Error &&
+            error.message === "Resource not accessible by integration") {
             return [];
         }
-    });
+        throw error;
+    }
 }
 exports.getAssociatedPullRequests = getAssociatedPullRequests;
 /**
  * Updates the Pull Request (issue) labels
  */
-function updateLabels(labels) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const issueId = getPullRequestId();
-        // Retrieve current labels
-        const { data: pullRequestLabels } = yield getOctokit().rest.issues.listLabelsOnIssue(Object.assign(Object.assign({}, github.context.repo), { issue_number: issueId }));
-        try {
-            // Remove all bump, type and initial development labels
-            for (const label of pullRequestLabels) {
-                if (Label.isManaged(label.name)) {
-                    // Check if the label should remain, if not, remove the label from the Pull Request
-                    if (labels.includes(label.name)) {
-                        labels = labels.filter(l => l !== label.name);
-                    }
-                    else {
-                        yield getOctokit().rest.issues.removeLabel(Object.assign(Object.assign({}, github.context.repo), { issue_number: issueId, name: label.name }));
-                    }
+async function updateLabels(labels) {
+    const issueId = getPullRequestId();
+    // Retrieve current labels
+    const { data: pullRequestLabels } = await getOctokit().rest.issues.listLabelsOnIssue({
+        ...github.context.repo,
+        issue_number: issueId,
+    });
+    try {
+        // Remove all bump, type and initial development labels
+        for (const label of pullRequestLabels) {
+            if (Label.isManaged(label.name)) {
+                // Check if the label should remain, if not, remove the label from the Pull Request
+                if (labels.includes(label.name)) {
+                    labels = labels.filter(l => l !== label.name);
+                }
+                else {
+                    await getOctokit().rest.issues.removeLabel({
+                        ...github.context.repo,
+                        issue_number: issueId,
+                        name: label.name,
+                    });
                 }
             }
-            if (labels.length > 0) {
-                // Add new label if it does not yet exist
-                yield getOctokit().rest.issues.addLabels(Object.assign(Object.assign({}, github.context.repo), { issue_number: issueId, labels }));
-            }
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }
-        catch (error) {
-            if (error.message !== "Resource not accessible by integration") {
-                throw error;
-            }
+        if (labels.length > 0) {
+            // Add new label if it does not yet exist
+            await getOctokit().rest.issues.addLabels({
+                ...github.context.repo,
+                issue_number: issueId,
+                labels,
+            });
+        }
+    }
+    catch (error) {
+        if (error instanceof Error &&
+            error.message === "Resource not accessible by integration") {
             core.warning("Unable to update Pull Request labels, did you provide the `write` permission for `issues` and `pull-requests`?");
+            return;
         }
-    });
+        throw error;
+    }
 }
 exports.updateLabels = updateLabels;
 /**
  * Downloads and returns the contents of the specified file path.
  */
-function getContent(path) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            const response = yield getOctokit().rest.repos.getContent(Object.assign(Object.assign({}, github.context.repo), { path, ref: github.context.ref }));
-            if ("content" in response.data) {
-                return Buffer.from(response.data.content, "base64").toString("utf8");
-            }
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getContent(path) {
+    try {
+        const response = await getOctokit().rest.repos.getContent({
+            ...github.context.repo,
+            path,
+            ref: github.context.ref,
+        });
+        if ("content" in response.data) {
+            return Buffer.from(response.data.content, "base64").toString("utf8");
         }
-        catch (error) {
-            core.debug(error.message);
-        }
-    });
+    }
+    catch (error) {
+        // We intentially capture all failures and return `undefined` in case the
+        // file does not exist or cannot be accessed.
+        core.debug(error.message);
+    }
 }
 exports.getContent = getContent;
 /**
  * Returns `true` if `context.sha` matches the sha of the tag `tagName`.
  */
-function currentHeadMatchesTag(tagName) {
-    return __awaiter(this, void 0, void 0, function* () {
-        return (yield getShaForTag(tagName)) === github.context.sha;
-    });
+async function currentHeadMatchesTag(tagName) {
+    return (await getShaForTag(tagName)) === github.context.sha;
 }
 exports.currentHeadMatchesTag = currentHeadMatchesTag;
 /**
@@ -35867,11 +35802,12 @@ exports.currentHeadMatchesTag = currentHeadMatchesTag;
  *
  * Returns a list ICommits representing `baseRef...compRef`.
  */
-function getCommitsBetweenRefs(baseRef, compRef) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const { data: resp } = yield getOctokit().rest.repos.compareCommitsWithBasehead(Object.assign(Object.assign({}, github.context.repo), { basehead: `${baseRef}...${compRef !== null && compRef !== void 0 ? compRef : github.context.sha}` }));
-        return githubCommitsAsICommits(resp.commits);
+async function getCommitsBetweenRefs(baseRef, compRef) {
+    const { data: resp } = await getOctokit().rest.repos.compareCommitsWithBasehead({
+        ...github.context.repo,
+        basehead: `${baseRef}...${compRef !== null && compRef !== void 0 ? compRef : github.context.sha}`,
     });
+    return githubCommitsAsICommits(resp.commits);
 }
 exports.getCommitsBetweenRefs = getCommitsBetweenRefs;
 /**
@@ -35879,9 +35815,11 @@ exports.getCommitsBetweenRefs = getCommitsBetweenRefs;
  * @param name The name of the branch to be created
  * @param sha The commit hash of the branch-off point
  */
-function createBranch(name, sha) {
-    return __awaiter(this, void 0, void 0, function* () {
-        yield getOctokit().rest.git.createRef(Object.assign(Object.assign({}, github.context.repo), { ref: name.startsWith("refs/heads/") ? name : `refs/heads/${name}`, sha }));
+async function createBranch(name, sha) {
+    await getOctokit().rest.git.createRef({
+        ...github.context.repo,
+        ref: name.startsWith("refs/heads/") ? name : `refs/heads/${name}`,
+        sha,
     });
 }
 exports.createBranch = createBranch;
@@ -35966,7 +35904,7 @@ var LlvmLevel;
     LlvmLevel["ERROR"] = "ERROR";
     LlvmLevel["WARNING"] = "WARNING";
     LlvmLevel["NOTE"] = "NOTE";
-})(LlvmLevel = exports.LlvmLevel || (exports.LlvmLevel = {}));
+})(LlvmLevel || (exports.LlvmLevel = LlvmLevel = {}));
 // eslint-disable-next-line no-shadow
 var TextFormat;
 (function (TextFormat) {
@@ -36119,8 +36057,8 @@ const logging_1 = __nccwpck_require__(1517);
  */
 function validateRules(message, config) {
     const errors = [];
-    const disabledRules = Object.entries(config.rules)
-        .filter(item => !item[1]["enabled"])
+    const disabledRules = Array.from(config.rules)
+        .filter(item => item[1].enabled === false)
         .map(item => item[0]);
     for (const rule of exports.ALL_RULES) {
         try {
@@ -36131,10 +36069,9 @@ function validateRules(message, config) {
         catch (error) {
             if (error instanceof logging_1.LlvmError) {
                 errors.push(error);
+                continue;
             }
-            else {
-                throw error;
-            }
+            throw error;
         }
     }
     return errors;
@@ -36855,7 +36792,7 @@ var SemVerType;
     SemVerType[SemVerType["PATCH"] = 1] = "PATCH";
     SemVerType[SemVerType["MINOR"] = 2] = "MINOR";
     SemVerType[SemVerType["MAJOR"] = 3] = "MAJOR";
-})(SemVerType = exports.SemVerType || (exports.SemVerType = {}));
+})(SemVerType || (exports.SemVerType = SemVerType = {}));
 class SemVer {
     constructor({ major, minor, patch, prerelease = "", build = "", prefix = "", }) {
         this.major = major;
@@ -36866,7 +36803,10 @@ class SemVer {
         this.prefix = prefix;
     }
     static copy(semver) {
-        return new SemVer(Object.assign({ build: semver.build }, semver));
+        return new SemVer({
+            build: semver.build,
+            ...semver,
+        });
     }
     get build() {
         return this._build;
@@ -37136,15 +37076,6 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.validatePrTitleBump = exports.validatePrTitle = exports.validateCommitsInCurrentPR = exports.processCommits = exports.outputCommitListErrors = void 0;
 const core = __importStar(__nccwpck_require__(2186));
@@ -37224,11 +37155,13 @@ function processCommits(commits, config) {
                     message: undefined,
                     errors: error.errors,
                 });
+                continue;
             }
             else if (error instanceof errors_1.MergeCommitError ||
                 error instanceof errors_1.FixupCommitError) {
                 continue;
             }
+            throw error;
         }
     }
     return results;
@@ -37237,128 +37170,121 @@ exports.processCommits = processCommits;
 /**
  * Validates all commit messages in the current pull request.
  */
-function validateCommitsInCurrentPR(config) {
+async function validateCommitsInCurrentPR(config) {
     var _a;
-    return __awaiter(this, void 0, void 0, function* () {
-        const commits = yield (0, github_1.getCommitsInPR)((0, github_1.getPullRequestId)());
-        const results = processCommits(commits, config);
-        const passResults = results.filter(c => c.errors.length === 0);
-        const failResults = results.filter(c => c.errors.length !== 0);
-        if (passResults.length > 0) {
-            core.info(`✅ ${failResults.length === 0 ? "All " : ""}${passResults.length}` +
-                ` of the pull request's commits are valid Conventional Commits`);
-            for (const c of passResults) {
-                core.startGroup(`✅ Commit (${c.input.sha.slice(0, 8)}): ${(_a = c.message) === null || _a === void 0 ? void 0 : _a.subject}`);
-                core.info(c.input.message);
-                core.endGroup();
-            }
+    const commits = await (0, github_1.getCommitsInPR)((0, github_1.getPullRequestId)());
+    const results = processCommits(commits, config);
+    const passResults = results.filter(c => c.errors.length === 0);
+    const failResults = results.filter(c => c.errors.length !== 0);
+    if (passResults.length > 0) {
+        core.info(`✅ ${failResults.length === 0 ? "All " : ""}${passResults.length}` +
+            ` of the pull request's commits are valid Conventional Commits`);
+        for (const c of passResults) {
+            core.startGroup(`✅ Commit (${c.input.sha.slice(0, 8)}): ${(_a = c.message) === null || _a === void 0 ? void 0 : _a.subject}`);
+            core.info(c.input.message);
+            core.endGroup();
         }
-        if (failResults.length > 0) {
-            core.info(""); // for vertical whitespace
-            core.setFailed(`${failResults.length} of the pull request's commits are not valid Conventional Commits`);
-            outputCommitListErrors(failResults, true);
-        }
-        return {
-            compliant: failResults.length === 0,
-            messages: passResults.map(r => r.message),
-        };
-    });
+    }
+    if (failResults.length > 0) {
+        core.info(""); // for vertical whitespace
+        core.setFailed(`${failResults.length} of the pull request's commits are not valid Conventional Commits`);
+        outputCommitListErrors(failResults, true);
+    }
+    return {
+        compliant: failResults.length === 0,
+        messages: passResults.map(r => r.message),
+    };
 }
 exports.validateCommitsInCurrentPR = validateCommitsInCurrentPR;
 /**
  * Validates the pull request title and, if compliant, returns it as a
  * ConventionalCommitMessage object.
  */
-function validatePrTitle(_) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const prTitleText = yield (0, github_1.getPullRequestTitle)();
-        let errors = [];
-        let conventionalCommitMessage;
-        core.info(""); // for vertical whitespace
-        let errorMessage = "The pull request title is not compliant " +
-            "with the Conventional Commits specification";
-        try {
-            conventionalCommitMessage = new commit_1.ConventionalCommitMessage(prTitleText);
+async function validatePrTitle(_) {
+    const prTitleText = await (0, github_1.getPullRequestTitle)();
+    let errors = [];
+    let conventionalCommitMessage;
+    core.info(""); // for vertical whitespace
+    let errorMessage = "The pull request title is not compliant " +
+        "with the Conventional Commits specification";
+    try {
+        conventionalCommitMessage = new commit_1.ConventionalCommitMessage(prTitleText);
+    }
+    catch (error) {
+        if (error instanceof errors_1.ConventionalCommitError) {
+            errors = error.errors;
         }
-        catch (error) {
-            if (error instanceof errors_1.ConventionalCommitError) {
-                errors = error.errors;
-            }
-            else {
-                if (error instanceof errors_1.MergeCommitError) {
-                    errorMessage = `${errorMessage} (it describes a merge commit)`;
-                }
-                else if (error instanceof errors_1.FixupCommitError) {
-                    errorMessage = `${errorMessage} (it describes a fixup commit)`;
-                }
-                core.setFailed(errorMessage);
-                return undefined;
-            }
-        }
-        if (errors.length > 0) {
+        else if (error instanceof errors_1.MergeCommitError ||
+            error instanceof errors_1.FixupCommitError) {
+            errorMessage = `${errorMessage} (it describes a ${error instanceof errors_1.MergeCommitError ? "merge" : "fixup"} commit)`;
             core.setFailed(errorMessage);
-            outputCommitErrors(prTitleText, errors, undefined, true);
+            return undefined;
         }
         else {
-            core.startGroup(`✅ The pull request title is compliant with the Conventional Commits specification`);
-            core.info(prTitleText);
-            core.endGroup();
+            throw error;
         }
-        return conventionalCommitMessage;
-    });
+    }
+    if (errors.length > 0) {
+        core.setFailed(errorMessage);
+        outputCommitErrors(prTitleText, errors, undefined, true);
+    }
+    else {
+        core.startGroup(`✅ The pull request title is compliant with the Conventional Commits specification`);
+        core.info(prTitleText);
+        core.endGroup();
+    }
+    return conventionalCommitMessage;
 }
 exports.validatePrTitle = validatePrTitle;
 /**
  * Validates bump level consistency between the PR title and its commits.
  * This implies that the PR title must comply with the Conventional Commits spec.
  */
-function validatePrTitleBump(config) {
+async function validatePrTitleBump(config) {
     var _a, _b;
-    return __awaiter(this, void 0, void 0, function* () {
-        const prTitleText = yield (0, github_1.getPullRequestTitle)();
-        const commits = yield (0, github_1.getCommitsInPR)((0, github_1.getPullRequestId)());
-        const prTitle = yield validatePrTitle(config);
-        const baseError = "Cannot validate the consistency of bump levels between PR title and PR commits";
-        if (prTitle === undefined) {
-            core.warning(`${baseError}, as PR title is not a valid Conventional Commits message.`);
-            return false;
-        }
-        if (commits.length === 0) {
-            core.warning("No commits found in this pull request.");
-            return true;
-        }
-        core.info(""); // for vertical whitespace
-        const results = processCommits(commits, config);
-        if (results.some(c => c.errors.length !== 0)) {
-            // Abort if the list contains any non-compliant commits; bump level
-            // validation only really makes sense if all commits are found to
-            // be compliant.
-            core.warning(`${baseError}, as the PR contains non-compliant commits`);
-            return false;
-        }
-        const highestBump = (_b = (_a = results.reduce((acc, val) => {
-            var _a, _b, _c, _d;
-            const accb = (_b = (_a = acc.message) === null || _a === void 0 ? void 0 : _a.bump) !== null && _b !== void 0 ? _b : semver_1.SemVerType.NONE;
-            const valb = (_d = (_c = val.message) === null || _c === void 0 ? void 0 : _c.bump) !== null && _d !== void 0 ? _d : semver_1.SemVerType.NONE;
-            return accb > valb ? acc : val;
-        }).message) === null || _a === void 0 ? void 0 : _a.bump) !== null && _b !== void 0 ? _b : semver_1.SemVerType.NONE;
-        if (highestBump !== prTitle.bump) {
-            const commitSubjects = results
-                .map(r => { var _a; return (_a = r.message) === null || _a === void 0 ? void 0 : _a.subject; })
-                .filter(x => x !== undefined);
-            core.setFailed("The PR title's bump level is not consistent with its commits.\n" +
-                `The PR title type ${prTitle.type} represents bump level ` +
-                `${semver_1.SemVerType[prTitle.bump]}, while the highest bump in the ` +
-                `commits is ${semver_1.SemVerType[highestBump]}.\n` +
-                `PR title: "${prTitleText}"\n` +
-                `Commit list:\n${` - ${commitSubjects.join("\n - ")}`}`);
-            return false;
-        }
-        else {
-            core.info(`✅ The pull request title's bump level is consistent with the PR's commits`);
-            return true;
-        }
-    });
+    const prTitleText = await (0, github_1.getPullRequestTitle)();
+    const commits = await (0, github_1.getCommitsInPR)((0, github_1.getPullRequestId)());
+    const prTitle = await validatePrTitle(config);
+    const baseError = "Cannot validate the consistency of bump levels between PR title and PR commits";
+    if (prTitle === undefined) {
+        core.warning(`${baseError}, as PR title is not a valid Conventional Commits message.`);
+        return false;
+    }
+    if (commits.length === 0) {
+        core.warning("No commits found in this pull request.");
+        return true;
+    }
+    core.info(""); // for vertical whitespace
+    const results = processCommits(commits, config);
+    if (results.some(c => c.errors.length !== 0)) {
+        // Abort if the list contains any non-compliant commits; bump level
+        // validation only really makes sense if all commits are found to
+        // be compliant.
+        core.warning(`${baseError}, as the PR contains non-compliant commits`);
+        return false;
+    }
+    const highestBump = (_b = (_a = results.reduce((acc, val) => {
+        var _a, _b, _c, _d;
+        const accb = (_b = (_a = acc.message) === null || _a === void 0 ? void 0 : _a.bump) !== null && _b !== void 0 ? _b : semver_1.SemVerType.NONE;
+        const valb = (_d = (_c = val.message) === null || _c === void 0 ? void 0 : _c.bump) !== null && _d !== void 0 ? _d : semver_1.SemVerType.NONE;
+        return accb > valb ? acc : val;
+    }).message) === null || _a === void 0 ? void 0 : _a.bump) !== null && _b !== void 0 ? _b : semver_1.SemVerType.NONE;
+    if (highestBump !== prTitle.bump) {
+        const commitSubjects = results
+            .map(r => { var _a; return (_a = r.message) === null || _a === void 0 ? void 0 : _a.subject; })
+            .filter(x => x !== undefined);
+        core.setFailed("The PR title's bump level is not consistent with its commits.\n" +
+            `The PR title type ${prTitle.type} represents bump level ` +
+            `${semver_1.SemVerType[prTitle.bump]}, while the highest bump in the ` +
+            `commits is ${semver_1.SemVerType[highestBump]}.\n` +
+            `PR title: "${prTitleText}"\n` +
+            `Commit list:\n${` - ${commitSubjects.join("\n - ")}`}`);
+        return false;
+    }
+    else {
+        core.info(`✅ The pull request title's bump level is consistent with the PR's commits`);
+        return true;
+    }
 }
 exports.validatePrTitleBump = validatePrTitleBump;
 
@@ -47693,12 +47619,33 @@ module.exports = JSON.parse('[[[0,44],"disallowed_STD3_valid"],[[45,46],"valid"]
 /******/ 	if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = __dirname + "/";
 /******/ 	
 /************************************************************************/
-/******/ 	
-/******/ 	// startup
-/******/ 	// Load entry module and return exports
-/******/ 	// This entry module is referenced by other modules so it can't be inlined
-/******/ 	var __webpack_exports__ = __nccwpck_require__(1144);
-/******/ 	module.exports = __webpack_exports__;
-/******/ 	
+var __webpack_exports__ = {};
+// This entry need to be wrapped in an IIFE because it need to be in strict mode.
+(() => {
+"use strict";
+var exports = __webpack_exports__;
+
+/**
+ * Copyright (C) 2023, TomTom (http://tomtom.com).
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const validate_1 = __nccwpck_require__(1144);
+(0, validate_1.run)();
+
+})();
+
+module.exports = __webpack_exports__;
 /******/ })()
 ;

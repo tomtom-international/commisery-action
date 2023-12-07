@@ -40,8 +40,8 @@ export function validateRules(
 ): LlvmError[] {
   const errors: LlvmError[] = [];
 
-  const disabledRules = Object.entries(config.rules)
-    .filter(item => !(item[1] as Object)["enabled"])
+  const disabledRules = Array.from(config.rules)
+    .filter(item => item[1].enabled === false)
     .map(item => item[0]);
 
   for (const rule of ALL_RULES) {
@@ -49,12 +49,13 @@ export function validateRules(
       if (!disabledRules.includes(rule.id)) {
         rule.validate(message, config);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof LlvmError) {
         errors.push(error);
-      } else {
-        throw error;
+        continue;
       }
+
+      throw error;
     }
   }
 

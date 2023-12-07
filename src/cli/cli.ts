@@ -69,12 +69,15 @@ program
     for (const message of messages) {
       try {
         new ConventionalCommitMessage(message, undefined, config);
-      } catch (error) {
+      } catch (error: unknown) {
         if (error instanceof ConventionalCommitError) {
           for (const err of error.errors) {
             core.info(err.report());
           }
+          continue;
         }
+
+        throw error;
       }
     }
   });
@@ -116,11 +119,12 @@ program
     core.info(os.EOL);
 
     for (const rule in config.rules) {
-      const status: string = config.rules[rule].enabled
+      const status: string = config.rules.get(rule)?.enabled
         ? `${green}o${reset}`
         : `${red}x${reset}`;
       core.info(
-        `[${status}] ${rule}: ${gray}${config.rules[rule].description}${reset}`
+        `[${status}] ${rule}: ${gray}${config.rules.get(rule)
+          ?.description}${reset}`
       );
     }
   });

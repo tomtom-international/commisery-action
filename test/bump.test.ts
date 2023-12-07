@@ -128,7 +128,7 @@ describe("Bump functionality", () => {
           messages.concat(U.DEFAULT_COMMIT_LIST),
         ]);
 
-      await bumpaction.exportedForTesting.run();
+      await bumpaction.run();
       expect(core.info).toHaveBeenCalledWith(
         expect.stringContaining(`Found SemVer tag: ${U.INITIAL_VERSION}`)
       );
@@ -192,7 +192,7 @@ describe("Releases and tags", () => {
         return false;
       });
 
-    await bumpaction.exportedForTesting.run();
+    await bumpaction.run();
     if (!rel && !tag) {
       expect(core.startGroup).toHaveBeenCalledWith(
         expect.stringContaining(
@@ -250,7 +250,7 @@ describe("Trouble bumping", () => {
     jest
       .spyOn(github, "matchTagsToCommits")
       .mockResolvedValue([null, [U.PATCH_MSG].concat(U.DEFAULT_COMMIT_LIST)]);
-    await bumpaction.exportedForTesting.run();
+    await bumpaction.run();
     expect(core.warning).toHaveBeenCalledTimes(1);
     expect(core.warning).toHaveBeenCalledWith(
       expect.stringContaining("No matching SemVer tags found")
@@ -274,7 +274,7 @@ describe("Trouble bumping", () => {
         ),
       ]);
 
-    await bumpaction.exportedForTesting.run();
+    await bumpaction.run();
     // Warning about compliance, as well as what's wrong with the commit(s)
     expect(core.warning).toHaveBeenCalledWith(
       expect.stringContaining("not comply")
@@ -305,7 +305,7 @@ describe("Trouble bumping", () => {
       throw new Error("Mocked error");
     });
 
-    await bumpaction.exportedForTesting.run();
+    await bumpaction.run();
 
     expect(github.getShaForTag).toHaveBeenCalledTimes(1);
 
@@ -329,7 +329,7 @@ describe("Trouble bumping", () => {
       throw new Error("Mocked error");
     });
 
-    await bumpaction.exportedForTesting.run();
+    await bumpaction.run();
 
     expect(github.getShaForTag).toHaveBeenCalledTimes(1);
 
@@ -354,7 +354,7 @@ describe("Trouble bumping", () => {
       .spyOn(github, "createRelease")
       .mockRejectedValue(U.getMockRequestError(422));
 
-    await bumpaction.exportedForTesting.run();
+    await bumpaction.run();
 
     expect(github.getShaForTag).toHaveBeenCalledTimes(1);
     expect(github.getShaForTag).toHaveBeenCalledWith(
@@ -396,7 +396,7 @@ describe("Initial development", () => {
         [U.toICommit("chore!: breaking change")].concat(U.DEFAULT_COMMIT_LIST),
       ]);
 
-    await bumpaction.exportedForTesting.run();
+    await bumpaction.run();
     expect(core.warning).toHaveBeenCalledWith(
       expect.stringContaining("This repository is under 'initial development'")
     );
@@ -426,7 +426,7 @@ describe("Initial development", () => {
         U.DEFAULT_COMMIT_LIST,
       ]);
 
-    await bumpaction.exportedForTesting.run();
+    await bumpaction.run();
     expect(core.warning).toHaveBeenCalledWith(
       expect.stringContaining("Enforcing version `1.0.0`")
     );
@@ -481,7 +481,7 @@ describe("Create changelog", () => {
         return false;
       });
 
-    await bumpaction.exportedForTesting.run();
+    await bumpaction.run();
     if (createChangelog) {
       expect(changelog.generateChangelog).toHaveBeenCalledTimes(1);
       expect(github.createRelease).toHaveBeenCalledTimes(1);

@@ -434,13 +434,15 @@ export async function getAssociatedPullRequests(
       });
 
     return prs;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
-    if (error.message !== "Resource not accessible by integration") {
-      throw error;
+  } catch (error: unknown) {
+    if (
+      error instanceof Error &&
+      error.message === "Resource not accessible by integration"
+    ) {
+      return [];
     }
 
-    return [];
+    throw error;
   }
 }
 
@@ -482,15 +484,18 @@ export async function updateLabels(labels: string[]): Promise<void> {
         labels,
       });
     }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
-    if (error.message !== "Resource not accessible by integration") {
-      throw error;
+  } catch (error: unknown) {
+    if (
+      error instanceof Error &&
+      error.message === "Resource not accessible by integration"
+    ) {
+      core.warning(
+        "Unable to update Pull Request labels, did you provide the `write` permission for `issues` and `pull-requests`?"
+      );
+      return;
     }
-    core.warning(
-      "Unable to update Pull Request labels, did you provide the `write` permission for `issues` and `pull-requests`?"
-    );
+
+    throw error;
   }
 }
 
@@ -508,8 +513,9 @@ export async function getContent(path: string): Promise<string | undefined> {
     if ("content" in response.data) {
       return Buffer.from(response.data.content, "base64").toString("utf8");
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
+  } catch (error: unknown) {
+    // We intentially capture all failures and return `undefined` in case the
+    // file does not exist or cannot be accessed.
     core.debug((error as Error).message);
   }
 }

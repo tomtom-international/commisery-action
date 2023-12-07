@@ -51,7 +51,13 @@ async function determineLabels(
   return labels;
 }
 
-async function run(): Promise<void> {
+/**
+ * Validate action entrypoint
+ *
+ * Validates commits agains the Conventional Commits specification.
+ * @internal
+ */
+export async function run(): Promise<void> {
   try {
     if (!isPullRequestEvent()) {
       core.warning(
@@ -85,13 +91,7 @@ async function run(): Promise<void> {
     if (compliant) {
       core.info("✅ The pull request passed all configured checks");
     }
-  } catch (ex) {
+  } catch (ex: unknown) {
     core.setFailed((ex as Error).message);
   }
 }
-
-run();
-
-export const exportedForTesting = {
-  run,
-};

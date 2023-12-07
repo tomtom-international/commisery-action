@@ -80,7 +80,7 @@ function getSemVerIfMatches(
   commitSha: string
 ): SemVer | null {
   if (commitSha === tagSha) {
-    const dbg = (tag, commit, message): void => {
+    const dbg = (tag: string, commit: string, message: string): void => {
       core.debug(`Tag '${tag}' on commit '${commit.slice(0, 6)}' ${message}`);
     };
     const sv: SemVer | null = SemVer.fromString(tagName);
@@ -111,9 +111,9 @@ function processCommitsForBump(
   // commits/pull request titles that (ideally) have been validated
   // _before_ they were merged, and certain GitHub CI settings may append
   // a reference to the PR number in merge commits.
-  const configCopy = JSON.parse(JSON.stringify(config));
-  configCopy.rules["C014"].enabled = false; // SubjectExceedsLineLengthLimit
-  configCopy.rules["C019"].enabled = false; // SubjectContainsIssueReference
+  const configCopy = Object.create(config);
+  configCopy.setRuleActivationStatus("C014", false); // SubjectExceedsLineLengthLimit
+  configCopy.setRuleActivationStatus("C019", false); // SubjectContainsIssueReference
 
   return processCommits(commits, configCopy);
 }
@@ -172,7 +172,7 @@ export async function getVersionBumpTypeAndMessages(
   core.debug(`Fetching last ${PAGE_SIZE} tags from ${targetSha}..`);
   const tags = await getLatestTags(PAGE_SIZE);
   core.debug("Fetch complete");
-  const tagMatcher = (commitMessage, commitSha): SemVer | null => {
+  const tagMatcher = (commitSha: string): SemVer | null => {
     // Try and match this commit's hash to one of the tags in `tags`
     for (const tag of tags) {
       let semVer: SemVer | null = null;
@@ -218,7 +218,6 @@ export async function getVersionBumpTypeAndMessages(
     core.debug(`Commit ${commitSha.slice(0, 6)} is not associated with a tag`);
     return null;
   };
-
   const [version, commitList] = await matchTagsToCommits(targetSha, tagMatcher);
 
   const results = processCommitsForBump(commitList, config);
@@ -568,7 +567,7 @@ function getNextSdkVer(
   const currentIsRc = currentVersion.prerelease.startsWith(RC_PREFIX);
   const currentIsRel = currentVersion.prerelease === "";
 
-  const fatal = (msg): void => {
+  const fatal = (msg: string): void => {
     throw new BumpError(msg);
   };
   const bumpOrError = (t: SemVerType): SemVer => {
@@ -746,14 +745,14 @@ function getNextSdkVer(
 export async function bumpSdkVer(
   config: Configuration,
   bumpInfo: IVersionBumpTypeAndMessages,
-  releaseMode,
+  releaseMode: ReleaseMode,
   sdkVerBumpType: SdkVerBumpType,
-  headSha,
-  branchName,
+  headSha: string,
+  branchName: string,
   isBranchAllowedToPublish: boolean,
   createChangelog: boolean
 ): Promise<boolean> {
-  const isReleaseBranch = branchName.match(config.releaseBranches);
+  const isReleaseBranch = branchName.match(config.releaseBranches) !== null;
   const hasBreakingChange = bumpInfo.processedCommits.some(
     c => c.message?.breakingChange
   );

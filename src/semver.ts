@@ -66,7 +66,7 @@ export class SemVer {
     this.prefix = prefix;
   }
 
-  static copy(semver): SemVer {
+  static copy(semver: ISemVer): SemVer {
     return new SemVer({
       build: semver.build,
       ...semver,
