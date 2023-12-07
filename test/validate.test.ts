@@ -29,7 +29,7 @@ beforeEach(() => {
   jest.spyOn(github, "isPullRequestEvent").mockReturnValue(true);
 });
 
-const toICommit = msg => ({ message: msg, sha: "f00dface" });
+const toICommit = (msg: string) => ({ message: msg, sha: "f00dface" });
 const NOK_1 = toICommit("foo: invalid commit");
 const NOK_2 = toICommit("FIX : ~nvalid commit!");
 const NOK_3 = toICommit("ci: long\nmultiline\n\n INVALID-COMMIT: withfooter");

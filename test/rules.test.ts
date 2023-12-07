@@ -520,41 +520,6 @@ describe("Rules", () => {
   });
 
   /**
-   * [C022] Footer should not contain any blank line(s)
-   */
-  test(`[C022] Footer should not contain any blank line(s)`, () => {
-    for (const message of [
-      dedent(`feat: multiple whitespaces in footers
-      
-      BREAKING CHANGE: Now we allow for whitespaces
-
-      correct-token: value
-
-      Implements: 1234`),
-    ]) {
-      assertRuleValidationError(message, getConventionalCommitRule("C022"));
-    }
-
-    for (const message of [
-      dedent(`feat: one empty line
-      
-      Implements: 1234`),
-      dedent(`feat(scope)!: multiple empty lines
-      
-
-      Correct-token: value
-      Implements #1234
-      `),
-      dedent(`chore: footers after one whiteline
-      
-      Implements #1234
-      Implements: 1234`),
-    ]) {
-      assertRuleNoValidationError(message, getConventionalCommitRule("C022"));
-    }
-  });
-
-  /**
    * [C024] A colon is required in git-trailers
    */
   test(`[C024] A colon is required in git-trailers`, () => {
@@ -605,7 +570,7 @@ describe("Rules", () => {
    */
   test(`[C026] A ticket reference is required in at least one footer value`, () => {
     const config = new Configuration();
-    config.setRuleActivationStatus("C026", true);
+    config.setRuleActive("C026", true);
 
     for (const message of [
       "test: no footer",

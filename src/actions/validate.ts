@@ -54,7 +54,7 @@ async function determineLabels(
 /**
  * Validate action entrypoint
  *
- * Validates commits agains the Conventional Commits specification.
+ * Validates commits against the Conventional Commits specification.
  * @internal
  */
 export async function run(): Promise<void> {

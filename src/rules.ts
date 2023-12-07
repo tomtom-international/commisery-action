@@ -589,23 +589,12 @@ class GitTrailerContainsWhitespace implements IConventionalCommitRule {
 }
 
 /**
- * Footer should not contain any blank line(s)
+ * Rule C022 was historically known as:
+ *     FooterContainsBlankLine
+ * with description:
+ *     "Footer should not contain any blank line(s)";
+ * This rule has been removed and its ID should therefore not be re-used.
  */
-class FooterContainsBlankLine implements IConventionalCommitRule {
-  id = "C022";
-  description = "Footer should not contain any blank line(s)";
-  default = true;
-
-  validate(message: ConventionalCommitMetadata, _: Configuration): void {
-    for (const item of message.footers) {
-      if (!item.token || item.value.length === 0) {
-        throw new LlvmError({
-          message: `[${this.id}] ${this.description}`,
-        });
-      }
-    }
-  }
-}
 
 /**
  * The BREAKING CHANGE git-trailer should be the first element in the footer
@@ -728,7 +717,6 @@ export const ALL_RULES = [
   new MissingEmptyLineBetweenSubjectAndBody(),
   new SubjectContainsIssueReference(),
   new GitTrailerContainsWhitespace(),
-  new FooterContainsBlankLine(),
   new BreakingChangeMustBeFirstGitTrailer(),
   new GitTrailerNeedAColon(),
   new FooterContainsTicketReference(),

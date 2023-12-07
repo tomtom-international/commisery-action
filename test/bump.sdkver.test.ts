@@ -106,7 +106,7 @@ interface SdkBumpTestParameters {
   breaking: boolean;
   expectedVersion: string;
 }
-const generateTests = (paramListList): SdkBumpTestParameters[] => {
+const generateTests = (paramListList: any): SdkBumpTestParameters[] => {
   let testList = new Array() as SdkBumpTestParameters[];
   for (const paramList of paramListList) {
     testList.push({
