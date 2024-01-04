@@ -32821,6 +32821,7 @@ const CONFIG_ITEMS = [
     "disable",
     "allowed-branches",
     "initial-development",
+    "version-prefix",
     "version-scheme",
     "release-branches",
     "prereleases",
@@ -32960,6 +32961,17 @@ class Configuration {
                         throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.allowedBranches}'!`);
                     }
                     break;
+                case "version-prefix":
+                    /* Example YAML:
+                     *   version-prefix: "v"
+                     */
+                    if (typeof data[key] === "string") {
+                        this.versionPrefix = data[key];
+                    }
+                    else {
+                        throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.versionPrefix}'!`);
+                    }
+                    break;
                 case "version-scheme":
                     /* Example YAML:
                      *   version-scheme: "semver"
@@ -33043,6 +33055,7 @@ class Configuration {
         this.allowedBranches = ".*";
         this.maxSubjectLength = 80;
         this.releaseBranches = /^release\/.*\d+\.\d+\.*$/;
+        this.versionPrefix = "*";
         this.versionScheme = "semver";
         this.prereleasePrefix = undefined;
         this.tags = DEFAULT_ACCEPTED_TAGS;

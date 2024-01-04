@@ -45,7 +45,7 @@ const setInputSpyWith = (a: { [b: string]: string }): void => {
     if (a[setting]) return a[setting];
     switch (setting) {
       case "version-prefix":
-        return "*";
+        return "";
       case "config":
         return ".commisery.yml";
       case "build-metadata":

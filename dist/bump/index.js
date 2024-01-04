@@ -33691,6 +33691,9 @@ function run() {
         }
         try {
             const prefix = core.getInput("version-prefix");
+            if (prefix != "") {
+                config.versionPrefix = prefix;
+            }
             const release = core.getBooleanInput("create-release");
             const tag = core.getBooleanInput("create-tag");
             const releaseMode = release ? "release" : tag ? "tag" : "none";
@@ -33699,7 +33702,7 @@ function run() {
                     'a Git tag is implicitly created when using "create-release".');
             }
             core.startGroup("🔍 Finding latest topological tag..");
-            const bumpInfo = yield (0, bump_1.getVersionBumpTypeAndMessages)(prefix, github_1.context.sha, config);
+            const bumpInfo = yield (0, bump_1.getVersionBumpTypeAndMessages)(github_1.context.sha, config);
             if (!bumpInfo.foundVersion) {
                 // We haven't found a (matching) SemVer tag in the commit and tag list
                 core.setOutput("current-version", "");
@@ -33905,8 +33908,6 @@ exports.getVersionBumpType = getVersionBumpType;
  * (breaking: major, feat: minor, fix plus `extra_patch_tags`: patch) in the commits
  * _since_ that tag shall be returned.
  *
- * @param prefix Specifies the exact prefix of the tags to be considered,
- *               '*' means "any"
  * @param targetSha The sha on which to start listing commits
  * @param config A Configuration object, which optionally contains a list of
  *               Conventional Commit type tags that, like "fix", should bump the
@@ -33920,7 +33921,7 @@ exports.getVersionBumpType = getVersionBumpType;
                  - state of "initial development"; if no version is found, err on the
                    safe side and declare "initial development" (if configured as such)
  */
-function getVersionBumpTypeAndMessages(prefix, targetSha, config) {
+function getVersionBumpTypeAndMessages(targetSha, config) {
     return __awaiter(this, void 0, void 0, function* () {
         core.debug(`Fetching last ${PAGE_SIZE} tags from ${targetSha}..`);
         const tags = yield (0, github_1.getLatestTags)(PAGE_SIZE);
@@ -33930,7 +33931,7 @@ function getVersionBumpTypeAndMessages(prefix, targetSha, config) {
             for (const tag of tags) {
                 let semVer = null;
                 core.debug(`Considering tag ${tag.name} (${tag.commitSha}) on ${commitSha}`);
-                semVer = getSemVerIfMatches(prefix, tag.name, tag.commitSha, commitSha);
+                semVer = getSemVerIfMatches(config.versionPrefix, tag.name, tag.commitSha, commitSha);
                 if (semVer) {
                     // We've found a tag that matches to this commit. Now, we need to
                     // make sure that we return the _highest_ version tag_ associated with
@@ -33945,7 +33946,7 @@ function getVersionBumpTypeAndMessages(prefix, targetSha, config) {
                             const t = matchTags.pop();
                             if (!t)
                                 break;
-                            semVer = getSemVerIfMatches(prefix, t.name, t.commitSha, commitSha);
+                            semVer = getSemVerIfMatches(config.versionPrefix, t.name, t.commitSha, commitSha);
                         }
                     }
                     else {
@@ -35121,6 +35122,7 @@ const CONFIG_ITEMS = [
     "disable",
     "allowed-branches",
     "initial-development",
+    "version-prefix",
     "version-scheme",
     "release-branches",
     "prereleases",
@@ -35260,6 +35262,17 @@ class Configuration {
                         throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.allowedBranches}'!`);
                     }
                     break;
+                case "version-prefix":
+                    /* Example YAML:
+                     *   version-prefix: "v"
+                     */
+                    if (typeof data[key] === "string") {
+                        this.versionPrefix = data[key];
+                    }
+                    else {
+                        throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.versionPrefix}'!`);
+                    }
+                    break;
                 case "version-scheme":
                     /* Example YAML:
                      *   version-scheme: "semver"
@@ -35343,6 +35356,7 @@ class Configuration {
         this.allowedBranches = ".*";
         this.maxSubjectLength = 80;
         this.releaseBranches = /^release\/.*\d+\.\d+\.*$/;
+        this.versionPrefix = "*";
         this.versionScheme = "semver";
         this.prereleasePrefix = undefined;
         this.tags = DEFAULT_ACCEPTED_TAGS;
