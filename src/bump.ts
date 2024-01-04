@@ -150,8 +150,6 @@ export function getVersionBumpType(
  * (breaking: major, feat: minor, fix plus `extra_patch_tags`: patch) in the commits
  * _since_ that tag shall be returned.
  *
- * @param prefix Specifies the exact prefix of the tags to be considered,
- *               '*' means "any"
  * @param targetSha The sha on which to start listing commits
  * @param config A Configuration object, which optionally contains a list of
  *               Conventional Commit type tags that, like "fix", should bump the
@@ -166,7 +164,6 @@ export function getVersionBumpType(
                    safe side and declare "initial development" (if configured as such)
  */
 export async function getVersionBumpTypeAndMessages(
-  prefix: string,
   targetSha: string,
   config: Configuration
 ): Promise<IVersionBumpTypeAndMessages> {
@@ -180,7 +177,12 @@ export async function getVersionBumpTypeAndMessages(
       core.debug(
         `Considering tag ${tag.name} (${tag.commitSha}) on ${commitSha}`
       );
-      semVer = getSemVerIfMatches(prefix, tag.name, tag.commitSha, commitSha);
+      semVer = getSemVerIfMatches(
+        config.versionPrefix,
+        tag.name,
+        tag.commitSha,
+        commitSha
+      );
       if (semVer) {
         // We've found a tag that matches to this commit. Now, we need to
         // make sure that we return the _highest_ version tag_ associated with
@@ -196,7 +198,12 @@ export async function getVersionBumpTypeAndMessages(
           while (semVer === null && matchTags.length !== 0) {
             const t = matchTags.pop();
             if (!t) break;
-            semVer = getSemVerIfMatches(prefix, t.name, t.commitSha, commitSha);
+            semVer = getSemVerIfMatches(
+              config.versionPrefix,
+              t.name,
+              t.commitSha,
+              commitSha
+            );
           }
         } else {
           core.debug(`No other tags found`);

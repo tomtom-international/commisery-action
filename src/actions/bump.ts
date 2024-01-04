@@ -72,7 +72,10 @@ async function run(): Promise<void> {
   }
 
   try {
-    const prefix = core.getInput("version-prefix");
+    const prefix = core.getInput("version-prefix")
+    if (prefix != "") {
+      config.versionPrefix = prefix
+    }
     const release = core.getBooleanInput("create-release");
     const tag = core.getBooleanInput("create-tag");
     const releaseMode: ReleaseMode = release ? "release" : tag ? "tag" : "none";
@@ -86,7 +89,7 @@ async function run(): Promise<void> {
 
     core.startGroup("🔍 Finding latest topological tag..");
     const bumpInfo: IVersionBumpTypeAndMessages =
-      await getVersionBumpTypeAndMessages(prefix, context.sha, config);
+      await getVersionBumpTypeAndMessages(context.sha, config);
 
     if (!bumpInfo.foundVersion) {
       // We haven't found a (matching) SemVer tag in the commit and tag list

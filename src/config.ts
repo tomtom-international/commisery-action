@@ -69,6 +69,7 @@ const CONFIG_ITEMS = [
   "disable",
   "allowed-branches",
   "initial-development",
+  "version-prefix",
   "version-scheme",
   "release-branches",
   "prereleases",
@@ -102,6 +103,7 @@ export class Configuration {
   allowedBranches = ".*";
   maxSubjectLength = 80;
   releaseBranches = /^release\/.*\d+\.\d+\.*$/;
+  versionPrefix = "*";
   versionScheme = "semver";
   prereleasePrefix?: string = undefined;
   tags: IConfigurationRules = DEFAULT_ACCEPTED_TAGS;
@@ -250,6 +252,21 @@ export class Configuration {
           }
           break;
 
+        case "version-prefix":
+          /* Example YAML:
+           *   version-prefix: "v"
+           */
+          if (typeof data[key] === "string") {
+            this.versionPrefix = data[key];
+          } else {
+            throw new Error(
+              `Incorrect type '${typeof data[
+                key
+              ]}' for '${key}', must be '${typeof this.versionPrefix}'!`
+            );
+          }
+          break;
+
         case "version-scheme":
           /* Example YAML:
            *   version-scheme: "semver"
@@ -274,6 +291,7 @@ export class Configuration {
             );
           }
           break;
+
         case "release-branches":
           /* Example YAML:
            *   release-branches: "^release/.*\d+\.\d+.*$"
