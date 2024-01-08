@@ -33816,10 +33816,10 @@ function getSemVerIfMatches(prefix, tagName, tagSha, commitSha) {
             // If provided, make sure that the prefix matches as well
             // Asterisk is a special case, meaning 'any prefix'
             if (sv.prefix === prefix || prefix === "*") {
-                dbg(tagName, commitSha, "matches prefix");
+                dbg(tagName, commitSha, `matches prefix ${prefix}`);
                 return sv;
             }
-            dbg(tagName, commitSha, "does not match prefix");
+            dbg(tagName, commitSha, `does not match prefix ${prefix}`);
         }
         else {
             dbg(tagName, commitSha, "is not a SemVer");
@@ -33859,15 +33859,17 @@ exports.getVersionBumpType = getVersionBumpType;
  * Within the current context, examine the last PAGE_SIZE commits reachable
  * from `context.sha`, as well as the last PAGE_SIZE tags in the repo.
  * Each commit shall be tried to be matched to any of the tags found.
- * The closest tag that is SemVer-compatible and matches the provided `prefix`
- * shall be returned as a SemVer object, and the highest bump type encountered
- * (breaking: major, feat: minor, fix plus `extra_patch_tags`: patch) in the commits
- * _since_ that tag shall be returned.
+ * The closest tag that is SemVer-compatible and matches the `prefix` value as
+ * configured in the `config` object shall be returned as a SemVer object, and
+ * the highest bump type encountered in the commits _since_ that tag shall be returned.
+ *  - MAJOR: breaking changes,
+ *  - MINOR: feat commits,
+ *  - PATCH: fix commits, plus any tag matching one of `extra_patch_tags`, if configured
  *
  * @param targetSha The sha on which to start listing commits
- * @param config A Configuration object, which optionally contains a list of
- *               Conventional Commit type tags that, like "fix", should bump the
- *               patch version field.
+ * @param config A Configuration object, which optionally contains the `prefix` value
+ *               that processed versions must match, or a list of Conventional Commit type
+ *               tags that should bump the patch version field (aside from "fix").
  *
  * @return {IVersionBumpTypeAndMessages}
                  returns an object containing:
