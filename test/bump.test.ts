@@ -68,6 +68,7 @@ beforeEach(() => {
     ]);
 
   /*
+  jest.spyOn(core, "debug").mockImplementation(console.log);
   jest.spyOn(core, "info").mockImplementation(console.log);
   jest.spyOn(core, "warning").mockImplementation(console.log);
   jest.spyOn(core, "error").mockImplementation(console.log);
@@ -503,4 +504,89 @@ describe("Create changelog", () => {
       );
     }
   });
+});
+
+describe("Version prefix handling", () => {
+  const TEST_VERSIONS = [
+    { name: "versiona-3.4.5", commitSha: "345" },
+    { name: "versionb-4.5.6", commitSha: "456" },
+    { name: "versionc-1.2.3", commitSha: "123" },
+    { name: "1.1.1", commitSha: "111" },
+  ];
+  const versionPrefixTests = [
+    {
+      desc: "no prefix",
+      versionPrefixInput: null,
+      versionPrefixConfig: null,
+      expected: SemVer.fromString("versionb-4.5.6"),
+    },
+    {
+      desc: "explicit no prefix",
+      versionPrefixInput: "",
+      versionPrefixConfig: "",
+      expected: SemVer.fromString("1.1.1"),
+    },
+    {
+      desc: "input prefix",
+      versionPrefixInput: "versiona-",
+      versionPrefixConfig: "",
+      expected: SemVer.fromString("versiona-3.4.5"),
+    },
+    {
+      desc: "config prefix",
+      versionPrefixInput: "",
+      versionPrefixConfig: "versionc-",
+      expected: SemVer.fromString("versionc-1.2.3"),
+    },
+    {
+      desc: "config and input prefix (input takes precedence)",
+      versionPrefixInput: "versiona-",
+      versionPrefixConfig: "versionb-",
+      expected: SemVer.fromString("versiona-3.4.5"),
+    },
+    {
+      desc: "non-matching config prefix",
+      versionPrefixInput: "",
+      versionPrefixConfig: "versiond-",
+      expected: null,
+    },
+  ];
+
+  beforeEach(() => {
+    jest.spyOn(fs, "existsSync").mockReturnValue(true);
+    jest.spyOn(github, "getLatestTags").mockResolvedValue(TEST_VERSIONS);
+  });
+
+  test.each(versionPrefixTests)(
+    "$desc",
+    async ({ versionPrefixInput, versionPrefixConfig, expected }) => {
+      jest.spyOn(core, "getInput").mockImplementation((setting, options?) => {
+        switch (setting) {
+          case "version-prefix":
+            return versionPrefixInput ?? "*";
+        }
+        return "";
+      });
+
+      jest
+        .spyOn(fs, "readFileSync")
+        .mockReturnValue(
+          `version-scheme: "semver"` +
+            (versionPrefixConfig
+              ? `\nversion-prefix: ${versionPrefixConfig}`
+              : "")
+        );
+
+      await bumpaction.exportedForTesting.run();
+
+      const commitSha =
+        TEST_VERSIONS.find(version => version.name == expected?.toString())
+          ?.commitSha ?? "dummy";
+
+      // We specifically test the matcher function passed to matchTagsToCommits here,
+      // as it's (sadly) the only way to test the actual behavior of the matcher.
+      const matcherFunc = github.matchTagsToCommits.mock.calls[0][1];
+      expect(matcherFunc("", commitSha)).toEqual(expected);
+    }
+  );
 });
