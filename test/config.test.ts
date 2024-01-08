@@ -388,6 +388,12 @@ describe("Configurable options", () => {
     });
   });
 
+  test("Default version prefix", () => {
+    withConfig("", config => {
+      expect(config.versionPrefix).toBe("*");
+    });
+  });
+
   test("Boolean defaults", () => {
     withConfig(
       "version-scheme: sdkver\nsdkver-create-release-branches: true",
@@ -405,9 +411,10 @@ describe("Configurable options", () => {
 
   test("String values", () => {
     withConfig(
-      "version-scheme: sdkver\nsdkver-create-release-branches: some-release-prefix-",
+      "version-scheme: sdkver\nsdkver-create-release-branches: some-release-prefix-\nversion-prefix: X",
       config => {
         expect(config.sdkverCreateReleaseBranches).toBe("some-release-prefix-");
+        expect(config.versionPrefix).toBe("X");
       }
     );
   });
