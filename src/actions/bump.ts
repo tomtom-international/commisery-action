@@ -72,9 +72,9 @@ async function run(): Promise<void> {
   }
 
   try {
-    const prefix = core.getInput("version-prefix")
-    if (prefix != "") {
-      config.versionPrefix = prefix
+    const prefix = core.getInput("version-prefix");
+    if (prefix !== "") {
+      config.versionPrefix = prefix;
     }
     const release = core.getBooleanInput("create-release");
     const tag = core.getBooleanInput("create-tag");
