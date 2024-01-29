@@ -42,7 +42,7 @@ export enum SemVerType {
   MAJOR = 3,
 }
 
-export class SemVer {
+export class SemVer implements ISemVer {
   major: number;
   minor: number;
   patch: number;
@@ -66,7 +66,7 @@ export class SemVer {
     this.prefix = prefix;
   }
 
-  static copy(semver): SemVer {
+  static copy(semver: ISemVer): SemVer {
     return new SemVer({
       build: semver.build,
       ...semver,

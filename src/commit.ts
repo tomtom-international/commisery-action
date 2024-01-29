@@ -29,7 +29,7 @@ const BREAKING_CHANGE_TOKEN = "BREAKING-CHANGE";
 const CONVENTIONAL_COMMIT_REGEX =
   /(?<type>\w+)?((\s*)?\((?<scope>[^()]*)\)(\s*)?)?(?<breakingChange>((\s*)+[!]+(\s*)?)?)(?<separator>((\s+)?:?(\s+)?))(?<description>.*)/;
 const FOOTER_REGEX =
-  /^(?<token>[\w-]+|BREAKING\sCHANGE|[\w-\s]+\sby)(?::[ ]|[ ](?=[#]))(?<value>.*)/;
+  /^(?<token>[\w-]+|BREAKING\sCHANGE|[\w-\s]+\sby)(?::[ ]|[ ](?=#))(?<value>.*)/;
 
 /**
  * Conventional Commit Metadata used for validating
@@ -50,20 +50,38 @@ export interface ConventionalCommitMetadata {
  * Footer class containing key, value pairs
  */
 class Footer {
-  token: string;
-  value: string;
+  private _token!: string;
+  private _value!: string;
 
   constructor(token: string, value: string) {
     this.token = token;
-    if (token === "BREAKING CHANGE") {
-      this.token = BREAKING_CHANGE_TOKEN;
-    }
-
     this.value = value;
   }
 
-  appendParagrah(paragrah: string): void {
-    this.value += os.EOL + paragrah;
+  set token(token: string) {
+    if (token === "BREAKING CHANGE") {
+      this._token = BREAKING_CHANGE_TOKEN;
+    } else {
+      this._token = token;
+    }
+  }
+
+  get token(): string {
+    return this._token;
+  }
+
+  set value(value: string) {
+    this._value = value;
+  }
+
+  // NOTE: Returns the value of the footer, without
+  // any trailing whitespace or new line
+  get value(): string {
+    return this._value.trimEnd();
+  }
+
+  appendParagraph(paragraph: string): void {
+    this._value += os.EOL + paragraph;
   }
 }
 
@@ -76,31 +94,33 @@ export function getConventionalCommitMetadata(
 ): ConventionalCommitMetadata {
   let footers: Footer[] = [];
   let body: string[] = [];
-  let hasBreakingChange = false;
 
   if (message.length > 1) {
     let endOfBody = 1;
+    let ignoreEmptyLines = false;
+
     // eslint-disable-next-line github/array-foreach
     message.slice(1).forEach((line, index) => {
-      const matches = line.match(FOOTER_REGEX)?.groups;
+      const matches = FOOTER_REGEX.exec(line)?.groups;
+      const currentTrailer = footers[footers.length - 1];
       if (matches) {
         footers.push(new Footer(matches.token, matches.value));
-        if (footers[footers.length - 1].token === BREAKING_CHANGE_TOKEN) {
-          hasBreakingChange = true;
-        }
-      } else if (footers.length > 0 && line.startsWith(" ")) {
-        // Multiline trailers use folding
-        footers[footers.length - 1].appendParagrah(line);
-      } else if (hasBreakingChange === true && line.trim() === "") {
-        // Allow blank lines after BREAKING[- ]CHANGE
-        if (footers[footers.length - 1].token !== BREAKING_CHANGE_TOKEN) {
-          footers.push(new Footer("", ""));
-        }
-        return;
+        ignoreEmptyLines = false;
+      } else if (/^-{8,}$/.test(line)) {
+        // End current trailer when a `---------` line is detected (i.e. as inserted
+        // by GitHub for certain merge strategies).
+        ignoreEmptyLines = true;
+      } else if (ignoreEmptyLines && line.trim() === "") {
+        // Ignore empty lines after `---------` line
+        // until the next paragraph or footer element is detected.
+      } else if (currentTrailer && (/^\s+/.test(line) || line.trim() === "")) {
+        // Multiline trailers use folding (RFC822), the exception being for empty lines
+        currentTrailer.appendParagraph(line);
       } else {
         // Discard detected git trailers as non-compliant item has been found
         endOfBody = index + 1;
         footers = [];
+        ignoreEmptyLines = false;
       }
     });
 
@@ -112,9 +132,8 @@ export function getConventionalCommitMetadata(
     }
   }
 
-  const conventionalSubject = message[0].match(
-    CONVENTIONAL_COMMIT_REGEX
-  )?.groups;
+  const conventionalSubject = CONVENTIONAL_COMMIT_REGEX.exec(message[0])
+    ?.groups;
 
   if (conventionalSubject === undefined) {
     throw new Error(
@@ -238,19 +257,15 @@ export class ConventionalCommitMessage {
 
 function isFixup(subject: string): boolean {
   const AUTOSQUASH_REGEX = /^(?:(?:fixup|squash)!\s+)+/;
-  const autosquash = subject.match(AUTOSQUASH_REGEX);
-
-  return autosquash !== null;
+  return AUTOSQUASH_REGEX.test(subject);
 }
 
 function isMerge(subject: string): boolean {
   const MERGE_REGEX = /^Merge.*?:?[\s\t]*?/;
-  const merge = subject.match(MERGE_REGEX);
-
-  return merge !== null;
+  return MERGE_REGEX.test(subject);
 }
 
-function stripMessage(message): string {
+function stripMessage(message: string): string {
   const cutLine = message.indexOf(
     "# ------------------------ >8 ------------------------\n"
   );

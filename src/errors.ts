@@ -41,7 +41,7 @@ export class FixupCommitError extends Error {
 }
 
 export class BumpError extends Error {
-  constructor(msg) {
+  constructor(msg: string) {
     super(`Error while applying version bump: ${msg}`);
     this.name = "BumpError";
   }

@@ -29,7 +29,7 @@ beforeEach(() => {
   jest.spyOn(github, "isPullRequestEvent").mockReturnValue(true);
 });
 
-const toICommit = msg => ({ message: msg, sha: "f00dface" });
+const toICommit = (msg: string) => ({ message: msg, sha: "f00dface" });
 const NOK_1 = toICommit("foo: invalid commit");
 const NOK_2 = toICommit("FIX : ~nvalid commit!");
 const NOK_3 = toICommit("ci: long\nmultiline\n\n INVALID-COMMIT: withfooter");
@@ -76,7 +76,7 @@ describe("Valid cases", () => {
       jest.spyOn(github, "getCommitsInPR").mockResolvedValue(messages);
       jest.spyOn(github, "getPullRequestTitle").mockResolvedValue(prTitle);
 
-      validate.exportedForTesting.run().then(() => {
+      validate.run().then(() => {
         expect(core.info).toHaveBeenCalled();
         expect(core.warning).not.toHaveBeenCalled();
         expect(core.setFailed).not.toHaveBeenCalled();
@@ -108,7 +108,7 @@ describe("Warning cases", () => {
       jest.spyOn(github, "getCommitsInPR").mockResolvedValue(messages);
       jest.spyOn(github, "getPullRequestTitle").mockResolvedValue(prTitle);
 
-      validate.exportedForTesting.run().then(() => {
+      validate.run().then(() => {
         expect(core.warning).toHaveBeenCalled();
         for (const msg of warningMessages) {
           expect(core.warning).toHaveBeenCalledWith(
@@ -172,7 +172,7 @@ describe("Error cases", () => {
       jest.spyOn(github, "getCommitsInPR").mockResolvedValue(messages);
       jest.spyOn(github, "getPullRequestTitle").mockResolvedValue(prTitle);
 
-      validate.exportedForTesting.run().then(() => {
+      validate.run().then(() => {
         expect(core.setFailed).toHaveBeenCalled();
 
         for (const msg of failureMessages) {
@@ -233,7 +233,7 @@ describe("Update labels", () => {
         .spyOn(Configuration.prototype, "initialDevelopment", "get")
         .mockReturnValue(initialDevelopment);
 
-      validate.exportedForTesting.run().then(() => {
+      validate.run().then(() => {
         expect(core.info).toHaveBeenCalled();
         expect(core.setFailed).not.toHaveBeenCalled();
         expect(core.warning).not.toHaveBeenCalled();

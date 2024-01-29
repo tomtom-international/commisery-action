@@ -21,18 +21,15 @@ import * as core from "@actions/core";
 import * as fs from "fs";
 import * as os from "os";
 
+import * as Color from "./colors";
+
 import { ConventionalCommitMessage } from "../commit";
 import { Configuration } from "../config";
 import { ConventionalCommitError } from "../errors";
 import { Command } from "commander";
-import { getCommitMessages } from "./utils";
+import { getCommitMessages, prettyPrintCommitMessage } from "./utils";
 
 const program = new Command();
-const gray = "\x1b[90m";
-const red = "\x1b[91m";
-const green = "\x1b[92m";
-const yellow = "\x1b[93m";
-const reset = "\x1b[0m";
 
 program
   .name("commisery")
@@ -44,6 +41,7 @@ program
   .description(
     "Checks whether commit messages adhere to the Conventional Commits standard."
   )
+  .option("-v, --verbose", "also print commit message metadata.", false)
   .argument(
     "[TARGET...]",
     `The \`TARGET\` can be:
@@ -52,29 +50,45 @@ program
   - a revision range that \`git rev-list\` can interpret
  When TARGET is omitted, 'HEAD' is implied.`
   )
-  .action(async (target: string[]) => {
+  .action(async (target: string[], options) => {
     const config = new Configuration(program.opts().config);
 
     if (target.length === 0) {
       target = ["HEAD"];
     }
 
-    let messages: string[] = [];
+    let messages: { sha: string; body: string }[] = [];
     if (fs.existsSync(target.join(" "))) {
-      messages = [fs.readFileSync(target.join(" "), "utf8")];
+      messages = [
+        {
+          sha: target.join(" "),
+          body: fs.readFileSync(target.join(" "), "utf8"),
+        },
+      ];
     } else {
       messages = await getCommitMessages(target);
     }
 
     for (const message of messages) {
       try {
-        new ConventionalCommitMessage(message, undefined, config);
-      } catch (error) {
+        const commitmessage = new ConventionalCommitMessage(
+          message.body,
+          message.sha,
+          config
+        );
+
+        if (options.verbose) {
+          prettyPrintCommitMessage(commitmessage);
+        }
+      } catch (error: unknown) {
         if (error instanceof ConventionalCommitError) {
           for (const err of error.errors) {
             core.info(err.report());
           }
+          continue;
         }
+
+        throw error;
       }
     }
   });
@@ -96,10 +110,10 @@ program
     for (const key in config.tags) {
       const bumps: string =
         config.tags[key].bump && key !== "fix"
-          ? ` ${yellow}(bumps patch)${reset}`
+          ? ` ${Color.YELLOW("(bumps patch)")}`
           : "";
       core.info(
-        `${key}: ${gray}${config.tags[key].description}${reset}${bumps}`
+        `${key}: ${Color.GRAY(config.tags[key].description ?? "")}${bumps}`
       );
     }
 
@@ -109,20 +123,20 @@ program
       dedent(`
     Commisery Validation rules
     --------------------------
-    [${green}o${reset}]: ${gray}rule is enabled${reset}, [${red}x${reset}]: ${gray}rule is disabled${reset}
+    [${Color.GREEN("o")}]: ${Color.GRAY("rule is enabled")}, [${Color.RED(
+      "x"
+    )}]: ${Color.GRAY("rule is disabled")}
     `)
     );
 
     core.info(os.EOL);
 
-    for (const rule in config.rules) {
-      const status: string = config.rules[rule].enabled
-        ? `${green}o${reset}`
-        : `${red}x${reset}`;
-      core.info(
-        `[${status}] ${rule}: ${gray}${config.rules[rule].description}${reset}`
-      );
-    }
+    config.rules.forEach((rule, key) => {
+      const status: string = rule.enabled
+        ? `${Color.GREEN("o")}`
+        : `${Color.RED("x")}`;
+      core.info(`[${status}] ${key}: ${Color.GRAY(rule.description ?? "")}`);
+    });
   });
 
 program.parse();

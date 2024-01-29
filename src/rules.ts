@@ -40,8 +40,8 @@ export function validateRules(
 ): LlvmError[] {
   const errors: LlvmError[] = [];
 
-  const disabledRules = Object.entries(config.rules)
-    .filter(item => !(item[1] as Object)["enabled"])
+  const disabledRules = Array.from(config.rules)
+    .filter(item => item[1].enabled === false)
     .map(item => item[0]);
 
   for (const rule of ALL_RULES) {
@@ -49,12 +49,13 @@ export function validateRules(
       if (!disabledRules.includes(rule.id)) {
         rule.validate(message, config);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof LlvmError) {
         errors.push(error);
-      } else {
-        throw error;
+        continue;
       }
+
+      throw error;
     }
   }
 
@@ -588,23 +589,12 @@ class GitTrailerContainsWhitespace implements IConventionalCommitRule {
 }
 
 /**
- * Footer should not contain any blank line(s)
+ * Rule C022 was historically known as:
+ *     FooterContainsBlankLine
+ * with description:
+ *     "Footer should not contain any blank line(s)";
+ * This rule has been removed and its ID should therefore not be re-used.
  */
-class FooterContainsBlankLine implements IConventionalCommitRule {
-  id = "C022";
-  description = "Footer should not contain any blank line(s)";
-  default = true;
-
-  validate(message: ConventionalCommitMetadata, _: Configuration): void {
-    for (const item of message.footers) {
-      if (!item.token || item.value.length === 0) {
-        throw new LlvmError({
-          message: `[${this.id}] ${this.description}`,
-        });
-      }
-    }
-  }
-}
 
 /**
  * The BREAKING CHANGE git-trailer should be the first element in the footer
@@ -638,7 +628,7 @@ class GitTrailerNeedAColon implements IConventionalCommitRule {
   description = "A colon is required in git-trailers";
   default = true;
 
-  validate(message: ConventionalCommitMetadata, config: Configuration): void {
+  validate(message: ConventionalCommitMetadata, _: Configuration): void {
     const trailerFormats = [
       /^Addresses:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
       /^Closes:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
@@ -697,7 +687,7 @@ class FooterContainsTicketReference implements IConventionalCommitRule {
   description = "A ticket reference is required in at least one footer value";
   default = false;
 
-  validate(message: ConventionalCommitMetadata, config: Configuration): void {
+  validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (!message.footers.some(footer => ISSUE_REGEX.exec(footer.value))) {
       throw new LlvmError({
         message: `[${this.id}] ${this.description}`,
@@ -727,7 +717,6 @@ export const ALL_RULES = [
   new MissingEmptyLineBetweenSubjectAndBody(),
   new SubjectContainsIssueReference(),
   new GitTrailerContainsWhitespace(),
-  new FooterContainsBlankLine(),
   new BreakingChangeMustBeFirstGitTrailer(),
   new GitTrailerNeedAColon(),
   new FooterContainsTicketReference(),

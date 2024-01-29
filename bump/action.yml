@@ -43,7 +43,6 @@ inputs:
     required: false
   version-prefix:
     description: 'Optional version prefix (eg. "", "v", "componentX-"). If set, only tags with this exact prefix shall be considered. "*" is a special value, meaning the closest version is used, regardless of prefix".'
-    default: '*'
     required: false
   release-type:
     description: >-

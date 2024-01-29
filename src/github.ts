@@ -134,13 +134,6 @@ export async function createRelease(
   });
 }
 
-function sortVersionPrereleases(
-  releaseList: { id: number; name: string }[],
-  nameStartsWith
-): { id: number; name: string }[] {
-  return releaseList.sort((lhs, rhs) => SemVer.sortSemVer(lhs.name, rhs.name));
-}
-
 /**
  * Gets the name and ID of the existing (draft) release with the
  * most precedence of which the tag name starts with the provided parameter.
@@ -304,7 +297,7 @@ export async function getReleaseConfiguration(): Promise<string> {
  */
 export async function matchTagsToCommits(
   sha: string | undefined,
-  matcher: (msg: string, hash: string) => SemVer | null
+  matcher: (hash: string) => SemVer | null
 ): Promise<[SemVer | null, ICommit[]]> {
   const octo = getOctokit();
   const commitList: ICommit[] = [];
@@ -315,7 +308,7 @@ export async function matchTagsToCommits(
     sha,
   })) {
     for (const commit of resp.data) {
-      match = matcher(commit.commit.message, commit.sha);
+      match = matcher(commit.sha);
       if (match) {
         core.debug(
           `Matching on (${commit.sha}):${commit.commit.message.split("\n")[0]}`
@@ -419,7 +412,7 @@ export async function getLatestTags(pageSize: number): Promise<IGitTag[]> {
         commitSha: x.node.reftarget.tagtarget
           ? x.node.reftarget.tagtarget.commitsha
           : x.node.reftarget.commitsha,
-      } as IGitTag)
+      }) as IGitTag
   );
 
   return tagList;
@@ -441,13 +434,15 @@ export async function getAssociatedPullRequests(
       });
 
     return prs;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
-    if (error.message !== "Resource not accessible by integration") {
-      throw error;
+  } catch (error: unknown) {
+    if (
+      error instanceof Error &&
+      error.message === "Resource not accessible by integration"
+    ) {
+      return [];
     }
 
-    return [];
+    throw error;
   }
 }
 
@@ -489,15 +484,18 @@ export async function updateLabels(labels: string[]): Promise<void> {
         labels,
       });
     }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
-    if (error.message !== "Resource not accessible by integration") {
-      throw error;
+  } catch (error: unknown) {
+    if (
+      error instanceof Error &&
+      error.message === "Resource not accessible by integration"
+    ) {
+      core.warning(
+        "Unable to update Pull Request labels, did you provide the `write` permission for `issues` and `pull-requests`?"
+      );
+      return;
     }
-    core.warning(
-      "Unable to update Pull Request labels, did you provide the `write` permission for `issues` and `pull-requests`?"
-    );
+
+    throw error;
   }
 }
 
@@ -515,8 +513,9 @@ export async function getContent(path: string): Promise<string | undefined> {
     if ("content" in response.data) {
       return Buffer.from(response.data.content, "base64").toString("utf8");
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
+  } catch (error: unknown) {
+    // We intentially capture all failures and return `undefined` in case the
+    // file does not exist or cannot be accessed.
     core.debug((error as Error).message);
   }
 }

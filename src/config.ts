@@ -18,7 +18,7 @@ import { ALL_RULES } from "./rules";
 import {
   IRuleConfigItem,
   IConfigurationRules,
-  IConfiguration,
+  ITypeTagConfigItem,
 } from "./interfaces";
 
 import * as core from "@actions/core";
@@ -52,7 +52,7 @@ const DEFAULT_ACCEPTED_TAGS: IConfigurationRules = {
   },
   revert: {
     description: "Reverts previous change(s) from your codebase",
-    bump: false,
+    bump: true,
   },
   style: { description: "Coding style improvements", bump: false },
   test: { description: "Updates tests", bump: false },
@@ -69,6 +69,7 @@ const CONFIG_ITEMS = [
   "disable",
   "allowed-branches",
   "initial-development",
+  "version-prefix",
   "version-scheme",
   "release-branches",
   "prereleases",
@@ -81,10 +82,8 @@ const VERSION_SCHEMES = ["semver", "sdkver"];
  */
 function verifyTypeMatches(
   name: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  typeToTest: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  typeItShouldBe: any
+  typeToTest: unknown,
+  typeItShouldBe: unknown
 ): void {
   if (typeof typeToTest !== typeof typeItShouldBe) {
     throw new Error(
@@ -102,6 +101,7 @@ export class Configuration {
   allowedBranches = ".*";
   maxSubjectLength = 80;
   releaseBranches = /^release\/.*\d+\.\d+\.*$/;
+  versionPrefix = "*";
   versionScheme = "semver";
   prereleasePrefix?: string = undefined;
   tags: IConfigurationRules = DEFAULT_ACCEPTED_TAGS;
@@ -116,7 +116,19 @@ export class Configuration {
     return this._initialDevelopment;
   }
 
-  private loadFromData(data: IConfiguration): void {
+  setRuleActive(ruleId: string, enabled: boolean): void {
+    const rule = this.rules.get(ruleId);
+    if (rule !== undefined) {
+      rule.enabled = enabled;
+    } else {
+      core.warning(
+        `Rule "${ruleId}" is unknown; enabling or disabling it has no effect.`
+      );
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private loadFromData(data: any): void {
     for (const key in data) {
       if (!CONFIG_ITEMS.includes(key)) {
         throw new Error(`Unknown configuration item '${key}' detected!`);
@@ -134,13 +146,7 @@ export class Configuration {
            */
           if (typeof data[key] === "object") {
             for (const item of data[key]) {
-              if (item in this.rules) {
-                this.rules[item].enabled = key === "enable";
-              } else {
-                core.warning(
-                  `Rule "${item}" is unknown; enabling or disabling it has no effect.`
-                );
-              }
+              this.setRuleActive(item, key === "enable");
             }
           } else {
             throw new Error(
@@ -186,28 +192,32 @@ export class Configuration {
                 break;
 
               case "object":
-                for (const entry of Object.keys(typeValue)) {
-                  if (["description", "bump"].includes(entry)) {
-                    if (entry === "description") {
-                      verifyTypeMatches(
-                        `${typ}.${entry}`,
-                        typeValue[entry],
-                        ""
-                      );
-                    } else if (entry === "bump") {
-                      verifyTypeMatches(
-                        `${typ}.${entry}`,
-                        typeValue[entry],
-                        true
+                {
+                  const tagObject: ITypeTagConfigItem = this.tags[typ] ?? {};
+                  for (const entry of Object.keys(typeValue)) {
+                    if (["description", "bump"].includes(entry)) {
+                      if (entry === "description") {
+                        verifyTypeMatches(
+                          `${typ}.${entry}`,
+                          typeValue[entry],
+                          ""
+                        );
+                        tagObject.description = typeValue[entry];
+                      } else if (entry === "bump") {
+                        verifyTypeMatches(
+                          `${typ}.${entry}`,
+                          typeValue[entry],
+                          true
+                        );
+                        tagObject.bump = typeValue[entry];
+                      }
+                    } else {
+                      core.warning(
+                        `Warning: "${key}.${typ}.${entry}" is unknown and has no effect.`
                       );
                     }
-                    this.tags[typ] = this.tags[typ] ? this.tags[typ] : {};
-                    this.tags[typ][entry] = typeValue[entry];
-                  } else {
-                    core.info(
-                      `Warning: "${key}.${typ}.${entry}" is unknown and has no effect.`
-                    );
                   }
+                  this.tags[typ] = tagObject;
                 }
                 break;
               default:
@@ -250,6 +260,21 @@ export class Configuration {
           }
           break;
 
+        case "version-prefix":
+          /* Example YAML:
+           *   version-prefix: "v"
+           */
+          if (typeof data[key] === "string") {
+            this.versionPrefix = data[key];
+          } else {
+            throw new Error(
+              `Incorrect type '${typeof data[
+                key
+              ]}' for '${key}', must be '${typeof this.versionPrefix}'!`
+            );
+          }
+          break;
+
         case "version-scheme":
           /* Example YAML:
            *   version-scheme: "semver"
@@ -274,6 +299,7 @@ export class Configuration {
             );
           }
           break;
+
         case "release-branches":
           /* Example YAML:
            *   release-branches: "^release/.*\d+\.\d+.*$"
@@ -357,10 +383,10 @@ export class Configuration {
    */
   constructor(configPath: string = DEFAULT_CONFIGURATION_FILE) {
     for (const rule of ALL_RULES) {
-      this.rules[rule.id] = {
+      this.rules.set(rule.id, {
         description: rule.description,
         enabled: rule.default,
-      };
+      });
     }
     if (fs.existsSync(configPath)) {
       const data = yaml.parse(fs.readFileSync(configPath, "utf8"));
@@ -370,6 +396,22 @@ export class Configuration {
         throw new Error(`No configuration can be found at: ${configPath}`);
       }
     }
+  }
+
+  /**
+   * Creates a (deep) copy of the Configuration instance
+   */
+  copy(): Configuration {
+    const config = new Configuration();
+    config.allowedBranches = this.allowedBranches;
+    config.maxSubjectLength = this.maxSubjectLength;
+    config.releaseBranches = this.releaseBranches;
+    config.versionScheme = this.versionScheme;
+    config.prereleasePrefix = this.prereleasePrefix;
+    config.tags = JSON.parse(JSON.stringify(this.tags));
+    config.rules = new Map(JSON.parse(JSON.stringify(Array.from(this.rules))));
+    config.sdkverCreateReleaseBranches = this.sdkverCreateReleaseBranches;
+    return config;
   }
 }
 

@@ -20,8 +20,8 @@
   "scripts": {
     "build": "run-p build:*",
     "build:cli": "ncc build -o dist/cli src/cli/cli.ts",
-    "build:validate": "ncc build -o dist/validate src/actions/validate.ts",
-    "build:bump": "ncc build -o dist/bump src/actions/bump.ts",
+    "build:validate": "ncc build -o dist/validate src/actions/entrypoints/validate.ts",
+    "build:bump": "ncc build -o dist/bump src/actions/entrypoints/bump.ts",
     "test": "jest",
     "lint": "eslint **/*.ts --quiet",
     "format": "prettier --write **/*.ts",
@@ -49,21 +49,21 @@
   },
   "devDependencies": {
     "@octokit/plugin-rest-endpoint-methods": "^6.7.0",
-    "@swc/core": "^1.3.36",
-    "@swc/jest": "^0.2.24",
     "@types/dedent": "^0.7.0",
+    "@types/difflib": "^0.2.6",
     "@types/jest": "^29.4.0",
     "@types/node": "^18.13.0",
-    "@typescript-eslint/eslint-plugin": "^5.55.0",
-    "@typescript-eslint/parser": "^5.56.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
     "@vercel/ncc": "^0.36.1",
     "eslint": "^8.36.0",
+    "eslint-import-resolver-typescript": "^3.6.1",
     "eslint-plugin-github": "^4.6.1",
     "eslint-plugin-jest": "^27.2.1",
+    "eslint-plugin-prettier": "^5.0.1",
     "npm-run-all": "^4.1.5",
     "pkg": "^5.8.0",
-    "prettier": "2.8.6",
-    "ts-jest": "^29.0.5",
-    "typescript": "^4.9.5"
+    "prettier": "3.0.0",
+    "ts-jest": "^29.0.5"
   }
 }

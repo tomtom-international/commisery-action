@@ -35,15 +35,9 @@ import {
 } from "./github";
 import { ConventionalCommitMessage } from "./commit";
 import { SemVer, SemVerType } from "./semver";
-import {
-  BumpError,
-  ConventionalCommitError,
-  FixupCommitError,
-  MergeCommitError,
-} from "./errors";
+import { BumpError } from "./errors";
 import {
   ICommit,
-  IGitTag,
   IValidationResult,
   IVersionBumpTypeAndMessages,
   ReleaseMode,
@@ -86,7 +80,7 @@ function getSemVerIfMatches(
   commitSha: string
 ): SemVer | null {
   if (commitSha === tagSha) {
-    const dbg = (tag, commit, message): void => {
+    const dbg = (tag: string, commit: string, message: string): void => {
       core.debug(`Tag '${tag}' on commit '${commit.slice(0, 6)}' ${message}`);
     };
     const sv: SemVer | null = SemVer.fromString(tagName);
@@ -94,10 +88,10 @@ function getSemVerIfMatches(
       // If provided, make sure that the prefix matches as well
       // Asterisk is a special case, meaning 'any prefix'
       if (sv.prefix === prefix || prefix === "*") {
-        dbg(tagName, commitSha, "matches prefix");
+        dbg(tagName, commitSha, `matches prefix ${prefix}`);
         return sv;
       }
-      dbg(tagName, commitSha, "does not match prefix");
+      dbg(tagName, commitSha, `does not match prefix ${prefix}`);
     } else {
       dbg(tagName, commitSha, "is not a SemVer");
     }
@@ -117,9 +111,9 @@ function processCommitsForBump(
   // commits/pull request titles that (ideally) have been validated
   // _before_ they were merged, and certain GitHub CI settings may append
   // a reference to the PR number in merge commits.
-  const configCopy = JSON.parse(JSON.stringify(config));
-  configCopy.rules["C014"].enabled = false; // SubjectExceedsLineLengthLimit
-  configCopy.rules["C019"].enabled = false; // SubjectContainsIssueReference
+  const configCopy = config.copy();
+  configCopy.setRuleActive("C014", false); // SubjectExceedsLineLengthLimit
+  configCopy.setRuleActive("C019", false); // SubjectContainsIssueReference
 
   return processCommits(commits, configCopy);
 }
@@ -151,17 +145,17 @@ export function getVersionBumpType(
  * Within the current context, examine the last PAGE_SIZE commits reachable
  * from `context.sha`, as well as the last PAGE_SIZE tags in the repo.
  * Each commit shall be tried to be matched to any of the tags found.
- * The closest tag that is SemVer-compatible and matches the provided `prefix`
- * shall be returned as a SemVer object, and the highest bump type encountered
- * (breaking: major, feat: minor, fix plus `extra_patch_tags`: patch) in the commits
- * _since_ that tag shall be returned.
+ * The closest tag that is SemVer-compatible and matches the `prefix` value as
+ * configured in the `config` object shall be returned as a SemVer object, and
+ * the highest bump type encountered in the commits _since_ that tag shall be returned.
+ *  - MAJOR: breaking changes,
+ *  - MINOR: feat commits,
+ *  - PATCH: fix commits, plus any tag matching one of `extra_patch_tags`, if configured
  *
- * @param prefix Specifies the exact prefix of the tags to be considered,
- *               '*' means "any"
  * @param targetSha The sha on which to start listing commits
- * @param config A Configuration object, which optionally contains a list of
- *               Conventional Commit type tags that, like "fix", should bump the
- *               patch version field.
+ * @param config A Configuration object, which optionally contains the `prefix` value
+ *               that processed versions must match, or a list of Conventional Commit type
+ *               tags that should bump the patch version field (aside from "fix").
  *
  * @return {IVersionBumpTypeAndMessages}
                  returns an object containing:
@@ -172,23 +166,25 @@ export function getVersionBumpType(
                    safe side and declare "initial development" (if configured as such)
  */
 export async function getVersionBumpTypeAndMessages(
-  prefix: string,
   targetSha: string,
   config: Configuration
 ): Promise<IVersionBumpTypeAndMessages> {
-  const nonConventionalCommits: string[] = [];
-
   core.debug(`Fetching last ${PAGE_SIZE} tags from ${targetSha}..`);
   const tags = await getLatestTags(PAGE_SIZE);
   core.debug("Fetch complete");
-  const tagMatcher = (commitMessage, commitSha): SemVer | null => {
+  const tagMatcher = (commitSha: string): SemVer | null => {
     // Try and match this commit's hash to one of the tags in `tags`
     for (const tag of tags) {
       let semVer: SemVer | null = null;
       core.debug(
         `Considering tag ${tag.name} (${tag.commitSha}) on ${commitSha}`
       );
-      semVer = getSemVerIfMatches(prefix, tag.name, tag.commitSha, commitSha);
+      semVer = getSemVerIfMatches(
+        config.versionPrefix,
+        tag.name,
+        tag.commitSha,
+        commitSha
+      );
       if (semVer) {
         // We've found a tag that matches to this commit. Now, we need to
         // make sure that we return the _highest_ version tag_ associated with
@@ -204,7 +200,12 @@ export async function getVersionBumpTypeAndMessages(
           while (semVer === null && matchTags.length !== 0) {
             const t = matchTags.pop();
             if (!t) break;
-            semVer = getSemVerIfMatches(prefix, t.name, t.commitSha, commitSha);
+            semVer = getSemVerIfMatches(
+              config.versionPrefix,
+              t.name,
+              t.commitSha,
+              commitSha
+            );
           }
         } else {
           core.debug(`No other tags found`);
@@ -217,7 +218,6 @@ export async function getVersionBumpTypeAndMessages(
     core.debug(`Commit ${commitSha.slice(0, 6)} is not associated with a tag`);
     return null;
   };
-
   const [version, commitList] = await matchTagsToCommits(targetSha, tagMatcher);
 
   const results = processCommitsForBump(commitList, config);
@@ -252,9 +252,6 @@ async function tryUpdateDraftRelease(
   changelog: string,
   sha: string
 ): Promise<string | undefined> {
-  const preStem = cv.prerelease
-    ? `-${cv.prerelease.replace(/(.+?)\d.*/, "$1")}`
-    : "";
   const latestDraftRelease = await getRelease({
     prefixToMatch: cv.prefix,
     draftOnly: true,
@@ -570,7 +567,7 @@ function getNextSdkVer(
   const currentIsRc = currentVersion.prerelease.startsWith(RC_PREFIX);
   const currentIsRel = currentVersion.prerelease === "";
 
-  const fatal = (msg): void => {
+  const fatal = (msg: string): void => {
     throw new BumpError(msg);
   };
   const bumpOrError = (t: SemVerType): SemVer => {
@@ -748,14 +745,14 @@ function getNextSdkVer(
 export async function bumpSdkVer(
   config: Configuration,
   bumpInfo: IVersionBumpTypeAndMessages,
-  releaseMode,
+  releaseMode: ReleaseMode,
   sdkVerBumpType: SdkVerBumpType,
-  headSha,
-  branchName,
+  headSha: string,
+  branchName: string,
   isBranchAllowedToPublish: boolean,
   createChangelog: boolean
 ): Promise<boolean> {
-  const isReleaseBranch = branchName.match(config.releaseBranches);
+  const isReleaseBranch = branchName.match(config.releaseBranches) !== null;
   const hasBreakingChange = bumpInfo.processedCommits.some(
     c => c.message?.breakingChange
   );
@@ -873,7 +870,7 @@ export async function bumpSdkVer(
       const releaseBranchName = `${config.sdkverCreateReleaseBranches}${nextVersion.major}.${nextVersion.minor}`;
       core.info(`Creating release branch ${releaseBranchName}..`);
       try {
-        createBranch(`refs/heads/${releaseBranchName}`, headSha);
+        await createBranch(`refs/heads/${releaseBranchName}`, headSha);
       } catch (ex: unknown) {
         if (ex instanceof RequestError && ex.status === 422) {
           core.warning(

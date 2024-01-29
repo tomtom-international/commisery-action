@@ -17,7 +17,7 @@
 import { createHash } from "crypto";
 import { RequestError } from "@octokit/request-error";
 
-export const toICommit = msg => ({
+export const toICommit = (msg: string) => ({
   message: msg,
   sha: createHash("sha1").update(msg).digest("hex").substring(0, 20),
 });
@@ -32,7 +32,7 @@ export const NONE_MSG2 = toICommit(
   "refactor: make something easier to maintain"
 );
 export const NONE_MSG3 = toICommit("build: make something more efficiently");
-export const PRTITLE = type_ => `${type_}: simple PR title`;
+export const PRTITLE = (type_: string) => `${type_}: simple PR title`;
 
 export const INITIAL_VERSION = "1.2.3";
 export const PATCH_BUMPED_VERSION = "1.2.4";
@@ -51,7 +51,7 @@ export const DEFAULT_COMMIT_LIST = [
   BASE_COMMIT, // order matters; newest first, base last
 ];
 
-export const mockGetInput = (setting, options?) => {
+export const mockGetInput = (setting: string, _options?: unknown) => {
   switch (setting) {
     case "version-prefix":
       return "*";
@@ -65,7 +65,7 @@ export const mockGetInput = (setting, options?) => {
   throw new Error(`getInput("${setting}") not mocked`);
 };
 
-export const mockGetBooleanInput = (setting, options?) => {
+export const mockGetBooleanInput = (setting: string, _options?: unknown) => {
   switch (setting) {
     case "create-release":
       return true;
@@ -77,7 +77,7 @@ export const mockGetBooleanInput = (setting, options?) => {
   expect("error").toBe(`getBooleanInput("${setting}") not mocked`);
   return false;
 };
-export const getMockRequestError = statusCode =>
+export const getMockRequestError = (statusCode: number) =>
   new RequestError("Mocked Error", statusCode, {
     request: {
       method: "GET",

@@ -19,10 +19,16 @@ import * as gh from "@actions/github";
 import * as github from "../src/github";
 import * as bumpaction from "../src/actions/bump";
 import * as changelog from "../src/changelog";
+import * as validate from "../src/validate";
 
+import { getVersionBumpTypeAndMessages } from "../src/bump";
 import * as fs from "fs";
 import { SemVer } from "../src/semver";
 import * as U from "./test_utils";
+import { Configuration } from "../src/config";
+import { IGitTag } from "../src/interfaces";
+import { BASE_COMMIT } from "./test_utils";
+import { ALL_RULES } from "../src/rules";
 
 jest.mock("fs", () => ({
   promises: { access: jest.fn() },
@@ -39,7 +45,6 @@ jest.mock("../src/changelog");
 gh.context = { ref: "refs/heads/main", sha: U.HEAD_SHA };
 
 beforeEach(() => {
-  jest.resetAllMocks();
   jest.spyOn(github, "isPullRequestEvent").mockReturnValue(false);
   jest.spyOn(github, "createTag").mockResolvedValue();
   jest.spyOn(github, "createRelease").mockResolvedValue();
@@ -68,11 +73,16 @@ beforeEach(() => {
     ]);
 
   /*
+  jest.spyOn(core, "debug").mockImplementation(console.log);
   jest.spyOn(core, "info").mockImplementation(console.log);
   jest.spyOn(core, "warning").mockImplementation(console.log);
   jest.spyOn(core, "error").mockImplementation(console.log);
   jest.spyOn(core, "setFailed").mockImplementation(console.log);
   */
+});
+
+afterEach(() => {
+  jest.resetAllMocks();
 });
 
 describe("Bump functionality", () => {
@@ -87,6 +97,13 @@ describe("Bump functionality", () => {
       testDescription: "bump patch",
       messages: [U.PATCH_MSG, U.NONE_MSG1, U.PATCH_MSG, U.NONE_MSG2],
       prTitle: U.PRTITLE("fix"),
+      expectedVersion: U.PATCH_BUMPED_VERSION,
+    },
+    {
+      // For default configurations, a revert commit will trigger a patch bump
+      testDescription: "bump patch (revert)",
+      messages: [U.toICommit("revert: valid message"), U.NONE_MSG1],
+      prTitle: U.PRTITLE("revert"),
       expectedVersion: U.PATCH_BUMPED_VERSION,
     },
     {
@@ -120,7 +137,7 @@ describe("Bump functionality", () => {
           messages.concat(U.DEFAULT_COMMIT_LIST),
         ]);
 
-      await bumpaction.exportedForTesting.run();
+      await bumpaction.run();
       expect(core.info).toHaveBeenCalledWith(
         expect.stringContaining(`Found SemVer tag: ${U.INITIAL_VERSION}`)
       );
@@ -184,7 +201,7 @@ describe("Releases and tags", () => {
         return false;
       });
 
-    await bumpaction.exportedForTesting.run();
+    await bumpaction.run();
     if (!rel && !tag) {
       expect(core.startGroup).toHaveBeenCalledWith(
         expect.stringContaining(
@@ -232,6 +249,10 @@ describe("Trouble bumping", () => {
       ]);
   });
 
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
   test("no matching tags found", async () => {
     jest.spyOn(github, "getLatestTags").mockResolvedValue([
       {
@@ -242,7 +263,7 @@ describe("Trouble bumping", () => {
     jest
       .spyOn(github, "matchTagsToCommits")
       .mockResolvedValue([null, [U.PATCH_MSG].concat(U.DEFAULT_COMMIT_LIST)]);
-    await bumpaction.exportedForTesting.run();
+    await bumpaction.run();
     expect(core.warning).toHaveBeenCalledTimes(1);
     expect(core.warning).toHaveBeenCalledWith(
       expect.stringContaining("No matching SemVer tags found")
@@ -266,7 +287,7 @@ describe("Trouble bumping", () => {
         ),
       ]);
 
-    await bumpaction.exportedForTesting.run();
+    await bumpaction.run();
     // Warning about compliance, as well as what's wrong with the commit(s)
     expect(core.warning).toHaveBeenCalledWith(
       expect.stringContaining("not comply")
@@ -297,7 +318,7 @@ describe("Trouble bumping", () => {
       throw new Error("Mocked error");
     });
 
-    await bumpaction.exportedForTesting.run();
+    await bumpaction.run();
 
     expect(github.getShaForTag).toHaveBeenCalledTimes(1);
 
@@ -321,7 +342,7 @@ describe("Trouble bumping", () => {
       throw new Error("Mocked error");
     });
 
-    await bumpaction.exportedForTesting.run();
+    await bumpaction.run();
 
     expect(github.getShaForTag).toHaveBeenCalledTimes(1);
 
@@ -346,7 +367,7 @@ describe("Trouble bumping", () => {
       .spyOn(github, "createRelease")
       .mockRejectedValue(U.getMockRequestError(422));
 
-    await bumpaction.exportedForTesting.run();
+    await bumpaction.run();
 
     expect(github.getShaForTag).toHaveBeenCalledTimes(1);
     expect(github.getShaForTag).toHaveBeenCalledWith(
@@ -388,7 +409,7 @@ describe("Initial development", () => {
         [U.toICommit("chore!: breaking change")].concat(U.DEFAULT_COMMIT_LIST),
       ]);
 
-    await bumpaction.exportedForTesting.run();
+    await bumpaction.run();
     expect(core.warning).toHaveBeenCalledWith(
       expect.stringContaining("This repository is under 'initial development'")
     );
@@ -418,7 +439,7 @@ describe("Initial development", () => {
         U.DEFAULT_COMMIT_LIST,
       ]);
 
-    await bumpaction.exportedForTesting.run();
+    await bumpaction.run();
     expect(core.warning).toHaveBeenCalledWith(
       expect.stringContaining("Enforcing version `1.0.0`")
     );
@@ -473,7 +494,7 @@ describe("Create changelog", () => {
         return false;
       });
 
-    await bumpaction.exportedForTesting.run();
+    await bumpaction.run();
     if (createChangelog) {
       expect(changelog.generateChangelog).toHaveBeenCalledTimes(1);
       expect(github.createRelease).toHaveBeenCalledTimes(1);
@@ -495,5 +516,144 @@ describe("Create changelog", () => {
         false
       );
     }
+  });
+});
+
+describe("Version prefix handling", () => {
+  const TEST_VERSIONS = [
+    { name: "versiona-3.4.5", commitSha: "345" },
+    { name: "versionb-4.5.6", commitSha: "456" },
+    { name: "versionc-1.2.3", commitSha: "123" },
+    { name: "1.1.1", commitSha: "111" },
+  ];
+  const versionPrefixTests = [
+    {
+      desc: "no prefix",
+      versionPrefixInput: null,
+      versionPrefixConfig: null,
+      expected: SemVer.fromString("versionb-4.5.6"),
+    },
+    {
+      desc: "explicit no prefix",
+      versionPrefixInput: "",
+      versionPrefixConfig: "",
+      expected: SemVer.fromString("1.1.1"),
+    },
+    {
+      desc: "input prefix",
+      versionPrefixInput: "versiona-",
+      versionPrefixConfig: "",
+      expected: SemVer.fromString("versiona-3.4.5"),
+    },
+    {
+      desc: "config prefix",
+      versionPrefixInput: "",
+      versionPrefixConfig: "versionc-",
+      expected: SemVer.fromString("versionc-1.2.3"),
+    },
+    {
+      desc: "config and input prefix (input takes precedence)",
+      versionPrefixInput: "versiona-",
+      versionPrefixConfig: "versionb-",
+      expected: SemVer.fromString("versiona-3.4.5"),
+    },
+    {
+      desc: "non-matching config prefix",
+      versionPrefixInput: "",
+      versionPrefixConfig: "versiond-",
+      expected: null,
+    },
+  ];
+
+  beforeEach(() => {
+    jest.spyOn(fs, "existsSync").mockReturnValue(true);
+    jest.spyOn(github, "getLatestTags").mockResolvedValue(TEST_VERSIONS);
+  });
+
+  test.each(versionPrefixTests)(
+    "$desc",
+    async ({ versionPrefixInput, versionPrefixConfig, expected }) => {
+      jest.spyOn(core, "getInput").mockImplementation((setting, options?) => {
+        switch (setting) {
+          case "version-prefix":
+            return versionPrefixInput ?? "*";
+        }
+        return "";
+      });
+
+      jest
+        .spyOn(fs, "readFileSync")
+        .mockReturnValue(
+          `version-scheme: "semver"` +
+            (versionPrefixConfig
+              ? `\nversion-prefix: ${versionPrefixConfig}`
+              : "")
+        );
+
+      await bumpaction.run();
+
+      const commitSha =
+        TEST_VERSIONS.find(version => version.name == expected?.toString())
+          ?.commitSha ?? "dummy";
+
+      // We specifically test the matcher function passed to matchTagsToCommits here,
+      // as it's (sadly) the only way to test the actual behavior of the matcher.
+      const matcherFunc = (github.matchTagsToCommits as jest.Mock).mock
+        .calls[0][1];
+      expect(matcherFunc(commitSha)).toEqual(expected);
+    }
+  );
+});
+
+describe("Process Commits Configuration", () => {
+  beforeEach(() => {
+    jest.spyOn(github, "getLatestTags").mockResolvedValue([
+      {
+        name: "1.0.0",
+        commitSha: BASE_COMMIT.sha,
+      },
+    ] as IGitTag[]);
+
+    jest
+      .spyOn(github, "matchTagsToCommits")
+      .mockResolvedValue([SemVer.fromString("1.0.0"), [BASE_COMMIT]]);
+  });
+
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  test("Disable C014 and C019 during bump", async () => {
+    const processCommits = jest.spyOn(validate, "processCommits");
+
+    const config = new Configuration();
+    await getVersionBumpTypeAndMessages("f00dcafe", config);
+
+    // Both C014 and C019 are disabled when running bump
+    const expectedConfig = new Configuration();
+    expectedConfig.setRuleActive("C014", false);
+    expectedConfig.setRuleActive("C019", false);
+
+    expect(processCommits).toHaveBeenCalledWith([BASE_COMMIT], expectedConfig);
+    expect(config).toStrictEqual(new Configuration());
+
+    processCommits.mockRestore();
+  });
+
+  test("All rules already disabled", async () => {
+    const processCommits = jest.spyOn(validate, "processCommits");
+
+    const config = new Configuration();
+    ALL_RULES.forEach(rule => config.setRuleActive(rule.id, false));
+
+    await getVersionBumpTypeAndMessages("f00dcafe", config);
+
+    const expectedConfig = new Configuration();
+    ALL_RULES.forEach(rule => expectedConfig.setRuleActive(rule.id, false));
+
+    expect(processCommits).toHaveBeenCalledWith([BASE_COMMIT], config);
+    expect(config).toStrictEqual(expectedConfig);
+
+    processCommits.mockRestore();
   });
 });
