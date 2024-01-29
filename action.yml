@@ -55,5 +55,5 @@ inputs:
     deprecationMessage: 'Replaced by the `validate-pull-request` and `validate-commits` inputs'
 
 runs:
-  using: 'node16'
+  using: 'node20'
   main: 'dist/validate/index.js'
