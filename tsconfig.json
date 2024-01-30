@@ -1,12 +1,6 @@
 {
-  "compilerOptions": {
-    "target": "ES2019",
-    "module": "commonjs",
-    "strict": true,
-    "esModuleInterop": true,
-    "stripInternal": true,
-    "resolveJsonModule": true,
-  },
+  "extends": "@tsconfig/node20/tsconfig.json",
   "include": ["src"],
-  "exclude": ["node_modules", "test/"]
+  "compileOnSave": false,
+  "exclude": ["node_modules", "test"]
 }

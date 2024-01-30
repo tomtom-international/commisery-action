@@ -33683,17 +33683,17 @@ async function run() {
         if (core.getBooleanInput("validate-commits")) {
             // Validate the current PR's commit messages
             const result = await (0, validate_1.validateCommitsInCurrentPR)(config);
-            compliant && (compliant = result.compliant);
+            compliant &&= result.compliant;
             await (0, github_1.updateLabels)(await determineLabels(result.messages, config));
         }
         if (core.getBooleanInput("validate-pull-request-title-bump")) {
             const ok = await (0, validate_1.validatePrTitleBump)(config);
-            compliant && (compliant = ok);
+            compliant &&= ok;
             // Validating the PR title bump level implies validating the title itself
         }
         else if (core.getBooleanInput("validate-pull-request")) {
             const ok = (await (0, validate_1.validatePrTitle)(config)) !== undefined;
-            compliant && (compliant = ok);
+            compliant &&= ok;
         }
         core.info(""); // add vertical whitespace
         if (compliant) {
@@ -33961,11 +33961,11 @@ async function newDraftRelease(currentVersion, changelog, sha, prefix) {
     return nextPrereleaseVersion.toString();
 }
 async function bumpDraftRelease(bumpInfo, changelog, sha, preRelPrefix) {
-    var _a;
     const cv = bumpInfo.foundVersion;
     if (!cv)
         throw Error("Found version is falsy"); // should never happen
-    const result = (_a = (await tryUpdateDraftRelease(cv, changelog, sha))) !== null && _a !== void 0 ? _a : (await newDraftRelease(cv, changelog, sha, preRelPrefix));
+    const result = (await tryUpdateDraftRelease(cv, changelog, sha)) ??
+        (await newDraftRelease(cv, changelog, sha, preRelPrefix));
     core.info(`ℹ️ Next prerelease: ${result}`);
     return result;
 }
@@ -34078,7 +34078,6 @@ async function publishBump(nextVersion, releaseMode, headSha, changelog, isBranc
 }
 exports.publishBump = publishBump;
 async function bumpSemVer(config, bumpInfo, releaseMode, branchName, headSha, isBranchAllowedToPublish, createChangelog) {
-    var _a;
     const compliantCommits = bumpInfo.processedCommits
         .filter(c => c.message !== undefined)
         .map(c => ({
@@ -34097,7 +34096,7 @@ async function bumpSemVer(config, bumpInfo, releaseMode, branchName, headSha, is
             `we can only create PATCH bumps on a release branch.`);
         return false;
     }
-    const nextVersion = (_a = bumpInfo.foundVersion) === null || _a === void 0 ? void 0 : _a.bump(bumpInfo.requiredBump, config.initialDevelopment);
+    const nextVersion = bumpInfo.foundVersion?.bump(bumpInfo.requiredBump, config.initialDevelopment);
     let changelog = "";
     if (createChangelog)
         changelog = await (0, changelog_1.generateChangelog)(bumpInfo);
@@ -34139,7 +34138,6 @@ async function bumpSemVer(config, bumpInfo, releaseMode, branchName, headSha, is
 }
 exports.bumpSemVer = bumpSemVer;
 function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatchesTag, hasBreakingChange, devPrereleaseText, headSha, isInitialDevelopment) {
-    var _a;
     const currentIsRc = currentVersion.prerelease.startsWith(RC_PREFIX);
     const currentIsRel = currentVersion.prerelease === "";
     const fatal = (msg) => {
@@ -34290,7 +34288,7 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
             }
         }
     }
-    core.info(` - next version: ${(_a = nextVersion === null || nextVersion === void 0 ? void 0 : nextVersion.toString()) !== null && _a !== void 0 ? _a : "none"}`);
+    core.info(` - next version: ${nextVersion?.toString() ?? "none"}`);
     if (!nextVersion && !headMatchesTag) {
         fatal(`Unable to bump version for: ${currentVersion.toString()}`);
     }
@@ -34308,13 +34306,12 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
  * Bump and release/tag SDK versions
  */
 async function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, branchName, isBranchAllowedToPublish, createChangelog) {
-    var _a, _b, _c, _d, _e, _f;
     const isReleaseBranch = branchName.match(config.releaseBranches) !== null;
-    const hasBreakingChange = bumpInfo.processedCommits.some(c => { var _a; return (_a = c.message) === null || _a === void 0 ? void 0 : _a.breakingChange; });
+    const hasBreakingChange = bumpInfo.processedCommits.some(c => c.message?.breakingChange);
     if (!bumpInfo.foundVersion)
         return false; // should never happen
     // SdkVer requires a prerelease, so apply the default if not set
-    config.prereleasePrefix = (_a = config.prereleasePrefix) !== null && _a !== void 0 ? _a : "dev";
+    config.prereleasePrefix = config.prereleasePrefix ?? "dev";
     let cv = semver_1.SemVer.copy(bumpInfo.foundVersion);
     // Get the latest draft release matching our current version's prefix.
     // Don't look at the draft version on a release branch; the current version
@@ -34330,7 +34327,7 @@ async function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha
         draftOnly: false,
         fullReleasesOnly: true,
     });
-    core.info(`Current version: ${cv.toString()}, latest GitHub release draft: ${(_b = latestDraft === null || latestDraft === void 0 ? void 0 : latestDraft.name) !== null && _b !== void 0 ? _b : "NONE"}, latest GitHub release: ${(_c = latestRelease === null || latestRelease === void 0 ? void 0 : latestRelease.name) !== null && _c !== void 0 ? _c : "NONE"}`);
+    core.info(`Current version: ${cv.toString()}, latest GitHub release draft: ${latestDraft?.name ?? "NONE"}, latest GitHub release: ${latestRelease?.name ?? "NONE"}`);
     if (!isReleaseBranch && latestDraft) {
         // If we're not on a release branch and a draft version exists that is
         // newer than the latest tag, we continue with that
@@ -34341,7 +34338,7 @@ async function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha
     }
     // TODO: This is wasteful, as this info has already been available before
     const headMatchesTag = await (0, github_1.currentHeadMatchesTag)(cv.toString());
-    const nextVersion = getNextSdkVer(cv, sdkVerBumpType, isReleaseBranch, headMatchesTag, hasBreakingChange, (_d = config.prereleasePrefix) !== null && _d !== void 0 ? _d : "dev", headSha, config.initialDevelopment);
+    const nextVersion = getNextSdkVer(cv, sdkVerBumpType, isReleaseBranch, headMatchesTag, hasBreakingChange, config.prereleasePrefix ?? "dev", headSha, config.initialDevelopment);
     let bumped = false;
     if (nextVersion) {
         // Since we want the changelog since the last _full_ release, we
@@ -34357,7 +34354,7 @@ async function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha
                 minor: nextVersion.minor,
             },
         });
-        core.info(`The full release preceding the current one is ${(_e = previousRelease === null || previousRelease === void 0 ? void 0 : previousRelease.name) !== null && _e !== void 0 ? _e : "undefined"}`);
+        core.info(`The full release preceding the current one is ${previousRelease?.name ?? "undefined"}`);
         let changelog = "";
         if (createChangelog) {
             if (previousRelease && cv.prerelease) {
@@ -34376,7 +34373,7 @@ async function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha
         bumped = await publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish, 
         // Re-use the latest draft release only when not running on a release branch,
         // otherwise we might randomly reset a `dev-N` number chain.
-        !isReleaseBranch ? latestDraft === null || latestDraft === void 0 ? void 0 : latestDraft.id : undefined);
+        !isReleaseBranch ? latestDraft?.id : undefined);
     }
     if (!bumped) {
         core.info("ℹ️ No bump was performed");
@@ -34411,7 +34408,7 @@ async function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha
             }
         }
     }
-    core.setOutput("next-version", (_f = nextVersion === null || nextVersion === void 0 ? void 0 : nextVersion.toString()) !== null && _f !== void 0 ? _f : "");
+    core.setOutput("next-version", nextVersion?.toString() ?? "");
     core.endGroup();
     return bumped;
 }
@@ -34601,7 +34598,6 @@ exports.getChangelogConfiguration = getChangelogConfiguration;
  * will be used.
  */
 async function generateChangelogForCommits(startVersion, endVersion, commitList) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j;
     if (startVersion === "") {
         return "";
     }
@@ -34612,7 +34608,7 @@ async function generateChangelogForCommits(startVersion, endVersion, commitList)
             continue;
         const bumpLabel = Label.create("bump", semver_1.SemVerType[commit.bump]);
         const typeLabel = Label.create("type", commit.type);
-        const scopeLabel = Label.create("scope", ((_a = commit.scope) === null || _a === void 0 ? void 0 : _a.toLowerCase()) || "*");
+        const scopeLabel = Label.create("scope", commit.scope?.toLowerCase() || "*");
         // Adds the following items as "virtual" labels for each commit:
         // * The version bump (`bump:<version>`)
         // * The conventional commit type (`type:<type>`)
@@ -34635,37 +34631,39 @@ async function generateChangelogForCommits(startVersion, endVersion, commitList)
                     .map(label => label.name));
                 // Check if the author of the Pull Request is part of the exclude list
                 if (pullRequest.user &&
-                    ((_c = (_b = config.changelog.exclude) === null || _b === void 0 ? void 0 : _b.authors) === null || _c === void 0 ? void 0 : _c.includes(pullRequest.user.login))) {
+                    config.changelog.exclude?.authors?.includes(pullRequest.user.login)) {
                     continue;
                 }
             }
         }
         // Check if any of the labels is part of the global exclusion list
-        if (labels.some(label => { var _a, _b; return (_b = (_a = config.changelog.exclude) === null || _a === void 0 ? void 0 : _a.labels) === null || _b === void 0 ? void 0 : _b.includes(label); })) {
+        if (labels.some(label => config.changelog.exclude?.labels?.includes(label))) {
             continue;
         }
         // Either group commits per Conventional Commit scope, or group them all
         // together (*)
         const scope = config.changelog.group === "scope"
-            ? ((_d = commit === null || commit === void 0 ? void 0 : commit.scope) === null || _d === void 0 ? void 0 : _d.toLowerCase()) || "*"
+            ? commit?.scope?.toLowerCase() || "*"
             : "*";
-        changelog.set(scope, (_e = changelog.get(scope)) !== null && _e !== void 0 ? _e : new Map());
+        changelog.set(scope, changelog.get(scope) ?? new Map());
         for (const category of config.changelog.categories) {
             // Apply all exclusion patterns from Pull Request metadata on Category
-            if (labels.some(label => { var _a, _b; return (_b = (_a = category.exclude) === null || _a === void 0 ? void 0 : _a.labels) === null || _b === void 0 ? void 0 : _b.includes(label); })) {
+            if (labels.some(label => category.exclude?.labels?.includes(label))) {
                 continue;
             }
             // Validate whether the commit matches any of the inclusion patterns
             if (!labels
                 .concat([bumpLabel, "*"])
-                .some(label => { var _a; return (_a = category.labels) === null || _a === void 0 ? void 0 : _a.includes(label); })) {
+                .some(label => category.labels?.includes(label))) {
                 continue;
             }
-            if (((_f = changelog.get(scope)) === null || _f === void 0 ? void 0 : _f.get(category.title)) === undefined) {
-                (_g = changelog.get(scope)) === null || _g === void 0 ? void 0 : _g.set(category.title, []);
+            if (changelog.get(scope)?.get(category.title) === undefined) {
+                changelog.get(scope)?.set(category.title, []);
             }
-            (_j = (_h = changelog
-                .get(scope)) === null || _h === void 0 ? void 0 : _h.get(category.title)) === null || _j === void 0 ? void 0 : _j.push(await generateChangelogEntry(commit));
+            changelog
+                .get(scope)
+                ?.get(category.title)
+                ?.push(await generateChangelogEntry(commit));
             break;
         }
     }
@@ -34702,8 +34700,9 @@ exports.generateChangelogForCommits = generateChangelogForCommits;
  * in the provided `IVersionBumpTypeAndMessages`.
  */
 async function generateChangelog(bump) {
-    var _a, _b, _c, _d, _e;
-    return await generateChangelogForCommits((_b = (_a = bump.foundVersion) === null || _a === void 0 ? void 0 : _a.toString()) !== null && _b !== void 0 ? _b : "", (_e = (_d = (_c = bump.foundVersion) === null || _c === void 0 ? void 0 : _c.bump(bump.requiredBump, bump.initialDevelopment)) === null || _d === void 0 ? void 0 : _d.toString()) !== null && _e !== void 0 ? _e : "", bump.processedCommits
+    return await generateChangelogForCommits(bump.foundVersion?.toString() ?? "", bump.foundVersion
+        ?.bump(bump.requiredBump, bump.initialDevelopment)
+        ?.toString() ?? "", bump.processedCommits
         .map(c => c.message)
         .filter(c => c));
 }
@@ -34769,6 +34768,8 @@ const FOOTER_REGEX = /^(?<token>[\w-]+|BREAKING\sCHANGE|[\w-\s]+\sby)(?::[ ]|[ ]
  * Footer class containing key, value pairs
  */
 class Footer {
+    _token;
+    _value;
     constructor(token, value) {
         this.token = token;
         this.value = value;
@@ -34801,7 +34802,6 @@ class Footer {
  * the classes properties.
  */
 function getConventionalCommitMetadata(message) {
-    var _a;
     let footers = [];
     let body = [];
     if (message.length > 1) {
@@ -34809,8 +34809,7 @@ function getConventionalCommitMetadata(message) {
         let ignoreEmptyLines = false;
         // eslint-disable-next-line github/array-foreach
         message.slice(1).forEach((line, index) => {
-            var _a;
-            const matches = (_a = FOOTER_REGEX.exec(line)) === null || _a === void 0 ? void 0 : _a.groups;
+            const matches = FOOTER_REGEX.exec(line)?.groups;
             const currentTrailer = footers[footers.length - 1];
             if (matches) {
                 footers.push(new Footer(matches.token, matches.value));
@@ -34844,7 +34843,8 @@ function getConventionalCommitMetadata(message) {
             body = [message[endOfBody]];
         }
     }
-    const conventionalSubject = (_a = CONVENTIONAL_COMMIT_REGEX.exec(message[0])) === null || _a === void 0 ? void 0 : _a.groups;
+    const conventionalSubject = CONVENTIONAL_COMMIT_REGEX.exec(message[0])
+        ?.groups;
     if (conventionalSubject === undefined) {
         throw new Error(`Commit is not compliant to Conventional Commits (non-strict)`);
     }
@@ -34865,6 +34865,16 @@ exports.getConventionalCommitMetadata = getConventionalCommitMetadata;
  * Conventional Commit
  */
 class ConventionalCommitMessage {
+    breakingChange;
+    body;
+    bump;
+    config;
+    description;
+    footers;
+    hexsha;
+    scope;
+    subject;
+    type;
     constructor(message, hexsha = undefined, config = new config_1.Configuration()) {
         const splitMessage = stripMessage(message).split(os.EOL);
         // Skip Mere and Fixup commits
@@ -35061,6 +35071,16 @@ function verifyTypeMatches(name, typeToTest, typeItShouldBe) {
  * Configuration (from file)
  */
 class Configuration {
+    _initialDevelopment = true;
+    allowedBranches = ".*";
+    maxSubjectLength = 80;
+    releaseBranches = /^release\/.*\d+\.\d+\.*$/;
+    versionPrefix = "*";
+    versionScheme = "semver";
+    prereleasePrefix = undefined;
+    tags = DEFAULT_ACCEPTED_TAGS;
+    rules = new Map();
+    sdkverCreateReleaseBranches = undefined;
     set initialDevelopment(initialDevelopment) {
         this._initialDevelopment = initialDevelopment;
     }
@@ -35078,8 +35098,6 @@ class Configuration {
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     loadFromData(data) {
-        var _a, _b, _c;
-        var _d;
         for (const key in data) {
             if (!CONFIG_ITEMS.includes(key)) {
                 throw new Error(`Unknown configuration item '${key}' detected!`);
@@ -35134,7 +35152,7 @@ class Configuration {
                                 break;
                             case "object":
                                 {
-                                    const tagObject = (_a = this.tags[typ]) !== null && _a !== void 0 ? _a : {};
+                                    const tagObject = this.tags[typ] ?? {};
                                     for (const entry of Object.keys(typeValue)) {
                                         if (["description", "bump"].includes(entry)) {
                                             if (entry === "description") {
@@ -35169,11 +35187,11 @@ class Configuration {
                             let desc = "";
                             // Use the default description if it's one of the default tags
                             if (typ in DEFAULT_ACCEPTED_TAGS) {
-                                desc = (_b = DEFAULT_ACCEPTED_TAGS[typ].description) !== null && _b !== void 0 ? _b : "";
+                                desc = DEFAULT_ACCEPTED_TAGS[typ].description ?? "";
                             }
                             this.tags[typ].description = desc;
                         }
-                        (_c = (_d = this.tags[typ]).bump) !== null && _c !== void 0 ? _c : (_d.bump = false);
+                        this.tags[typ].bump ??= false;
                     }
                     break;
                 case "allowed-branches":
@@ -35277,16 +35295,6 @@ class Configuration {
      * Constructs a Configuration parameters from file
      */
     constructor(configPath = DEFAULT_CONFIGURATION_FILE) {
-        this._initialDevelopment = true;
-        this.allowedBranches = ".*";
-        this.maxSubjectLength = 80;
-        this.releaseBranches = /^release\/.*\d+\.\d+\.*$/;
-        this.versionPrefix = "*";
-        this.versionScheme = "semver";
-        this.prereleasePrefix = undefined;
-        this.tags = DEFAULT_ACCEPTED_TAGS;
-        this.rules = new Map();
-        this.sdkverCreateReleaseBranches = undefined;
         for (const rule of rules_1.ALL_RULES) {
             this.rules.set(rule.id, {
                 description: rule.description,
@@ -35351,6 +35359,7 @@ exports._testData = {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BumpError = exports.FixupCommitError = exports.MergeCommitError = exports.ConventionalCommitError = void 0;
 class ConventionalCommitError extends Error {
+    errors;
     constructor(message, errors) {
         super(message);
         this.name = "ConventionalCommitError";
@@ -35555,8 +35564,8 @@ async function getRelease(params) {
         .filter(r => r.isDraft === params.draftOnly)
         .filter(r => {
         const asSemVer = semver_1.SemVer.fromString(r.tagName);
-        return ((asSemVer === null || asSemVer === void 0 ? void 0 : asSemVer.prefix) === params.prefixToMatch &&
-            (params.fullReleasesOnly ? (asSemVer === null || asSemVer === void 0 ? void 0 : asSemVer.prerelease) === "" : true));
+        return (asSemVer?.prefix === params.prefixToMatch &&
+            (params.fullReleasesOnly ? asSemVer?.prerelease === "" : true));
     })
         .map(r => ({ id: r.id, name: r.tagName }))
         .sort((lhs, rhs) => semver_1.SemVer.sortSemVer(lhs.name, rhs.name));
@@ -35654,7 +35663,7 @@ async function matchTagsToCommits(sha, matcher) {
     const octo = getOctokit();
     const commitList = [];
     let match = null;
-    sha = sha !== null && sha !== void 0 ? sha : github.context.sha;
+    sha = sha ?? github.context.sha;
     for await (const resp of octo.paginate.iterator(octo.rest.repos.listCommits, {
         ...github.context.repo,
         sha,
@@ -35676,7 +35685,6 @@ exports.matchTagsToCommits = matchTagsToCommits;
  * the tag doesn't exist.
  */
 async function getShaForTag(tag) {
-    var _a;
     if (!tag.startsWith("refs/tags/")) {
         tag = `refs/tags/${tag}`;
     }
@@ -35691,7 +35699,7 @@ async function getShaForTag(tag) {
         }
       }
     `);
-    return (_a = result.repository.ref) === null || _a === void 0 ? void 0 : _a.target.oid;
+    return result.repository.ref?.target.oid;
 }
 exports.getShaForTag = getShaForTag;
 /**
@@ -35836,7 +35844,7 @@ exports.currentHeadMatchesTag = currentHeadMatchesTag;
 async function getCommitsBetweenRefs(baseRef, compRef) {
     const { data: resp } = await getOctokit().rest.repos.compareCommitsWithBasehead({
         ...github.context.repo,
-        basehead: `${baseRef}...${compRef !== null && compRef !== void 0 ? compRef : github.context.sha}`,
+        basehead: `${baseRef}...${compRef ?? github.context.sha}`,
     });
     return githubCommitsAsICommits(resp.commits);
 }
@@ -35959,13 +35967,20 @@ function formatString(message, color) {
     return `\x1b[${color.toString()}m${message}\x1b[0m`;
 }
 class LlvmMessage {
+    columnNumber;
+    expectations;
+    filePath;
+    level;
+    line;
+    lineNumber;
+    message;
     constructor({ columnNumber: columnNumber, expectations, filePath: filePath, level = LlvmLevel.NOTE, line, lineNumber: lineNumber, message, }) {
-        this.columnNumber = columnNumber !== null && columnNumber !== void 0 ? columnNumber : { start: 1, range: undefined };
+        this.columnNumber = columnNumber ?? { start: 1, range: undefined };
         this.expectations = expectations;
         this.filePath = filePath;
         this.level = level;
         this.line = line;
-        this.lineNumber = lineNumber !== null && lineNumber !== void 0 ? lineNumber : { start: 1, range: undefined };
+        this.lineNumber = lineNumber ?? { start: 1, range: undefined };
         this.message = message;
     }
     getAnnotationProperties() {
@@ -36019,17 +36034,11 @@ class LlvmMessage {
 }
 exports.LlvmMessage = LlvmMessage;
 class LlvmError extends LlvmMessage {
-    constructor() {
-        super(...arguments);
-        this.level = LlvmLevel.ERROR;
-    }
+    level = LlvmLevel.ERROR;
 }
 exports.LlvmError = LlvmError;
 class LlvmWarning extends LlvmMessage {
-    constructor() {
-        super(...arguments);
-        this.level = LlvmLevel.WARNING;
-    }
+    level = LlvmLevel.WARNING;
 }
 exports.LlvmWarning = LlvmWarning;
 
@@ -36113,11 +36122,9 @@ const ISSUE_REGEX = new RegExp(`(?!\\b(?:${ISSUE_REGEX_IGNORED_KEYWORDS.join("|"
 /**
  */
 class NonLowerCaseType {
-    constructor() {
-        this.id = "C001";
-        this.description = "Type tag should be in lower case";
-        this.default = true;
-    }
+    id = "C001";
+    description = "Type tag should be in lower case";
+    default = true;
     validate(message, _) {
         if (message.type === undefined) {
             return;
@@ -36139,11 +36146,9 @@ class NonLowerCaseType {
  * Only one empty line between subject and body
  */
 class OneWhitelineBetweenSubjectAndBody {
-    constructor() {
-        this.id = "C002";
-        this.description = "Only one empty line between subject and body";
-        this.default = true;
-    }
+    id = "C002";
+    description = "Only one empty line between subject and body";
+    default = true;
     validate(message, _) {
         if (message.body.length >= 2 && message.body[1].trim() === "") {
             throw new logging_1.LlvmError({
@@ -36157,11 +36162,9 @@ class OneWhitelineBetweenSubjectAndBody {
  * Description should not start with a capital case letter
  */
 class TitleCaseDescription {
-    constructor() {
-        this.id = "C003";
-        this.description = "Description should not start with a capital case letter";
-        this.default = true;
-    }
+    id = "C003";
+    description = "Description should not start with a capital case letter";
+    default = true;
     validate(message, _) {
         if (message.description &&
             !message.description.startsWith(message.description[0].toLowerCase())) {
@@ -36180,11 +36183,9 @@ class TitleCaseDescription {
  * Subject should not contain an unknown type tag
  */
 class UnknownTagType {
-    constructor() {
-        this.id = "C004";
-        this.description = "Subject should not contain an unknown tag type";
-        this.default = true;
-    }
+    id = "C004";
+    description = "Subject should not contain an unknown tag type";
+    default = true;
     validate(message, config) {
         if (message.type === undefined) {
             return;
@@ -36210,11 +36211,9 @@ class UnknownTagType {
  * Zero spaces before and only one space allowed after the ":" separator
  */
 class SeparatorContainsTrailingWhitespaces {
-    constructor() {
-        this.id = "C005";
-        this.description = 'Zero spaces before and only one space allowed after the ":" separator';
-        this.default = true;
-    }
+    id = "C005";
+    description = 'Zero spaces before and only one space allowed after the ":" separator';
+    default = true;
     validate(message, _) {
         if (message.separator === null) {
             return;
@@ -36236,11 +36235,9 @@ class SeparatorContainsTrailingWhitespaces {
  * Scope should not be empty
  */
 class ScopeShouldNotBeEmpty {
-    constructor() {
-        this.id = "C006";
-        this.description = "Scope should not be empty";
-        this.default = true;
-    }
+    id = "C006";
+    description = "Scope should not be empty";
+    default = true;
     validate(message, _) {
         if (message.scope === undefined) {
             return;
@@ -36261,11 +36258,9 @@ class ScopeShouldNotBeEmpty {
  * Scope should not contain any whitespace
  */
 class ScopeContainsWhitespace {
-    constructor() {
-        this.id = "C007";
-        this.description = "Scope should not contain any whitespace";
-        this.default = true;
-    }
+    id = "C007";
+    description = "Scope should not contain any whitespace";
+    default = true;
     validate(message, _) {
         if (message.scope && message.scope.length !== message.scope.trim().length) {
             throw new logging_1.LlvmError({
@@ -36284,11 +36279,9 @@ class ScopeContainsWhitespace {
  * Subject requires a separator (": ") after the type tag
  */
 class MissingSeparator {
-    constructor() {
-        this.id = "C008";
-        this.description = `Subject requires a separator (": ") after the type tag`;
-        this.default = true;
-    }
+    id = "C008";
+    description = `Subject requires a separator (": ") after the type tag`;
+    default = true;
     validate(message, _) {
         if (message.separator === undefined || !message.separator.includes(":")) {
             const columnNumber = {
@@ -36314,11 +36307,9 @@ class MissingSeparator {
  * Subject requires a description
  */
 class MissingDescription {
-    constructor() {
-        this.id = "C009";
-        this.description = "Subject requires a description";
-        this.default = true;
-    }
+    id = "C009";
+    description = "Subject requires a description";
+    default = true;
     validate(message, _) {
         if (!message.description) {
             throw new logging_1.LlvmError({
@@ -36333,11 +36324,9 @@ class MissingDescription {
  * No whitespace allowed around the "!" indicator
  */
 class BreakingIndicatorContainsWhitespacing {
-    constructor() {
-        this.id = "C010";
-        this.description = 'No whitespace allowed around the "!" indicator';
-        this.default = true;
-    }
+    id = "C010";
+    description = 'No whitespace allowed around the "!" indicator';
+    default = true;
     validate(message, _) {
         if (message.breakingChange &&
             message.breakingChange.trim() !== message.breakingChange) {
@@ -36357,11 +36346,9 @@ class BreakingIndicatorContainsWhitespacing {
  * Breaking separator should consist of only one indicator
  */
 class OnlySingleBreakingIndicator {
-    constructor() {
-        this.id = "C011";
-        this.description = "Breaking separator should consist of only one indicator";
-        this.default = true;
-    }
+    id = "C011";
+    description = "Breaking separator should consist of only one indicator";
+    default = true;
     validate(message, _) {
         if (message.breakingChange && message.breakingChange.trim().length > 1) {
             throw new logging_1.LlvmError({
@@ -36380,11 +36367,9 @@ class OnlySingleBreakingIndicator {
  * Subject requires a type
  */
 class MissingTypeTag {
-    constructor() {
-        this.id = "C012";
-        this.description = "Subject requires a type";
-        this.default = true;
-    }
+    id = "C012";
+    description = "Subject requires a type";
+    default = true;
     validate(message, _) {
         if (!message.type) {
             throw new logging_1.LlvmError({
@@ -36398,11 +36383,9 @@ class MissingTypeTag {
  * Subject should not end with punctuation
  */
 class SubjectShouldNotEndWithPunctuation {
-    constructor() {
-        this.id = "C013";
-        this.description = "Subject should not end with punctuation";
-        this.default = true;
-    }
+    id = "C013";
+    description = "Subject should not end with punctuation";
+    default = true;
     validate(message, _) {
         if (message.description.match(/.*[.!?,]$/)) {
             throw new logging_1.LlvmError({
@@ -36417,11 +36400,9 @@ class SubjectShouldNotEndWithPunctuation {
  * Subject should be within the line length limit
  */
 class SubjectExceedsLineLengthLimit {
-    constructor() {
-        this.id = "C014";
-        this.description = "Subject should be within the line length limit";
-        this.default = true;
-    }
+    id = "C014";
+    description = "Subject should be within the line length limit";
+    default = true;
     validate(message, config) {
         if (message.subject.length > config.maxSubjectLength) {
             throw new logging_1.LlvmError({
@@ -36439,11 +36420,9 @@ class SubjectExceedsLineLengthLimit {
  * Description should not start with a repetition of the tag
  */
 class NoRepeatedTags {
-    constructor() {
-        this.id = "C015";
-        this.description = "Description should not start with a repetition of the tag";
-        this.default = true;
-    }
+    id = "C015";
+    description = "Description should not start with a repetition of the tag";
+    default = true;
     validate(message, _) {
         if (message.description === undefined || message.type === undefined) {
             return;
@@ -36467,11 +36446,9 @@ class NoRepeatedTags {
  * Description should be written in imperative mood
  */
 class DescriptionInImperativeMood {
-    constructor() {
-        this.id = "C016";
-        this.description = "Description should be written in imperative mood";
-        this.default = true;
-    }
+    id = "C016";
+    description = "Description should be written in imperative mood";
+    default = true;
     validate(message, _) {
         const commonNonImperativeVerbs = [
             "added",
@@ -36527,11 +36504,9 @@ class DescriptionInImperativeMood {
  * Subject should not contain reference to review comments
  */
 class SubjectContainsReviewRemarks {
-    constructor() {
-        this.id = "C017";
-        this.description = "Subject should not contain reference to review comments";
-        this.default = true;
-    }
+    id = "C017";
+    description = "Subject should not contain reference to review comments";
+    default = true;
     validate(_, __) {
         // TODO: implement this rule
     }
@@ -36540,11 +36515,9 @@ class SubjectContainsReviewRemarks {
  * Commit message should contain an empty line between subject and body
  */
 class MissingEmptyLineBetweenSubjectAndBody {
-    constructor() {
-        this.id = "C018";
-        this.description = "Commit message should contain an empty line between subject and body";
-        this.default = true;
-    }
+    id = "C018";
+    description = "Commit message should contain an empty line between subject and body";
+    default = true;
     validate(message, _) {
         if (message.body && message.body[0]) {
             throw new logging_1.LlvmError({
@@ -36557,11 +36530,9 @@ class MissingEmptyLineBetweenSubjectAndBody {
  * Subject should not contain a ticket reference
  */
 class SubjectContainsIssueReference {
-    constructor() {
-        this.id = "C019";
-        this.description = "Subject should not contain a ticket reference";
-        this.default = true;
-    }
+    id = "C019";
+    description = "Subject should not contain a ticket reference";
+    default = true;
     validate(message, _) {
         const match = ISSUE_REGEX.exec(message.subject);
         if (match) {
@@ -36580,11 +36551,9 @@ class SubjectContainsIssueReference {
  * Git-trailer should not contain whitespace
  */
 class GitTrailerContainsWhitespace {
-    constructor() {
-        this.id = "C020";
-        this.description = "Git-trailer should not contain whitespace";
-        this.default = true;
-    }
+    id = "C020";
+    description = "Git-trailer should not contain whitespace";
+    default = true;
     validate(message, _) {
         for (const item of message.footers) {
             if (item.token.includes(" ")) {
@@ -36612,11 +36581,9 @@ class GitTrailerContainsWhitespace {
  * The BREAKING CHANGE git-trailer should be the first element in the footer
  */
 class BreakingChangeMustBeFirstGitTrailer {
-    constructor() {
-        this.id = "C023";
-        this.description = "The BREAKING CHANGE git-trailer should be the first element in the footer";
-        this.default = true;
-    }
+    id = "C023";
+    description = "The BREAKING CHANGE git-trailer should be the first element in the footer";
+    default = true;
     validate(message, _) {
         // eslint-disable-next-line github/array-foreach
         message.footers.forEach((item, index) => {
@@ -36635,11 +36602,9 @@ class BreakingChangeMustBeFirstGitTrailer {
  * A colon is required in git-trailers
  */
 class GitTrailerNeedAColon {
-    constructor() {
-        this.id = "C024";
-        this.description = "A colon is required in git-trailers";
-        this.default = true;
-    }
+    id = "C024";
+    description = "A colon is required in git-trailers";
+    default = true;
     validate(message, _) {
         const trailerFormats = [
             /^Addresses:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
@@ -36692,11 +36657,9 @@ class GitTrailerNeedAColon {
  * A ticket reference is required in at least one footer value
  */
 class FooterContainsTicketReference {
-    constructor() {
-        this.id = "C026";
-        this.description = "A ticket reference is required in at least one footer value";
-        this.default = false;
-    }
+    id = "C026";
+    description = "A ticket reference is required in at least one footer value";
+    default = false;
     validate(message, _) {
         if (!message.footers.some(footer => ISSUE_REGEX.exec(footer.value))) {
             throw new logging_1.LlvmError({
@@ -36812,6 +36775,12 @@ var SemVerType;
     SemVerType[SemVerType["MAJOR"] = 3] = "MAJOR";
 })(SemVerType || (exports.SemVerType = SemVerType = {}));
 class SemVer {
+    major;
+    minor;
+    patch;
+    prerelease;
+    prefix;
+    _build;
     constructor({ major, minor, patch, prerelease = "", build = "", prefix = "", }) {
         this.major = major;
         this.minor = minor;
@@ -36907,7 +36876,7 @@ class SemVer {
         // We need to either keep the same amount of characters in the 'nr' group, or respect the provided
         // `zeroPadToMinimum`, so pad it with zeroes as needed.
         const incrementAndZeroPad = (inputNr) => {
-            const targetLength = Math.max(zeroPadToMinimum !== null && zeroPadToMinimum !== void 0 ? zeroPadToMinimum : 0, inputNr.length);
+            const targetLength = Math.max(zeroPadToMinimum ?? 0, inputNr.length);
             let incremented = `${+inputNr + 1}`;
             while (incremented.length < targetLength) {
                 incremented = `0${incremented}`;
@@ -36915,7 +36884,7 @@ class SemVer {
             return incremented;
         };
         const nv = SemVer.copy(this);
-        nv.prerelease = `${pre !== null && pre !== void 0 ? pre : match.groups.pre}${incrementAndZeroPad(match.groups.nr)}${post !== null && post !== void 0 ? post : match.groups.post}`;
+        nv.prerelease = `${pre ?? match.groups.pre}${incrementAndZeroPad(match.groups.nr)}${post ?? match.groups.post}`;
         nv.build = "";
         return nv;
     }
@@ -36964,7 +36933,6 @@ class SemVer {
      * returns a > b ? 1 : a < b ? -1 : 0
      */
     static sortSemVer(a, b) {
-        var _a, _b, _c, _d, _e, _f;
         const lhs = typeof a === "string" ? SemVer.fromString(a) : a;
         const rhs = typeof b === "string" ? SemVer.fromString(b) : b;
         if (lhs === null || rhs === null) {
@@ -37019,8 +36987,8 @@ class SemVer {
         else {
             // Either both are releases, rc releases, or "other"
             if (lhs.prerelease && rhs.prerelease) {
-                const l = +((_c = (_b = (_a = firstNum.exec(lhs.prerelease)) === null || _a === void 0 ? void 0 : _a.groups) === null || _b === void 0 ? void 0 : _b.preversion) !== null && _c !== void 0 ? _c : 0);
-                const r = +((_f = (_e = (_d = firstNum.exec(rhs.prerelease)) === null || _d === void 0 ? void 0 : _d.groups) === null || _e === void 0 ? void 0 : _e.preversion) !== null && _f !== void 0 ? _f : 0);
+                const l = +(firstNum.exec(lhs.prerelease)?.groups?.preversion ?? 0);
+                const r = +(firstNum.exec(rhs.prerelease)?.groups?.preversion ?? 0);
                 core.debug(`sort: ${rhs} is subver ${r}, ${lhs} is subver ${l}`);
                 if (l === r) {
                     sortResult = lhs.prerelease.localeCompare(rhs.prerelease);
@@ -37109,7 +37077,6 @@ const errors_1 = __nccwpck_require__(6976);
  * and the output will reflect that.
  */
 function outputCommitErrors(message, errors, sha, useErrorLevel) {
-    var _a;
     const isPullRequestTitle = sha === undefined;
     if (isPullRequestTitle) {
         core.startGroup(`❌ Pull request title`);
@@ -37119,7 +37086,7 @@ function outputCommitErrors(message, errors, sha, useErrorLevel) {
             "action parameters as `false` in the workflow file.\n");
     }
     else {
-        const subject = ((_a = message.match(/^.*$/m)) !== null && _a !== void 0 ? _a : [""])[0];
+        const subject = (message.match(/^.*$/m) ?? [""])[0];
         core.startGroup(`❌ Commit (${sha.slice(0, 8)}): ${subject}`);
     }
     for (const error of errors) {
@@ -37189,7 +37156,6 @@ exports.processCommits = processCommits;
  * Validates all commit messages in the current pull request.
  */
 async function validateCommitsInCurrentPR(config) {
-    var _a;
     const commits = await (0, github_1.getCommitsInPR)((0, github_1.getPullRequestId)());
     const results = processCommits(commits, config);
     const passResults = results.filter(c => c.errors.length === 0);
@@ -37198,7 +37164,7 @@ async function validateCommitsInCurrentPR(config) {
         core.info(`✅ ${failResults.length === 0 ? "All " : ""}${passResults.length}` +
             ` of the pull request's commits are valid Conventional Commits`);
         for (const c of passResults) {
-            core.startGroup(`✅ Commit (${c.input.sha.slice(0, 8)}): ${(_a = c.message) === null || _a === void 0 ? void 0 : _a.subject}`);
+            core.startGroup(`✅ Commit (${c.input.sha.slice(0, 8)}): ${c.message?.subject}`);
             core.info(c.input.message);
             core.endGroup();
         }
@@ -37259,7 +37225,6 @@ exports.validatePrTitle = validatePrTitle;
  * This implies that the PR title must comply with the Conventional Commits spec.
  */
 async function validatePrTitleBump(config) {
-    var _a, _b;
     const prTitleText = await (0, github_1.getPullRequestTitle)();
     const commits = await (0, github_1.getCommitsInPR)((0, github_1.getPullRequestId)());
     const prTitle = await validatePrTitle(config);
@@ -37281,15 +37246,14 @@ async function validatePrTitleBump(config) {
         core.warning(`${baseError}, as the PR contains non-compliant commits`);
         return false;
     }
-    const highestBump = (_b = (_a = results.reduce((acc, val) => {
-        var _a, _b, _c, _d;
-        const accb = (_b = (_a = acc.message) === null || _a === void 0 ? void 0 : _a.bump) !== null && _b !== void 0 ? _b : semver_1.SemVerType.NONE;
-        const valb = (_d = (_c = val.message) === null || _c === void 0 ? void 0 : _c.bump) !== null && _d !== void 0 ? _d : semver_1.SemVerType.NONE;
+    const highestBump = results.reduce((acc, val) => {
+        const accb = acc.message?.bump ?? semver_1.SemVerType.NONE;
+        const valb = val.message?.bump ?? semver_1.SemVerType.NONE;
         return accb > valb ? acc : val;
-    }).message) === null || _a === void 0 ? void 0 : _a.bump) !== null && _b !== void 0 ? _b : semver_1.SemVerType.NONE;
+    }).message?.bump ?? semver_1.SemVerType.NONE;
     if (highestBump !== prTitle.bump) {
         const commitSubjects = results
-            .map(r => { var _a; return (_a = r.message) === null || _a === void 0 ? void 0 : _a.subject; })
+            .map(r => r.message?.subject)
             .filter(x => x !== undefined);
         core.setFailed("The PR title's bump level is not consistent with its commits.\n" +
             `The PR title type ${prTitle.type} represents bump level ` +

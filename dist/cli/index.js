@@ -32371,7 +32371,6 @@ program
     .command("overview")
     .description("Lists the accepted Conventional Commit types and Rules (including description)")
     .action(() => {
-    var _a;
     const config = new config_1.Configuration(program.opts().config);
     core.info((0, dedent_1.default)(`
     Conventional Commit types
@@ -32380,7 +32379,7 @@ program
         const bumps = config.tags[key].bump && key !== "fix"
             ? ` ${Color.YELLOW("(bumps patch)")}`
             : "";
-        core.info(`${key}: ${Color.GRAY((_a = config.tags[key].description) !== null && _a !== void 0 ? _a : "")}${bumps}`);
+        core.info(`${key}: ${Color.GRAY(config.tags[key].description ?? "")}${bumps}`);
     }
     core.info(os.EOL);
     core.info((0, dedent_1.default)(`
@@ -32390,11 +32389,10 @@ program
     `));
     core.info(os.EOL);
     config.rules.forEach((rule, key) => {
-        var _a;
         const status = rule.enabled
             ? `${Color.GREEN("o")}`
             : `${Color.RED("x")}`;
-        core.info(`[${status}] ${key}: ${Color.GRAY((_a = rule.description) !== null && _a !== void 0 ? _a : "")}`);
+        core.info(`[${status}] ${key}: ${Color.GRAY(rule.description ?? "")}`);
     });
 });
 program.parse();
@@ -32555,16 +32553,15 @@ async function getCommitMessages(target) {
 }
 exports.getCommitMessages = getCommitMessages;
 function prettyPrintCommitMessage(commit) {
-    var _a, _b;
     console.log("");
     console.log((0, dedent_1.default)(`
     ${Color.RED(`[[---- (Commit ${commit.hexsha}) ----]]`)}
     ${Color.GREEN("Type")}: ${commit.type}
-    ${Color.GREEN("Scope")}: ${(_a = commit.scope) !== null && _a !== void 0 ? _a : "None"}
+    ${Color.GREEN("Scope")}: ${commit.scope ?? "None"}
     ${Color.GREEN("Breaking Change")}: ${commit.breakingChange ? Color.RED("Yes") : Color.GREEN("No")}
     ${Color.GREEN("Bump")}: ${semver_1.SemVerType[commit.bump]}
     ${Color.GREEN("Description")}: ${commit.description}
-    ${Color.GREEN("Body")}: ${Color.GRAY((_b = commit.body) !== null && _b !== void 0 ? _b : "None")}
+    ${Color.GREEN("Body")}: ${Color.GRAY(commit.body ?? "None")}
     ${Color.GREEN("Footers")}:
     ${commit.footers
         .map(footer => `${footer.token}: ${Color.GRAY(footer.value)}`)
@@ -32633,6 +32630,8 @@ const FOOTER_REGEX = /^(?<token>[\w-]+|BREAKING\sCHANGE|[\w-\s]+\sby)(?::[ ]|[ ]
  * Footer class containing key, value pairs
  */
 class Footer {
+    _token;
+    _value;
     constructor(token, value) {
         this.token = token;
         this.value = value;
@@ -32665,7 +32664,6 @@ class Footer {
  * the classes properties.
  */
 function getConventionalCommitMetadata(message) {
-    var _a;
     let footers = [];
     let body = [];
     if (message.length > 1) {
@@ -32673,8 +32671,7 @@ function getConventionalCommitMetadata(message) {
         let ignoreEmptyLines = false;
         // eslint-disable-next-line github/array-foreach
         message.slice(1).forEach((line, index) => {
-            var _a;
-            const matches = (_a = FOOTER_REGEX.exec(line)) === null || _a === void 0 ? void 0 : _a.groups;
+            const matches = FOOTER_REGEX.exec(line)?.groups;
             const currentTrailer = footers[footers.length - 1];
             if (matches) {
                 footers.push(new Footer(matches.token, matches.value));
@@ -32708,7 +32705,8 @@ function getConventionalCommitMetadata(message) {
             body = [message[endOfBody]];
         }
     }
-    const conventionalSubject = (_a = CONVENTIONAL_COMMIT_REGEX.exec(message[0])) === null || _a === void 0 ? void 0 : _a.groups;
+    const conventionalSubject = CONVENTIONAL_COMMIT_REGEX.exec(message[0])
+        ?.groups;
     if (conventionalSubject === undefined) {
         throw new Error(`Commit is not compliant to Conventional Commits (non-strict)`);
     }
@@ -32729,6 +32727,16 @@ exports.getConventionalCommitMetadata = getConventionalCommitMetadata;
  * Conventional Commit
  */
 class ConventionalCommitMessage {
+    breakingChange;
+    body;
+    bump;
+    config;
+    description;
+    footers;
+    hexsha;
+    scope;
+    subject;
+    type;
     constructor(message, hexsha = undefined, config = new config_1.Configuration()) {
         const splitMessage = stripMessage(message).split(os.EOL);
         // Skip Mere and Fixup commits
@@ -32925,6 +32933,16 @@ function verifyTypeMatches(name, typeToTest, typeItShouldBe) {
  * Configuration (from file)
  */
 class Configuration {
+    _initialDevelopment = true;
+    allowedBranches = ".*";
+    maxSubjectLength = 80;
+    releaseBranches = /^release\/.*\d+\.\d+\.*$/;
+    versionPrefix = "*";
+    versionScheme = "semver";
+    prereleasePrefix = undefined;
+    tags = DEFAULT_ACCEPTED_TAGS;
+    rules = new Map();
+    sdkverCreateReleaseBranches = undefined;
     set initialDevelopment(initialDevelopment) {
         this._initialDevelopment = initialDevelopment;
     }
@@ -32942,8 +32960,6 @@ class Configuration {
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     loadFromData(data) {
-        var _a, _b, _c;
-        var _d;
         for (const key in data) {
             if (!CONFIG_ITEMS.includes(key)) {
                 throw new Error(`Unknown configuration item '${key}' detected!`);
@@ -32998,7 +33014,7 @@ class Configuration {
                                 break;
                             case "object":
                                 {
-                                    const tagObject = (_a = this.tags[typ]) !== null && _a !== void 0 ? _a : {};
+                                    const tagObject = this.tags[typ] ?? {};
                                     for (const entry of Object.keys(typeValue)) {
                                         if (["description", "bump"].includes(entry)) {
                                             if (entry === "description") {
@@ -33033,11 +33049,11 @@ class Configuration {
                             let desc = "";
                             // Use the default description if it's one of the default tags
                             if (typ in DEFAULT_ACCEPTED_TAGS) {
-                                desc = (_b = DEFAULT_ACCEPTED_TAGS[typ].description) !== null && _b !== void 0 ? _b : "";
+                                desc = DEFAULT_ACCEPTED_TAGS[typ].description ?? "";
                             }
                             this.tags[typ].description = desc;
                         }
-                        (_c = (_d = this.tags[typ]).bump) !== null && _c !== void 0 ? _c : (_d.bump = false);
+                        this.tags[typ].bump ??= false;
                     }
                     break;
                 case "allowed-branches":
@@ -33141,16 +33157,6 @@ class Configuration {
      * Constructs a Configuration parameters from file
      */
     constructor(configPath = DEFAULT_CONFIGURATION_FILE) {
-        this._initialDevelopment = true;
-        this.allowedBranches = ".*";
-        this.maxSubjectLength = 80;
-        this.releaseBranches = /^release\/.*\d+\.\d+\.*$/;
-        this.versionPrefix = "*";
-        this.versionScheme = "semver";
-        this.prereleasePrefix = undefined;
-        this.tags = DEFAULT_ACCEPTED_TAGS;
-        this.rules = new Map();
-        this.sdkverCreateReleaseBranches = undefined;
         for (const rule of rules_1.ALL_RULES) {
             this.rules.set(rule.id, {
                 description: rule.description,
@@ -33215,6 +33221,7 @@ exports._testData = {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BumpError = exports.FixupCommitError = exports.MergeCommitError = exports.ConventionalCommitError = void 0;
 class ConventionalCommitError extends Error {
+    errors;
     constructor(message, errors) {
         super(message);
         this.name = "ConventionalCommitError";
@@ -33300,13 +33307,20 @@ function formatString(message, color) {
     return `\x1b[${color.toString()}m${message}\x1b[0m`;
 }
 class LlvmMessage {
+    columnNumber;
+    expectations;
+    filePath;
+    level;
+    line;
+    lineNumber;
+    message;
     constructor({ columnNumber: columnNumber, expectations, filePath: filePath, level = LlvmLevel.NOTE, line, lineNumber: lineNumber, message, }) {
-        this.columnNumber = columnNumber !== null && columnNumber !== void 0 ? columnNumber : { start: 1, range: undefined };
+        this.columnNumber = columnNumber ?? { start: 1, range: undefined };
         this.expectations = expectations;
         this.filePath = filePath;
         this.level = level;
         this.line = line;
-        this.lineNumber = lineNumber !== null && lineNumber !== void 0 ? lineNumber : { start: 1, range: undefined };
+        this.lineNumber = lineNumber ?? { start: 1, range: undefined };
         this.message = message;
     }
     getAnnotationProperties() {
@@ -33360,17 +33374,11 @@ class LlvmMessage {
 }
 exports.LlvmMessage = LlvmMessage;
 class LlvmError extends LlvmMessage {
-    constructor() {
-        super(...arguments);
-        this.level = LlvmLevel.ERROR;
-    }
+    level = LlvmLevel.ERROR;
 }
 exports.LlvmError = LlvmError;
 class LlvmWarning extends LlvmMessage {
-    constructor() {
-        super(...arguments);
-        this.level = LlvmLevel.WARNING;
-    }
+    level = LlvmLevel.WARNING;
 }
 exports.LlvmWarning = LlvmWarning;
 
@@ -33454,11 +33462,9 @@ const ISSUE_REGEX = new RegExp(`(?!\\b(?:${ISSUE_REGEX_IGNORED_KEYWORDS.join("|"
 /**
  */
 class NonLowerCaseType {
-    constructor() {
-        this.id = "C001";
-        this.description = "Type tag should be in lower case";
-        this.default = true;
-    }
+    id = "C001";
+    description = "Type tag should be in lower case";
+    default = true;
     validate(message, _) {
         if (message.type === undefined) {
             return;
@@ -33480,11 +33486,9 @@ class NonLowerCaseType {
  * Only one empty line between subject and body
  */
 class OneWhitelineBetweenSubjectAndBody {
-    constructor() {
-        this.id = "C002";
-        this.description = "Only one empty line between subject and body";
-        this.default = true;
-    }
+    id = "C002";
+    description = "Only one empty line between subject and body";
+    default = true;
     validate(message, _) {
         if (message.body.length >= 2 && message.body[1].trim() === "") {
             throw new logging_1.LlvmError({
@@ -33498,11 +33502,9 @@ class OneWhitelineBetweenSubjectAndBody {
  * Description should not start with a capital case letter
  */
 class TitleCaseDescription {
-    constructor() {
-        this.id = "C003";
-        this.description = "Description should not start with a capital case letter";
-        this.default = true;
-    }
+    id = "C003";
+    description = "Description should not start with a capital case letter";
+    default = true;
     validate(message, _) {
         if (message.description &&
             !message.description.startsWith(message.description[0].toLowerCase())) {
@@ -33521,11 +33523,9 @@ class TitleCaseDescription {
  * Subject should not contain an unknown type tag
  */
 class UnknownTagType {
-    constructor() {
-        this.id = "C004";
-        this.description = "Subject should not contain an unknown tag type";
-        this.default = true;
-    }
+    id = "C004";
+    description = "Subject should not contain an unknown tag type";
+    default = true;
     validate(message, config) {
         if (message.type === undefined) {
             return;
@@ -33551,11 +33551,9 @@ class UnknownTagType {
  * Zero spaces before and only one space allowed after the ":" separator
  */
 class SeparatorContainsTrailingWhitespaces {
-    constructor() {
-        this.id = "C005";
-        this.description = 'Zero spaces before and only one space allowed after the ":" separator';
-        this.default = true;
-    }
+    id = "C005";
+    description = 'Zero spaces before and only one space allowed after the ":" separator';
+    default = true;
     validate(message, _) {
         if (message.separator === null) {
             return;
@@ -33577,11 +33575,9 @@ class SeparatorContainsTrailingWhitespaces {
  * Scope should not be empty
  */
 class ScopeShouldNotBeEmpty {
-    constructor() {
-        this.id = "C006";
-        this.description = "Scope should not be empty";
-        this.default = true;
-    }
+    id = "C006";
+    description = "Scope should not be empty";
+    default = true;
     validate(message, _) {
         if (message.scope === undefined) {
             return;
@@ -33602,11 +33598,9 @@ class ScopeShouldNotBeEmpty {
  * Scope should not contain any whitespace
  */
 class ScopeContainsWhitespace {
-    constructor() {
-        this.id = "C007";
-        this.description = "Scope should not contain any whitespace";
-        this.default = true;
-    }
+    id = "C007";
+    description = "Scope should not contain any whitespace";
+    default = true;
     validate(message, _) {
         if (message.scope && message.scope.length !== message.scope.trim().length) {
             throw new logging_1.LlvmError({
@@ -33625,11 +33619,9 @@ class ScopeContainsWhitespace {
  * Subject requires a separator (": ") after the type tag
  */
 class MissingSeparator {
-    constructor() {
-        this.id = "C008";
-        this.description = `Subject requires a separator (": ") after the type tag`;
-        this.default = true;
-    }
+    id = "C008";
+    description = `Subject requires a separator (": ") after the type tag`;
+    default = true;
     validate(message, _) {
         if (message.separator === undefined || !message.separator.includes(":")) {
             const columnNumber = {
@@ -33655,11 +33647,9 @@ class MissingSeparator {
  * Subject requires a description
  */
 class MissingDescription {
-    constructor() {
-        this.id = "C009";
-        this.description = "Subject requires a description";
-        this.default = true;
-    }
+    id = "C009";
+    description = "Subject requires a description";
+    default = true;
     validate(message, _) {
         if (!message.description) {
             throw new logging_1.LlvmError({
@@ -33674,11 +33664,9 @@ class MissingDescription {
  * No whitespace allowed around the "!" indicator
  */
 class BreakingIndicatorContainsWhitespacing {
-    constructor() {
-        this.id = "C010";
-        this.description = 'No whitespace allowed around the "!" indicator';
-        this.default = true;
-    }
+    id = "C010";
+    description = 'No whitespace allowed around the "!" indicator';
+    default = true;
     validate(message, _) {
         if (message.breakingChange &&
             message.breakingChange.trim() !== message.breakingChange) {
@@ -33698,11 +33686,9 @@ class BreakingIndicatorContainsWhitespacing {
  * Breaking separator should consist of only one indicator
  */
 class OnlySingleBreakingIndicator {
-    constructor() {
-        this.id = "C011";
-        this.description = "Breaking separator should consist of only one indicator";
-        this.default = true;
-    }
+    id = "C011";
+    description = "Breaking separator should consist of only one indicator";
+    default = true;
     validate(message, _) {
         if (message.breakingChange && message.breakingChange.trim().length > 1) {
             throw new logging_1.LlvmError({
@@ -33721,11 +33707,9 @@ class OnlySingleBreakingIndicator {
  * Subject requires a type
  */
 class MissingTypeTag {
-    constructor() {
-        this.id = "C012";
-        this.description = "Subject requires a type";
-        this.default = true;
-    }
+    id = "C012";
+    description = "Subject requires a type";
+    default = true;
     validate(message, _) {
         if (!message.type) {
             throw new logging_1.LlvmError({
@@ -33739,11 +33723,9 @@ class MissingTypeTag {
  * Subject should not end with punctuation
  */
 class SubjectShouldNotEndWithPunctuation {
-    constructor() {
-        this.id = "C013";
-        this.description = "Subject should not end with punctuation";
-        this.default = true;
-    }
+    id = "C013";
+    description = "Subject should not end with punctuation";
+    default = true;
     validate(message, _) {
         if (message.description.match(/.*[.!?,]$/)) {
             throw new logging_1.LlvmError({
@@ -33758,11 +33740,9 @@ class SubjectShouldNotEndWithPunctuation {
  * Subject should be within the line length limit
  */
 class SubjectExceedsLineLengthLimit {
-    constructor() {
-        this.id = "C014";
-        this.description = "Subject should be within the line length limit";
-        this.default = true;
-    }
+    id = "C014";
+    description = "Subject should be within the line length limit";
+    default = true;
     validate(message, config) {
         if (message.subject.length > config.maxSubjectLength) {
             throw new logging_1.LlvmError({
@@ -33780,11 +33760,9 @@ class SubjectExceedsLineLengthLimit {
  * Description should not start with a repetition of the tag
  */
 class NoRepeatedTags {
-    constructor() {
-        this.id = "C015";
-        this.description = "Description should not start with a repetition of the tag";
-        this.default = true;
-    }
+    id = "C015";
+    description = "Description should not start with a repetition of the tag";
+    default = true;
     validate(message, _) {
         if (message.description === undefined || message.type === undefined) {
             return;
@@ -33808,11 +33786,9 @@ class NoRepeatedTags {
  * Description should be written in imperative mood
  */
 class DescriptionInImperativeMood {
-    constructor() {
-        this.id = "C016";
-        this.description = "Description should be written in imperative mood";
-        this.default = true;
-    }
+    id = "C016";
+    description = "Description should be written in imperative mood";
+    default = true;
     validate(message, _) {
         const commonNonImperativeVerbs = [
             "added",
@@ -33868,11 +33844,9 @@ class DescriptionInImperativeMood {
  * Subject should not contain reference to review comments
  */
 class SubjectContainsReviewRemarks {
-    constructor() {
-        this.id = "C017";
-        this.description = "Subject should not contain reference to review comments";
-        this.default = true;
-    }
+    id = "C017";
+    description = "Subject should not contain reference to review comments";
+    default = true;
     validate(_, __) {
         // TODO: implement this rule
     }
@@ -33881,11 +33855,9 @@ class SubjectContainsReviewRemarks {
  * Commit message should contain an empty line between subject and body
  */
 class MissingEmptyLineBetweenSubjectAndBody {
-    constructor() {
-        this.id = "C018";
-        this.description = "Commit message should contain an empty line between subject and body";
-        this.default = true;
-    }
+    id = "C018";
+    description = "Commit message should contain an empty line between subject and body";
+    default = true;
     validate(message, _) {
         if (message.body && message.body[0]) {
             throw new logging_1.LlvmError({
@@ -33898,11 +33870,9 @@ class MissingEmptyLineBetweenSubjectAndBody {
  * Subject should not contain a ticket reference
  */
 class SubjectContainsIssueReference {
-    constructor() {
-        this.id = "C019";
-        this.description = "Subject should not contain a ticket reference";
-        this.default = true;
-    }
+    id = "C019";
+    description = "Subject should not contain a ticket reference";
+    default = true;
     validate(message, _) {
         const match = ISSUE_REGEX.exec(message.subject);
         if (match) {
@@ -33921,11 +33891,9 @@ class SubjectContainsIssueReference {
  * Git-trailer should not contain whitespace
  */
 class GitTrailerContainsWhitespace {
-    constructor() {
-        this.id = "C020";
-        this.description = "Git-trailer should not contain whitespace";
-        this.default = true;
-    }
+    id = "C020";
+    description = "Git-trailer should not contain whitespace";
+    default = true;
     validate(message, _) {
         for (const item of message.footers) {
             if (item.token.includes(" ")) {
@@ -33953,11 +33921,9 @@ class GitTrailerContainsWhitespace {
  * The BREAKING CHANGE git-trailer should be the first element in the footer
  */
 class BreakingChangeMustBeFirstGitTrailer {
-    constructor() {
-        this.id = "C023";
-        this.description = "The BREAKING CHANGE git-trailer should be the first element in the footer";
-        this.default = true;
-    }
+    id = "C023";
+    description = "The BREAKING CHANGE git-trailer should be the first element in the footer";
+    default = true;
     validate(message, _) {
         // eslint-disable-next-line github/array-foreach
         message.footers.forEach((item, index) => {
@@ -33976,11 +33942,9 @@ class BreakingChangeMustBeFirstGitTrailer {
  * A colon is required in git-trailers
  */
 class GitTrailerNeedAColon {
-    constructor() {
-        this.id = "C024";
-        this.description = "A colon is required in git-trailers";
-        this.default = true;
-    }
+    id = "C024";
+    description = "A colon is required in git-trailers";
+    default = true;
     validate(message, _) {
         const trailerFormats = [
             /^Addresses:* (?:[A-Z]+-[0-9]+|#[0-9]+)/,
@@ -34033,11 +33997,9 @@ class GitTrailerNeedAColon {
  * A ticket reference is required in at least one footer value
  */
 class FooterContainsTicketReference {
-    constructor() {
-        this.id = "C026";
-        this.description = "A ticket reference is required in at least one footer value";
-        this.default = false;
-    }
+    id = "C026";
+    description = "A ticket reference is required in at least one footer value";
+    default = false;
     validate(message, _) {
         if (!message.footers.some(footer => ISSUE_REGEX.exec(footer.value))) {
             throw new logging_1.LlvmError({
@@ -34153,6 +34115,12 @@ var SemVerType;
     SemVerType[SemVerType["MAJOR"] = 3] = "MAJOR";
 })(SemVerType || (exports.SemVerType = SemVerType = {}));
 class SemVer {
+    major;
+    minor;
+    patch;
+    prerelease;
+    prefix;
+    _build;
     constructor({ major, minor, patch, prerelease = "", build = "", prefix = "", }) {
         this.major = major;
         this.minor = minor;
@@ -34248,7 +34216,7 @@ class SemVer {
         // We need to either keep the same amount of characters in the 'nr' group, or respect the provided
         // `zeroPadToMinimum`, so pad it with zeroes as needed.
         const incrementAndZeroPad = (inputNr) => {
-            const targetLength = Math.max(zeroPadToMinimum !== null && zeroPadToMinimum !== void 0 ? zeroPadToMinimum : 0, inputNr.length);
+            const targetLength = Math.max(zeroPadToMinimum ?? 0, inputNr.length);
             let incremented = `${+inputNr + 1}`;
             while (incremented.length < targetLength) {
                 incremented = `0${incremented}`;
@@ -34256,7 +34224,7 @@ class SemVer {
             return incremented;
         };
         const nv = SemVer.copy(this);
-        nv.prerelease = `${pre !== null && pre !== void 0 ? pre : match.groups.pre}${incrementAndZeroPad(match.groups.nr)}${post !== null && post !== void 0 ? post : match.groups.post}`;
+        nv.prerelease = `${pre ?? match.groups.pre}${incrementAndZeroPad(match.groups.nr)}${post ?? match.groups.post}`;
         nv.build = "";
         return nv;
     }
@@ -34305,7 +34273,6 @@ class SemVer {
      * returns a > b ? 1 : a < b ? -1 : 0
      */
     static sortSemVer(a, b) {
-        var _a, _b, _c, _d, _e, _f;
         const lhs = typeof a === "string" ? SemVer.fromString(a) : a;
         const rhs = typeof b === "string" ? SemVer.fromString(b) : b;
         if (lhs === null || rhs === null) {
@@ -34360,8 +34327,8 @@ class SemVer {
         else {
             // Either both are releases, rc releases, or "other"
             if (lhs.prerelease && rhs.prerelease) {
-                const l = +((_c = (_b = (_a = firstNum.exec(lhs.prerelease)) === null || _a === void 0 ? void 0 : _a.groups) === null || _b === void 0 ? void 0 : _b.preversion) !== null && _c !== void 0 ? _c : 0);
-                const r = +((_f = (_e = (_d = firstNum.exec(rhs.prerelease)) === null || _d === void 0 ? void 0 : _d.groups) === null || _e === void 0 ? void 0 : _e.preversion) !== null && _f !== void 0 ? _f : 0);
+                const l = +(firstNum.exec(lhs.prerelease)?.groups?.preversion ?? 0);
+                const r = +(firstNum.exec(rhs.prerelease)?.groups?.preversion ?? 0);
                 core.debug(`sort: ${rhs} is subver ${r}, ${lhs} is subver ${l}`);
                 if (l === r) {
                     sortResult = lhs.prerelease.localeCompare(rhs.prerelease);
