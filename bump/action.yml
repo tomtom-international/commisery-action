@@ -71,5 +71,5 @@ outputs:
       string if a version bump was not or could not be performed
 
 runs:
-  using: 'node16'
+  using: 'node20'
   main: '../dist/bump/index.js'

@@ -9,9 +9,9 @@
   "pkg": {
     "scripts": "dist/cli/index.js",
     "targets": [
-      "node16-macos-x64",
-      "node16-macos-arm64",
-      "node16-linux-x64"
+      "node20-macos-x64",
+      "node20-macos-arm64",
+      "node20-linux-x64"
     ],
     "outputPath": "bin",
     "compress": "GZip"
@@ -49,10 +49,11 @@
   },
   "devDependencies": {
     "@octokit/plugin-rest-endpoint-methods": "^6.7.0",
+    "@tsconfig/node20": "^20.1.2",
     "@types/dedent": "^0.7.0",
     "@types/difflib": "^0.2.6",
     "@types/jest": "^29.4.0",
-    "@types/node": "^18.13.0",
+    "@types/node": "^20",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
     "@vercel/ncc": "^0.36.1",
@@ -65,5 +66,8 @@
     "pkg": "^5.8.0",
     "prettier": "3.0.0",
     "ts-jest": "^29.0.5"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
