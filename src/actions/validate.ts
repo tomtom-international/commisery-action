@@ -19,7 +19,12 @@ import { getVersionBumpType } from "../bump";
 import { ConventionalCommitMessage } from "../commit";
 
 import { Configuration } from "../config";
-import { getConfig, isPullRequestEvent, updateLabels } from "../github";
+import {
+  getConfig,
+  isMergeGroupEvent,
+  isPullRequestEvent,
+  updateLabels
+} from "../github";
 import * as Label from "../label";
 import { SemVerType } from "../semver";
 import {
@@ -59,9 +64,9 @@ async function determineLabels(
  */
 export async function run(): Promise<void> {
   try {
-    if (!isPullRequestEvent()) {
+    if (!isPullRequestEvent() && !isMergeGroupEvent()) {
       core.warning(
-        "Conventional Commit Message validation requires a workflow using the `pull_request` trigger!"
+        "Conventional Commit Message validation requires a workflow using the `pull_request` or `merge_group` trigger!"
       );
       return;
     }
