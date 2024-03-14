@@ -35478,7 +35478,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.createBranch = exports.getCommitsBetweenRefs = exports.currentHeadMatchesTag = exports.getContent = exports.updateLabels = exports.getAssociatedPullRequests = exports.getLatestTags = exports.getShaForTag = exports.matchTagsToCommits = exports.getReleaseConfiguration = exports.getConfig = exports.createTag = exports.updateDraftRelease = exports.getRelease = exports.createRelease = exports.getPullRequest = exports.getCommitsInPR = exports.getPullRequestTitle = exports.getRunNumber = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
+exports.createBranch = exports.getCommitsBetweenRefs = exports.currentHeadMatchesTag = exports.getContent = exports.updateLabels = exports.getAssociatedPullRequests = exports.getLatestTags = exports.getShaForTag = exports.matchTagsToCommits = exports.getReleaseConfiguration = exports.getConfig = exports.createTag = exports.updateDraftRelease = exports.getRelease = exports.createRelease = exports.getPullRequest = exports.getCommitsInPR = exports.getPullRequestTitle = exports.getRunNumber = exports.getPullRequestId = exports.isPullRequestEvent = exports.isMergeGroupEvent = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const fs = __importStar(__nccwpck_require__(7147));
 const github = __importStar(__nccwpck_require__(5438));
@@ -35503,6 +35503,13 @@ function githubCommitsAsICommits(commits) {
         };
     });
 }
+/**
+ * Returns whether we are running in context of a Merge Group event
+ */
+function isMergeGroupEvent() {
+    return github.context.eventName === "merge_group";
+}
+exports.isMergeGroupEvent = isMergeGroupEvent;
 /**
  * Returns whether we are running in context of a Pull Request event
  */

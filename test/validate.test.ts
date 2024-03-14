@@ -125,6 +125,52 @@ describe("Warning cases", () => {
   );
 });
 
+describe("Event type cases", () => {
+  const eventTypeCases = [
+    {
+      testDescription:
+        "should issue a warning if not `pull_request` nor `merge_group` trigger",
+      warningMessages: [
+        "Conventional Commit Message validation requires a workflow using the `pull_request` or `merge_group` trigger!",
+      ],
+      isPullRequest: false,
+      isMergeGroup: false,
+    },
+    {
+      testDescription: "should not issue a warning if `pull_request` trigger",
+      warningMessages: [],
+      isPullRequest: true,
+      isMergeGroup: false,
+    },
+    {
+      testDescription: "should not issue a warning if `merge_group` trigger",
+      warningMessages: [],
+      isPullRequest: false,
+      isMergeGroup: true,
+    },
+  ];
+  test.each(eventTypeCases)(
+    "$testDescription",
+    ({ testDescription, warningMessages, isPullRequest, isMergeGroup }) => {
+      jest.spyOn(github, "isPullRequestEvent").mockReturnValue(isPullRequest);
+      jest.spyOn(github, "isMergeGroupEvent").mockReturnValue(isMergeGroup);
+
+      validate.run().then(() => {
+        if (!warningMessages.length) {
+          expect(core.warning).not.toHaveBeenCalled();
+        } else {
+          expect(core.warning).toHaveBeenCalled();
+          for (const msg of warningMessages) {
+            expect(core.warning).toHaveBeenCalledWith(
+              expect.stringContaining(msg)
+            );
+          }
+        }
+      });
+    }
+  );
+});
+
 describe("Error cases", () => {
   const INVALID_CONVENTIONAL_COMMIT_MSG = "not valid Conventional Commits";
   const PR_TITLE_NOT_COMPLIANT_MSG = "pull request title is not compliant";
