@@ -25,13 +25,14 @@ The `commisery-action` supports a configuration file, allowing you to:
 Please refer to the [documentation](docs/configuration.md) for more details
 
 ### Conventional Commit message validation
-The following example workflow will trigger on pull request creation/modification and verify
-all associated commit messages.
+The following example workflow will trigger on pull request creation/modification,
+and on the merge queue run, and verify all associated commit messages.
 
 ```yaml
 name: Commisery
 on:
   pull_request:
+  merge_group:
 
 jobs:
   commit-message:
