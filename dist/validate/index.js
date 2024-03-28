@@ -34307,12 +34307,19 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
  */
 async function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, branchName, isBranchAllowedToPublish, createChangelog) {
     const isReleaseBranch = branchName.match(config.releaseBranches) !== null;
-    const hasBreakingChange = bumpInfo.processedCommits.some(c => c.message?.breakingChange);
+    let hasBreakingChange = bumpInfo.processedCommits.some(c => c.message?.breakingChange);
     if (!bumpInfo.foundVersion)
         return false; // should never happen
     // SdkVer requires a prerelease, so apply the default if not set
     config.prereleasePrefix = config.prereleasePrefix ?? "dev";
     let cv = semver_1.SemVer.copy(bumpInfo.foundVersion);
+    // Do not bump major version when breaking change is found in case
+    // the max configured major version is already reached
+    if (config.sdkverMaxMajor !== undefined &&
+        config.sdkverMaxMajor > 0 &&
+        cv.major >= config.sdkverMaxMajor) {
+        hasBreakingChange = false;
+    }
     // Get the latest draft release matching our current version's prefix.
     // Don't look at the draft version on a release branch; the current version
     // should always reflect the version to be bumped (as no dev releases are
@@ -35057,6 +35064,7 @@ const CONFIG_ITEMS = [
     "release-branches",
     "prereleases",
     "sdkver-create-release-branches",
+    "sdkver-max-major",
 ];
 const VERSION_SCHEMES = ["semver", "sdkver"];
 /**
@@ -35081,6 +35089,7 @@ class Configuration {
     tags = DEFAULT_ACCEPTED_TAGS;
     rules = new Map();
     sdkverCreateReleaseBranches = undefined;
+    sdkverMaxMajor = 0;
     set initialDevelopment(initialDevelopment) {
         this._initialDevelopment = initialDevelopment;
     }
@@ -35283,11 +35292,23 @@ class Configuration {
                         throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be either "boolean" or "string"!`);
                     }
                     break;
+                case "sdkver-max-major":
+                    /* Example YAML:
+                     *   sdkver-max-major: 1  # defaults to 0
+                     */
+                    if (typeof data[key] === "number") {
+                        this.sdkverMaxMajor = data[key];
+                    }
+                    else {
+                        throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.sdkverMaxMajor}'!`);
+                    }
+                    break;
             }
         }
-        if (this.sdkverCreateReleaseBranches !== undefined &&
+        if ((this.sdkverCreateReleaseBranches !== undefined ||
+            this.sdkverMaxMajor !== 0) &&
             this.versionScheme !== "sdkver") {
-            core.warning("The configuration option `sdkver-create-release-branches` is only relevant " +
+            core.warning("The configuration options `sdkver-create-release-branches` and `sdkver-max-major` are only relevant " +
                 'when the `version-scheme` is set to `"sdkver"`.');
         }
     }
@@ -35324,6 +35345,7 @@ class Configuration {
         config.tags = JSON.parse(JSON.stringify(this.tags));
         config.rules = new Map(JSON.parse(JSON.stringify(Array.from(this.rules))));
         config.sdkverCreateReleaseBranches = this.sdkverCreateReleaseBranches;
+        config.sdkverMaxMajor = this.sdkverMaxMajor;
         return config;
     }
 }

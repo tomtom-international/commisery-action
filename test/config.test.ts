@@ -382,6 +382,12 @@ describe("Configurable options", () => {
     });
   });
 
+  test("Default SdkVer max major", () => {
+    withConfig("", (config: Configuration) => {
+      expect(config.sdkverMaxMajor).toBe(0);
+    });
+  });
+
   test("Default version prefix", () => {
     withConfig("", (config: Configuration) => {
       expect(config.versionPrefix).toBe("*");
@@ -399,6 +405,15 @@ describe("Configurable options", () => {
       "version-scheme: sdkver\nsdkver-create-release-branches: false",
       (config: Configuration) => {
         expect(config.sdkverCreateReleaseBranches).toBe(undefined);
+      }
+    );
+  });
+
+  test("Number values", () => {
+    withConfig(
+      "version-scheme: sdkver\nsdkver-max-major: 1",
+      (config: Configuration) => {
+        expect(config.sdkverMaxMajor).toBe(1);
       }
     );
   });
@@ -424,6 +439,40 @@ describe("Configurable options", () => {
       "version-scheme: semver\nsdkver-create-release-branches: true",
       (config: Configuration) => {
         expect(config.sdkverCreateReleaseBranches).toBe("release/");
+      }
+    );
+    expect(core.warning).toHaveBeenCalledTimes(1);
+  });
+
+  test("Enable SdkVer max major version on non-SdkVer", () => {
+    // We expect a warning about this option not being useful when the version
+    // scheme is not 'sdkver'
+    jest.spyOn(core, "warning").mockImplementation(arg => {
+      expect(arg).toContain("sdkver-max-major");
+      expect(arg).toContain("version-scheme");
+    });
+    withConfig(
+      "version-scheme: semver\nsdkver-max-major: 1",
+      (config: Configuration) => {
+        expect(config.sdkverMaxMajor).toBe(1);
+      }
+    );
+    expect(core.warning).toHaveBeenCalledTimes(1);
+  });
+
+  test("Enable SdkVer max major version and create release branches on non-SdkVer", () => {
+    // We expect a warning about this option not being useful when the version
+    // scheme is not 'sdkver'
+    jest.spyOn(core, "warning").mockImplementation(arg => {
+      expect(arg).toContain("sdkver-create-release-branches");
+      expect(arg).toContain("sdkver-max-major");
+      expect(arg).toContain("version-scheme");
+    });
+    withConfig(
+      "version-scheme: semver\nsdkver-create-release-branches: true\nsdkver-max-major: 1",
+      (config: Configuration) => {
+        expect(config.sdkverCreateReleaseBranches).toBe("release/");
+        expect(config.sdkverMaxMajor).toBe(1);
       }
     );
     expect(core.warning).toHaveBeenCalledTimes(1);

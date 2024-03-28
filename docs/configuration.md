@@ -34,6 +34,7 @@ initial-development: false  # OPTIONAL, defaults to `true`
 | `release-branches` | `/^release\/.*\d+\.\d+\.*$/` | A regex specifying from which branch(es) only `PATCH` version bump are allowed. |
 | `prereleases` | `undefined` | A string specifying the prereleases prefix. |
 | `sdkver-create-release-branches` | `false` | For SdkVer versioning scheme only: push a new branch if an RC or release build is performed on a non-release branch. If this config value is boolean `true`, the branch shall be of the form `release/N.N`. If this value is set to a string, it shall be used as the branch name prefix and appended with the major and minor release numbers, e.g. config value  `"rel/"` results in a branch named `rel/N.N`. |
+| `sdkver-max-major` | `0` | For SdkVer versioning scheme only: do not bump major version when breaking changes are found in case the maximum configured major version is already reached. |
 
 > :bulb: By default `commisery-action` will search for the file `.commisery.yml`. 
 You can specify a different file with the `config` input parameter.
