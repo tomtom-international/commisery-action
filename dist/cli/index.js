@@ -32919,6 +32919,7 @@ const CONFIG_ITEMS = [
     "release-branches",
     "prereleases",
     "sdkver-create-release-branches",
+    "sdkver-max-major",
 ];
 const VERSION_SCHEMES = ["semver", "sdkver"];
 /**
@@ -32943,6 +32944,7 @@ class Configuration {
     tags = DEFAULT_ACCEPTED_TAGS;
     rules = new Map();
     sdkverCreateReleaseBranches = undefined;
+    sdkverMaxMajor = 0;
     set initialDevelopment(initialDevelopment) {
         this._initialDevelopment = initialDevelopment;
     }
@@ -33145,11 +33147,23 @@ class Configuration {
                         throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be either "boolean" or "string"!`);
                     }
                     break;
+                case "sdkver-max-major":
+                    /* Example YAML:
+                     *   sdkver-max-major: 1  # defaults to 0
+                     */
+                    if (typeof data[key] === "number") {
+                        this.sdkverMaxMajor = data[key];
+                    }
+                    else {
+                        throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.sdkverMaxMajor}'!`);
+                    }
+                    break;
             }
         }
-        if (this.sdkverCreateReleaseBranches !== undefined &&
+        if ((this.sdkverCreateReleaseBranches !== undefined ||
+            this.sdkverMaxMajor !== 0) &&
             this.versionScheme !== "sdkver") {
-            core.warning("The configuration option `sdkver-create-release-branches` is only relevant " +
+            core.warning("The configuration options `sdkver-create-release-branches` and `sdkver-max-major` are only relevant " +
                 'when the `version-scheme` is set to `"sdkver"`.');
         }
     }
@@ -33186,6 +33200,7 @@ class Configuration {
         config.tags = JSON.parse(JSON.stringify(this.tags));
         config.rules = new Map(JSON.parse(JSON.stringify(Array.from(this.rules))));
         config.sdkverCreateReleaseBranches = this.sdkverCreateReleaseBranches;
+        config.sdkverMaxMajor = this.sdkverMaxMajor;
         return config;
     }
 }

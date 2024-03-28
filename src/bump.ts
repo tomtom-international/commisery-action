@@ -753,7 +753,7 @@ export async function bumpSdkVer(
   createChangelog: boolean
 ): Promise<boolean> {
   const isReleaseBranch = branchName.match(config.releaseBranches) !== null;
-  const hasBreakingChange = bumpInfo.processedCommits.some(
+  let hasBreakingChange = bumpInfo.processedCommits.some(
     c => c.message?.breakingChange
   );
   if (!bumpInfo.foundVersion) return false; // should never happen
@@ -762,6 +762,16 @@ export async function bumpSdkVer(
   config.prereleasePrefix = config.prereleasePrefix ?? "dev";
 
   let cv = SemVer.copy(bumpInfo.foundVersion);
+
+  // Do not bump major version when breaking change is found in case
+  // the max configured major version is already reached
+  if (
+    config.sdkverMaxMajor !== undefined &&
+    config.sdkverMaxMajor > 0 &&
+    cv.major >= config.sdkverMaxMajor
+  ) {
+    hasBreakingChange = false;
+  }
 
   // Get the latest draft release matching our current version's prefix.
   // Don't look at the draft version on a release branch; the current version
