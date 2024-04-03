@@ -32708,8 +32708,7 @@ function getConventionalCommitMetadata(message) {
             body = [message[endOfBody]];
         }
     }
-    const conventionalSubject = CONVENTIONAL_COMMIT_REGEX.exec(message[0])
-        ?.groups;
+    const conventionalSubject = CONVENTIONAL_COMMIT_REGEX.exec(message[0])?.groups;
     if (conventionalSubject === undefined) {
         throw new Error(`Commit is not compliant to Conventional Commits (non-strict)`);
     }

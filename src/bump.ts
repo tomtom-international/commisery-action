@@ -544,10 +544,10 @@ export async function bumpSemVer(
         isBranchAllowedToPublish !== true
           ? `the current branch is not allowed to publish`
           : isPullRequestEvent()
-          ? "we cannot publish from a pull request event"
-          : releaseMode !== "release"
-          ? `we can only do so when the 'create-release' input is provided to be 'true'`
-          : "we didn't think of writing an error message here";
+            ? "we cannot publish from a pull request event"
+            : releaseMode !== "release"
+              ? `we can only do so when the 'create-release' input is provided to be 'true'`
+              : "we didn't think of writing an error message here";
       core.info(`ℹ️ While configured to bump prereleases, ${reason}.`);
     }
   }
