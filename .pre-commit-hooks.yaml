@@ -1,0 +1,6 @@
+- id: commisery
+  name: Commisery - Conventional Commit message validation
+  description: Validates your commits agains the Conventional Commits specification
+  entry: commisery
+  language: node
+  stages: [commit-msg]
