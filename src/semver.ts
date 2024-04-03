@@ -240,8 +240,8 @@ export class SemVer implements ISemVer {
       return lhs === null && rhs !== null
         ? -1
         : rhs === null && lhs !== null
-        ? 1
-        : 0;
+          ? 1
+          : 0;
     }
 
     let allVersionFieldsEqual = false;
