@@ -56,7 +56,7 @@ beforeEach(() => {
     .spyOn(changelog, "generateChangelog")
     .mockResolvedValue(U.CHANGELOG_PLACEHOLDER);
 
-  jest.spyOn(github, "getLatestTags").mockResolvedValue([
+  jest.spyOn(github, "getAllTags").mockResolvedValue([
     {
       name: U.INITIAL_VERSION,
       commitSha: U.BASE_COMMIT.sha,
@@ -254,7 +254,7 @@ describe("Trouble bumping", () => {
   });
 
   test("no matching tags found", async () => {
-    jest.spyOn(github, "getLatestTags").mockResolvedValue([
+    jest.spyOn(github, "getAllTags").mockResolvedValue([
       {
         name: U.INITIAL_VERSION,
         commitSha: "000",
@@ -392,7 +392,7 @@ describe("Initial development", () => {
 
   beforeEach(() => {
     jest.spyOn(fs, "existsSync").mockReturnValue(true);
-    jest.spyOn(github, "getLatestTags").mockResolvedValue([
+    jest.spyOn(github, "getAllTags").mockResolvedValue([
       {
         name: INITIAL_DEVELOPMENT_VERSION,
         commitSha: U.BASE_COMMIT.sha,
@@ -567,7 +567,7 @@ describe("Version prefix handling", () => {
 
   beforeEach(() => {
     jest.spyOn(fs, "existsSync").mockReturnValue(true);
-    jest.spyOn(github, "getLatestTags").mockResolvedValue(TEST_VERSIONS);
+    jest.spyOn(github, "getAllTags").mockResolvedValue(TEST_VERSIONS);
   });
 
   test.each(versionPrefixTests)(
@@ -607,7 +607,7 @@ describe("Version prefix handling", () => {
 
 describe("Process Commits Configuration", () => {
   beforeEach(() => {
-    jest.spyOn(github, "getLatestTags").mockResolvedValue([
+    jest.spyOn(github, "getAllTags").mockResolvedValue([
       {
         name: "1.0.0",
         commitSha: BASE_COMMIT.sha,

@@ -71,7 +71,7 @@ beforeEach(() => {
     .spyOn(changelog, "generateChangelogForCommits")
     .mockResolvedValue(U.CHANGELOG_PLACEHOLDER);
 
-  jest.spyOn(github, "getLatestTags").mockResolvedValue([
+  jest.spyOn(github, "getAllTags").mockResolvedValue([
     {
       name: U.INITIAL_VERSION,
       commitSha: U.BASE_COMMIT.sha,
@@ -137,7 +137,7 @@ const testFunction = async (p: SdkBumpTestParameters) => {
       `version-scheme: "sdkver"\ninitial-development: ${p.initialDevelopment}\nsdkver-max-major: ${p.maxMajor}`
     );
   setInputSpyWith({ "release-type": p.bumpType });
-  jest.spyOn(github, "getLatestTags").mockResolvedValue([
+  jest.spyOn(github, "getAllTags").mockResolvedValue([
     {
       name: p.initialVersion,
       commitSha: U.BASE_COMMIT.sha,
