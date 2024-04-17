@@ -69,7 +69,7 @@ beforeEach(() => {
     .spyOn(changelog, "generateChangelog")
     .mockResolvedValue(U.CHANGELOG_PLACEHOLDER);
 
-  jest.spyOn(github, "getLatestTags").mockResolvedValue([
+  jest.spyOn(github, "getAllTags").mockResolvedValue([
     {
       name: U.INITIAL_VERSION,
       commitSha: U.BASE_COMMIT.sha,
@@ -128,7 +128,7 @@ const testFunction = async (p: SdkBumpTestParameters) => {
   );
   const prTitle = U.PRTITLE("chore");
   setInputSpyWith({ "release-type": p.bumpType });
-  jest.spyOn(github, "getLatestTags").mockResolvedValue([
+  jest.spyOn(github, "getAllTags").mockResolvedValue([
     {
       name: p.initialVersion,
       commitSha: U.BASE_COMMIT.sha,
