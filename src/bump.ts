@@ -26,7 +26,7 @@ import {
   currentHeadMatchesTag,
   getCommitsBetweenRefs,
   getRunNumber,
-  getLatestTags,
+  getAllTags,
   getRelease,
   getShaForTag,
   isPullRequestEvent,
@@ -45,7 +45,6 @@ import {
 } from "./interfaces";
 import { outputCommitListErrors, processCommits } from "./validate";
 
-const PAGE_SIZE = 100;
 const RC_PREFIX = "rc";
 
 /**
@@ -142,9 +141,10 @@ export function getVersionBumpType(
 }
 
 /**
- * Within the current context, examine the last PAGE_SIZE commits reachable
- * from `context.sha`, as well as the last PAGE_SIZE tags in the repo.
- * Each commit shall be tried to be matched to any of the tags found.
+ * Within the current context, examine all commits reachable from from `context.sha`
+ * and match them to _all_ the tags found in the repo.
+ * Each commit shall be tried to be matched to any of the tags found in chronological
+ * order (i.e. the time the tag was pushed).
  * The closest tag that is SemVer-compatible and matches the `prefix` value as
  * configured in the `config` object shall be returned as a SemVer object, and
  * the highest bump type encountered in the commits _since_ that tag shall be returned.
@@ -169,9 +169,9 @@ export async function getVersionBumpTypeAndMessages(
   targetSha: string,
   config: Configuration
 ): Promise<IVersionBumpTypeAndMessages> {
-  core.debug(`Fetching last ${PAGE_SIZE} tags from ${targetSha}..`);
-  const tags = await getLatestTags(PAGE_SIZE);
-  core.debug("Fetch complete");
+  core.debug("Fetching repository tags..");
+  const tags = await getAllTags();
+  core.debug(`Fetch complete; found ${tags.length} tags`);
   const tagMatcher = (commitSha: string): SemVer | null => {
     // Try and match this commit's hash to one of the tags in `tags`
     for (const tag of tags) {
@@ -186,9 +186,8 @@ export async function getVersionBumpTypeAndMessages(
         commitSha
       );
       if (semVer) {
-        // We've found a tag that matches to this commit. Now, we need to
-        // make sure that we return the _highest_ version tag_ associated with
-        // this commit
+        // We've found a tag that matches to this commit. Now, we need to make sure that
+        // we return the _highest_ version tag associated with this commit.
         core.debug(
           `Matching tag found (${tag.name}), checking other tags for commit ${commitSha}..`
         );

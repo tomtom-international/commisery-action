@@ -355,10 +355,10 @@ export async function getShaForTag(tag: string): Promise<string | undefined> {
 }
 
 /**
- * Retrieve `pageSize` tags in the current repo
+ * Retrieve all tags in the current repo
  */
-export async function getLatestTags(pageSize: number): Promise<IGitTag[]> {
-  interface graphqlTagItem {
+export async function getAllTags(): Promise<IGitTag[]> {
+  interface GraphqlTagItem {
     node: {
       name: string;
       reftarget: {
@@ -371,28 +371,42 @@ export async function getLatestTags(pageSize: number): Promise<IGitTag[]> {
     };
   }
 
-  interface graphqlQueryResult {
+  interface GraphqlQueryResult {
     repository: {
       refs: {
-        edges: graphqlTagItem[];
+        pageInfo: {
+          hasNextPage: boolean;
+          endCursor: string;
+        };
+        edges: GraphqlTagItem[];
       };
     };
   }
 
-  const result: graphqlQueryResult = await getOctokit().graphql(`
+  let hasNextPage = true;
+  let endCursor: string | null = null;
+  const allTags: IGitTag[] = [];
+
+  while (hasNextPage) {
+    const result: GraphqlQueryResult = await getOctokit().graphql(`
       {
         repository(owner: "${github.context.repo.owner}", name: "${github.context.repo.repo}") {
           refs(
             refPrefix: "refs/tags/"
-            first: ${pageSize}
+            first: 100
             orderBy: {field: TAG_COMMIT_DATE, direction: DESC}
+            after: "${endCursor}"
           ) {
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
             edges {
               node {
                 name
                 reftarget: target {
                   ... on Commit {
-                    commitsha:oid
+                    commitsha: oid
                   }
                   ... on Tag {
                     tagtarget: target { commitsha: oid }
@@ -405,17 +419,22 @@ export async function getLatestTags(pageSize: number): Promise<IGitTag[]> {
       }
     `);
 
-  const tagList: IGitTag[] = result.repository.refs.edges.map(
-    x =>
-      ({
-        name: x.node.name,
-        commitSha: x.node.reftarget.tagtarget
-          ? x.node.reftarget.tagtarget.commitsha
-          : x.node.reftarget.commitsha,
-      }) as IGitTag
-  );
+    const pageTags: IGitTag[] = result.repository.refs.edges.map(
+      x =>
+        ({
+          name: x.node.name,
+          commitSha: x.node.reftarget.tagtarget
+            ? x.node.reftarget.tagtarget.commitsha
+            : x.node.reftarget.commitsha,
+        }) as IGitTag
+    );
 
-  return tagList;
+    allTags.push(...pageTags);
+    hasNextPage = result.repository.refs.pageInfo.hasNextPage;
+    endCursor = result.repository.refs.pageInfo.endCursor;
+  }
+
+  return allTags;
 }
 
 /**

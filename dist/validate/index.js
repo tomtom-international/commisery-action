@@ -31237,7 +31237,6 @@ const github_1 = __nccwpck_require__(978);
 const semver_1 = __nccwpck_require__(8593);
 const errors_1 = __nccwpck_require__(6976);
 const validate_1 = __nccwpck_require__(4953);
-const PAGE_SIZE = 100;
 const RC_PREFIX = "rc";
 /**
  * Return the first eight characters of a string.
@@ -31313,9 +31312,10 @@ function getVersionBumpType(messages) {
 }
 exports.getVersionBumpType = getVersionBumpType;
 /**
- * Within the current context, examine the last PAGE_SIZE commits reachable
- * from `context.sha`, as well as the last PAGE_SIZE tags in the repo.
- * Each commit shall be tried to be matched to any of the tags found.
+ * Within the current context, examine all commits reachable from from `context.sha`
+ * and match them to _all_ the tags found in the repo.
+ * Each commit shall be tried to be matched to any of the tags found in chronological
+ * order (i.e. the time the tag was pushed).
  * The closest tag that is SemVer-compatible and matches the `prefix` value as
  * configured in the `config` object shall be returned as a SemVer object, and
  * the highest bump type encountered in the commits _since_ that tag shall be returned.
@@ -31337,9 +31337,9 @@ exports.getVersionBumpType = getVersionBumpType;
                    safe side and declare "initial development" (if configured as such)
  */
 async function getVersionBumpTypeAndMessages(targetSha, config) {
-    core.debug(`Fetching last ${PAGE_SIZE} tags from ${targetSha}..`);
-    const tags = await (0, github_1.getLatestTags)(PAGE_SIZE);
-    core.debug("Fetch complete");
+    core.debug("Fetching repository tags..");
+    const tags = await (0, github_1.getAllTags)();
+    core.debug(`Fetch complete; found ${tags.length} tags`);
     const tagMatcher = (commitSha) => {
         // Try and match this commit's hash to one of the tags in `tags`
         for (const tag of tags) {
@@ -31347,9 +31347,8 @@ async function getVersionBumpTypeAndMessages(targetSha, config) {
             core.debug(`Considering tag ${tag.name} (${tag.commitSha}) on ${commitSha}`);
             semVer = getSemVerIfMatches(config.versionPrefix, tag.name, tag.commitSha, commitSha);
             if (semVer) {
-                // We've found a tag that matches to this commit. Now, we need to
-                // make sure that we return the _highest_ version tag_ associated with
-                // this commit
+                // We've found a tag that matches to this commit. Now, we need to make sure that
+                // we return the _highest_ version tag associated with this commit.
                 core.debug(`Matching tag found (${tag.name}), checking other tags for commit ${commitSha}..`);
                 const matchTags = tags.filter(t => t.commitSha === commitSha);
                 if (matchTags.length > 1) {
@@ -32933,7 +32932,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.createBranch = exports.getCommitsBetweenRefs = exports.currentHeadMatchesTag = exports.getContent = exports.updateLabels = exports.getAssociatedPullRequests = exports.getLatestTags = exports.getShaForTag = exports.matchTagsToCommits = exports.getReleaseConfiguration = exports.getConfig = exports.createTag = exports.updateDraftRelease = exports.getRelease = exports.createRelease = exports.getPullRequest = exports.getCommitsInPR = exports.getPullRequestTitle = exports.getRunNumber = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
+exports.createBranch = exports.getCommitsBetweenRefs = exports.currentHeadMatchesTag = exports.getContent = exports.updateLabels = exports.getAssociatedPullRequests = exports.getAllTags = exports.getShaForTag = exports.matchTagsToCommits = exports.getReleaseConfiguration = exports.getConfig = exports.createTag = exports.updateDraftRelease = exports.getRelease = exports.createRelease = exports.getPullRequest = exports.getCommitsInPR = exports.getPullRequestTitle = exports.getRunNumber = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const fs = __importStar(__nccwpck_require__(7147));
 const github = __importStar(__nccwpck_require__(5438));
@@ -33200,23 +33199,32 @@ async function getShaForTag(tag) {
 }
 exports.getShaForTag = getShaForTag;
 /**
- * Retrieve `pageSize` tags in the current repo
+ * Retrieve all tags in the current repo
  */
-async function getLatestTags(pageSize) {
-    const result = await getOctokit().graphql(`
+async function getAllTags() {
+    let hasNextPage = true;
+    let endCursor = null;
+    const allTags = [];
+    while (hasNextPage) {
+        const result = await getOctokit().graphql(`
       {
         repository(owner: "${github.context.repo.owner}", name: "${github.context.repo.repo}") {
           refs(
             refPrefix: "refs/tags/"
-            first: ${pageSize}
+            first: 100
             orderBy: {field: TAG_COMMIT_DATE, direction: DESC}
+            after: "${endCursor}"
           ) {
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
             edges {
               node {
                 name
                 reftarget: target {
                   ... on Commit {
-                    commitsha:oid
+                    commitsha: oid
                   }
                   ... on Tag {
                     tagtarget: target { commitsha: oid }
@@ -33228,15 +33236,19 @@ async function getLatestTags(pageSize) {
         }
       }
     `);
-    const tagList = result.repository.refs.edges.map(x => ({
-        name: x.node.name,
-        commitSha: x.node.reftarget.tagtarget
-            ? x.node.reftarget.tagtarget.commitsha
-            : x.node.reftarget.commitsha,
-    }));
-    return tagList;
+        const pageTags = result.repository.refs.edges.map(x => ({
+            name: x.node.name,
+            commitSha: x.node.reftarget.tagtarget
+                ? x.node.reftarget.tagtarget.commitsha
+                : x.node.reftarget.commitsha,
+        }));
+        allTags.push(...pageTags);
+        hasNextPage = result.repository.refs.pageInfo.hasNextPage;
+        endCursor = result.repository.refs.pageInfo.endCursor;
+    }
+    return allTags;
 }
-exports.getLatestTags = getLatestTags;
+exports.getAllTags = getAllTags;
 /**
  * Retrieve the Pull Requests associated with the specified commit SHA
  */
