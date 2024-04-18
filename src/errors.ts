@@ -28,15 +28,22 @@ export class ConventionalCommitError extends Error {
 
 export class MergeCommitError extends Error {
   constructor() {
-    super("Commit Message is a 'merge' commit!");
+    super("Commit message describes a 'merge' commit!");
     this.name = "MergeCommitError";
   }
 }
 
 export class FixupCommitError extends Error {
   constructor() {
-    super("Commit Message is a 'fixup' commit!");
+    super("Commit message describes a 'fixup' commit!");
     this.name = "FixupCommitError";
+  }
+}
+
+export class RevertCommitError extends Error {
+  constructor() {
+    super("Commit message describes a 'revert' commit!");
+    this.name = "RevertCommitError";
   }
 }
 

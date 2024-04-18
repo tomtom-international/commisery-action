@@ -20,6 +20,7 @@ import {
   ConventionalCommitError,
   FixupCommitError,
   MergeCommitError,
+  RevertCommitError,
 } from "./errors";
 import { SemVerType } from "./semver";
 
@@ -178,13 +179,17 @@ export class ConventionalCommitMessage {
   ) {
     const splitMessage: string[] = stripMessage(message).split(os.EOL);
 
-    // Skip Mere and Fixup commits
+    // Skip merge-, fixup- and revert-commits
     if (isMerge(splitMessage[0])) {
       throw new MergeCommitError();
     }
 
     if (isFixup(splitMessage[0])) {
       throw new FixupCommitError();
+    }
+
+    if (isRevert(splitMessage[0])) {
+      throw new RevertCommitError();
     }
 
     this.hexsha = hexsha;
@@ -257,13 +262,15 @@ export class ConventionalCommitMessage {
 }
 
 function isFixup(subject: string): boolean {
-  const AUTOSQUASH_REGEX = /^(?:(?:fixup|squash)!\s+)+/;
-  return AUTOSQUASH_REGEX.test(subject);
+  return /^(?:(?:fixup|squash)!\s+)+/.test(subject);
 }
 
 function isMerge(subject: string): boolean {
-  const MERGE_REGEX = /^Merge.*?:?[\s\t]*?/;
-  return MERGE_REGEX.test(subject);
+  return /^Merge.*?:?[\s\t]*?/.test(subject);
+}
+
+function isRevert(subject: string): boolean {
+  return subject.startsWith('Revert "');
 }
 
 function stripMessage(message: string): string {
