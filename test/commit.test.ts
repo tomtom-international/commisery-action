@@ -22,6 +22,7 @@ import {
   ConventionalCommitError,
   FixupCommitError,
   MergeCommitError,
+  RevertCommitError,
 } from "../src/errors";
 
 // Validate non-compliant Commit Messages
@@ -37,6 +38,12 @@ describe("Non-compliant Commit Messages", () => {
     expect(() => {
       new ConventionalCommitMessage("fixup! feat: add new feature");
     }).toThrow(FixupCommitError);
+  });
+
+  test("Revert commit", () => {
+    expect(() => {
+      new ConventionalCommitMessage('Revert "feat: add new feature"');
+    }).toThrow(RevertCommitError);
   });
 
   test("Non-Conventional Commit message", () => {

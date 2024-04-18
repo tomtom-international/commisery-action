@@ -30,6 +30,7 @@ import {
   ConventionalCommitError,
   FixupCommitError,
   MergeCommitError,
+  RevertCommitError,
 } from "./errors";
 
 interface ValidationResult {
@@ -124,7 +125,8 @@ export function processCommits(
         continue;
       } else if (
         error instanceof MergeCommitError ||
-        error instanceof FixupCommitError
+        error instanceof FixupCommitError ||
+        error instanceof RevertCommitError
       ) {
         continue;
       }
@@ -204,6 +206,15 @@ export async function validatePrTitle(
       } commit)`;
       core.setFailed(errorMessage);
       return undefined;
+    } else if (error instanceof RevertCommitError) {
+      // We'll allow revert commit-like PR titles, as they are the default for
+      // GitHub's "Revert" button.
+      core.startGroup(
+        "The pull request title describes a revert, which is allowed."
+      );
+      core.info(prTitleText);
+      core.endGroup();
+      return new ConventionalCommitMessage("revert: placeholder");
     } else {
       throw error;
     }
@@ -241,6 +252,14 @@ export async function validatePrTitleBump(
     return false;
   }
 
+  // Special-case revert PR titles, as they are likely to contain zero conventional commits.
+  if (prTitle.type === "revert") {
+    core.info(
+      "⚠️ The pull request title describes a revert; skipping PR title bump check."
+    );
+    return true;
+  }
+
   if (commits.length === 0) {
     core.warning("No commits found in this pull request.");
     return true;
@@ -259,11 +278,13 @@ export async function validatePrTitleBump(
   }
 
   const highestBump: SemVerType =
-    results.reduce((acc, val) => {
-      const accb = acc.message?.bump ?? SemVerType.NONE;
-      const valb = val.message?.bump ?? SemVerType.NONE;
-      return accb > valb ? acc : val;
-    }).message?.bump ?? SemVerType.NONE;
+    results.length > 0
+      ? results.reduce((acc, val) => {
+          const accb = acc.message?.bump ?? SemVerType.NONE;
+          const valb = val.message?.bump ?? SemVerType.NONE;
+          return accb > valb ? acc : val;
+        }).message?.bump ?? SemVerType.NONE
+      : SemVerType.NONE;
 
   if (highestBump !== prTitle.bump) {
     const commitSubjects = results

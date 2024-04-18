@@ -32400,12 +32400,15 @@ class ConventionalCommitMessage {
     type;
     constructor(message, hexsha = undefined, config = new config_1.Configuration()) {
         const splitMessage = stripMessage(message).split(os.EOL);
-        // Skip Mere and Fixup commits
+        // Skip merge-, fixup- and revert-commits
         if (isMerge(splitMessage[0])) {
             throw new errors_1.MergeCommitError();
         }
         if (isFixup(splitMessage[0])) {
             throw new errors_1.FixupCommitError();
+        }
+        if (isRevert(splitMessage[0])) {
+            throw new errors_1.RevertCommitError();
         }
         this.hexsha = hexsha;
         this.config = config;
@@ -32459,12 +32462,13 @@ class ConventionalCommitMessage {
 }
 exports.ConventionalCommitMessage = ConventionalCommitMessage;
 function isFixup(subject) {
-    const AUTOSQUASH_REGEX = /^(?:(?:fixup|squash)!\s+)+/;
-    return AUTOSQUASH_REGEX.test(subject);
+    return /^(?:(?:fixup|squash)!\s+)+/.test(subject);
 }
 function isMerge(subject) {
-    const MERGE_REGEX = /^Merge.*?:?[\s\t]*?/;
-    return MERGE_REGEX.test(subject);
+    return /^Merge.*?:?[\s\t]*?/.test(subject);
+}
+function isRevert(subject) {
+    return subject.startsWith('Revert "');
 }
 function stripMessage(message) {
     const cutLine = message.indexOf("# ------------------------ >8 ------------------------\n");
@@ -32895,7 +32899,7 @@ exports._testData = {
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.BumpError = exports.FixupCommitError = exports.MergeCommitError = exports.ConventionalCommitError = void 0;
+exports.BumpError = exports.RevertCommitError = exports.FixupCommitError = exports.MergeCommitError = exports.ConventionalCommitError = void 0;
 class ConventionalCommitError extends Error {
     errors;
     constructor(message, errors) {
@@ -32907,18 +32911,25 @@ class ConventionalCommitError extends Error {
 exports.ConventionalCommitError = ConventionalCommitError;
 class MergeCommitError extends Error {
     constructor() {
-        super("Commit Message is a 'merge' commit!");
+        super("Commit message describes a 'merge' commit!");
         this.name = "MergeCommitError";
     }
 }
 exports.MergeCommitError = MergeCommitError;
 class FixupCommitError extends Error {
     constructor() {
-        super("Commit Message is a 'fixup' commit!");
+        super("Commit message describes a 'fixup' commit!");
         this.name = "FixupCommitError";
     }
 }
 exports.FixupCommitError = FixupCommitError;
+class RevertCommitError extends Error {
+    constructor() {
+        super("Commit message describes a 'revert' commit!");
+        this.name = "RevertCommitError";
+    }
+}
+exports.RevertCommitError = RevertCommitError;
 class BumpError extends Error {
     constructor(msg) {
         super(`Error while applying version bump: ${msg}`);
@@ -34694,7 +34705,8 @@ function processCommits(commits, config) {
                 continue;
             }
             else if (error instanceof errors_1.MergeCommitError ||
-                error instanceof errors_1.FixupCommitError) {
+                error instanceof errors_1.FixupCommitError ||
+                error instanceof errors_1.RevertCommitError) {
                 continue;
             }
             throw error;
@@ -34755,6 +34767,14 @@ async function validatePrTitle(_) {
             core.setFailed(errorMessage);
             return undefined;
         }
+        else if (error instanceof errors_1.RevertCommitError) {
+            // We'll allow revert commit-like PR titles, as they are the default for
+            // GitHub's "Revert" button.
+            core.startGroup("The pull request title describes a revert, which is allowed.");
+            core.info(prTitleText);
+            core.endGroup();
+            return new commit_1.ConventionalCommitMessage("revert: placeholder");
+        }
         else {
             throw error;
         }
@@ -34784,6 +34804,11 @@ async function validatePrTitleBump(config) {
         core.warning(`${baseError}, as PR title is not a valid Conventional Commits message.`);
         return false;
     }
+    // Special-case revert PR titles, as they are likely to contain zero conventional commits.
+    if (prTitle.type === "revert") {
+        core.info("⚠️ The pull request title describes a revert; skipping PR title bump check.");
+        return true;
+    }
     if (commits.length === 0) {
         core.warning("No commits found in this pull request.");
         return true;
@@ -34797,11 +34822,13 @@ async function validatePrTitleBump(config) {
         core.warning(`${baseError}, as the PR contains non-compliant commits`);
         return false;
     }
-    const highestBump = results.reduce((acc, val) => {
-        const accb = acc.message?.bump ?? semver_1.SemVerType.NONE;
-        const valb = val.message?.bump ?? semver_1.SemVerType.NONE;
-        return accb > valb ? acc : val;
-    }).message?.bump ?? semver_1.SemVerType.NONE;
+    const highestBump = results.length > 0
+        ? results.reduce((acc, val) => {
+            const accb = acc.message?.bump ?? semver_1.SemVerType.NONE;
+            const valb = val.message?.bump ?? semver_1.SemVerType.NONE;
+            return accb > valb ? acc : val;
+        }).message?.bump ?? semver_1.SemVerType.NONE
+        : semver_1.SemVerType.NONE;
     if (highestBump !== prTitle.bump) {
         const commitSubjects = results
             .map(r => r.message?.subject)

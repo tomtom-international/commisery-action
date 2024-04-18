@@ -33590,12 +33590,15 @@ class ConventionalCommitMessage {
     type;
     constructor(message, hexsha = undefined, config = new config_1.Configuration()) {
         const splitMessage = stripMessage(message).split(os.EOL);
-        // Skip Mere and Fixup commits
+        // Skip merge-, fixup- and revert-commits
         if (isMerge(splitMessage[0])) {
             throw new errors_1.MergeCommitError();
         }
         if (isFixup(splitMessage[0])) {
             throw new errors_1.FixupCommitError();
+        }
+        if (isRevert(splitMessage[0])) {
+            throw new errors_1.RevertCommitError();
         }
         this.hexsha = hexsha;
         this.config = config;
@@ -33649,12 +33652,13 @@ class ConventionalCommitMessage {
 }
 exports.ConventionalCommitMessage = ConventionalCommitMessage;
 function isFixup(subject) {
-    const AUTOSQUASH_REGEX = /^(?:(?:fixup|squash)!\s+)+/;
-    return AUTOSQUASH_REGEX.test(subject);
+    return /^(?:(?:fixup|squash)!\s+)+/.test(subject);
 }
 function isMerge(subject) {
-    const MERGE_REGEX = /^Merge.*?:?[\s\t]*?/;
-    return MERGE_REGEX.test(subject);
+    return /^Merge.*?:?[\s\t]*?/.test(subject);
+}
+function isRevert(subject) {
+    return subject.startsWith('Revert "');
 }
 function stripMessage(message) {
     const cutLine = message.indexOf("# ------------------------ >8 ------------------------\n");
@@ -34085,7 +34089,7 @@ exports._testData = {
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.BumpError = exports.FixupCommitError = exports.MergeCommitError = exports.ConventionalCommitError = void 0;
+exports.BumpError = exports.RevertCommitError = exports.FixupCommitError = exports.MergeCommitError = exports.ConventionalCommitError = void 0;
 class ConventionalCommitError extends Error {
     errors;
     constructor(message, errors) {
@@ -34097,18 +34101,25 @@ class ConventionalCommitError extends Error {
 exports.ConventionalCommitError = ConventionalCommitError;
 class MergeCommitError extends Error {
     constructor() {
-        super("Commit Message is a 'merge' commit!");
+        super("Commit message describes a 'merge' commit!");
         this.name = "MergeCommitError";
     }
 }
 exports.MergeCommitError = MergeCommitError;
 class FixupCommitError extends Error {
     constructor() {
-        super("Commit Message is a 'fixup' commit!");
+        super("Commit message describes a 'fixup' commit!");
         this.name = "FixupCommitError";
     }
 }
 exports.FixupCommitError = FixupCommitError;
+class RevertCommitError extends Error {
+    constructor() {
+        super("Commit message describes a 'revert' commit!");
+        this.name = "RevertCommitError";
+    }
+}
+exports.RevertCommitError = RevertCommitError;
 class BumpError extends Error {
     constructor(msg) {
         super(`Error while applying version bump: ${msg}`);

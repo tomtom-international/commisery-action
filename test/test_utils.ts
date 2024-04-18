@@ -32,6 +32,7 @@ export const NONE_MSG2 = toICommit(
   "refactor: make something easier to maintain"
 );
 export const NONE_MSG3 = toICommit("build: make something more efficiently");
+export const REVERT_MSG = toICommit('Revert "perf: make something faster"');
 export const PRTITLE = (type_: string) => `${type_}: simple PR title`;
 
 export const INITIAL_VERSION = "1.2.3";
@@ -45,6 +46,7 @@ export const BASE_COMMIT = { message: "chore: base commit", sha: "f00dcafe" };
 export const CHANGELOG_PLACEHOLDER = "CHANGELOG_PLACEHOLDER";
 
 export const DEFAULT_COMMIT_LIST = [
+  REVERT_MSG,
   NONE_MSG1,
   NONE_MSG2,
   NONE_MSG3,
