@@ -173,9 +173,13 @@ const testFunction = async (p: SdkBumpTestParameters) => {
       U.HEAD_SHA,
       U.CHANGELOG_PLACEHOLDER,
       p.expectedVersion.includes("-dev"), // draft
-      p.expectedVersion.includes("-rc") // prerelease
+      p.expectedVersion.includes("-rc"), // prerelease
+      undefined
     );
-    expect(core.setOutput).toBeCalledWith("next-version", p.expectedVersion);
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "next-version",
+      p.expectedVersion
+    );
     expect(core.error).not.toHaveBeenCalled();
     expect(core.setFailed).not.toHaveBeenCalled();
   } else {
@@ -187,7 +191,10 @@ const testFunction = async (p: SdkBumpTestParameters) => {
       expect(github.createRelease).not.toHaveBeenCalled();
     }
   }
-  expect(core.setOutput).toBeCalledWith("current-version", p.initialVersion);
+  expect(core.setOutput).toHaveBeenCalledWith(
+    "current-version",
+    p.initialVersion
+  );
 };
 
 // prettier-ignore
@@ -465,7 +472,8 @@ describe("Create changelog", () => {
         U.HEAD_SHA,
         U.CHANGELOG_PLACEHOLDER,
         false,
-        false
+        false,
+        undefined
       );
     } else {
       expect(changelog.generateChangelog).not.toHaveBeenCalled();
@@ -475,7 +483,8 @@ describe("Create changelog", () => {
         U.HEAD_SHA,
         "",
         false,
-        false
+        false,
+        undefined
       );
     }
   });

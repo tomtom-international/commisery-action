@@ -31517,7 +31517,7 @@ function printNonCompliance(commits) {
     }
 }
 exports.printNonCompliance = printNonCompliance;
-async function publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish, updateDraftId) {
+async function publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish, discussionCategoryName, updateDraftId) {
     const nv = nextVersion.toString();
     core.info(`ℹ️ Next version: ${nv}`);
     core.setOutput("next-version", nv);
@@ -31553,7 +31553,7 @@ async function publishBump(nextVersion, releaseMode, headSha, changelog, isBranc
                     }
                 }
                 if (!updated) {
-                    await (0, github_1.createRelease)(nv, headSha, changelog, isDev, isRc);
+                    await (0, github_1.createRelease)(nv, headSha, changelog, isDev, isRc, discussionCategoryName);
                 }
             }
         }
@@ -31623,7 +31623,7 @@ async function bumpSemVer(config, bumpInfo, releaseMode, branchName, headSha, is
         if (buildMetadata) {
             nextVersion.build = buildMetadata;
         }
-        bumped = await publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish);
+        bumped = await publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish, config.releaseDiscussionCategory);
     }
     else {
         core.info("ℹ️ No bump necessary");
@@ -31894,7 +31894,7 @@ async function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha
                 changelog = await (0, changelog_1.generateChangelog)(bumpInfo);
             }
         }
-        bumped = await publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish, 
+        bumped = await publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish, config.releaseDiscussionCategory, 
         // Re-use the latest draft release only when not running on a release branch,
         // otherwise we might randomly reset a `dev-N` number chain.
         !isReleaseBranch ? latestDraft?.id : undefined);
@@ -32582,6 +32582,7 @@ const CONFIG_ITEMS = [
     "version-prefix",
     "version-scheme",
     "release-branches",
+    "release-discussion-category",
     "prereleases",
     "sdkver-create-release-branches",
     "sdkver-max-major",
@@ -32603,6 +32604,7 @@ class Configuration {
     allowedBranches = ".*";
     maxSubjectLength = 80;
     releaseBranches = /^release\/.*\d+\.\d+\.*$/;
+    releaseDiscussionCategory = undefined;
     versionPrefix = "*";
     versionScheme = "semver";
     prereleasePrefix = undefined;
@@ -32772,6 +32774,18 @@ class Configuration {
                         throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.releaseBranches}'!`);
                     }
                     break;
+                case "release-discussion-category":
+                    /* Example YAML:
+                     *   release-discussion-category: ""
+                     *   release-discussion-category: "release notes"
+                     */
+                    if (typeof data[key] === "string") {
+                        this.releaseDiscussionCategory = data[key];
+                    }
+                    else {
+                        throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.releaseDiscussionCategory}'!`);
+                    }
+                    break;
                 case "initial-development":
                     /* Example YAML:
                      *   initial-development: true
@@ -32860,6 +32874,7 @@ class Configuration {
         config.allowedBranches = this.allowedBranches;
         config.maxSubjectLength = this.maxSubjectLength;
         config.releaseBranches = this.releaseBranches;
+        config.releaseDiscussionCategory = this.releaseDiscussionCategory;
         config.versionScheme = this.versionScheme;
         config.prereleasePrefix = this.prereleasePrefix;
         config.tags = JSON.parse(JSON.stringify(this.tags));
@@ -33071,13 +33086,16 @@ exports.getPullRequest = getPullRequest;
  * @param commitish The commitish (ref, sha, ..) the release shall be made from
  * @param body The release's text description
  * @param draft Create this release as a 'draft' release
+ * @param prerelease Create this release as a prerelease
+ * @param discussionCategory Create this release with link to this discussion category
  */
-async function createRelease(tagName, commitish, body, draft, prerelease) {
+async function createRelease(tagName, commitish, body, draft, prerelease, discussionCategory) {
     await getOctokit().rest.repos.createRelease({
         ...github.context.repo,
         tag_name: tagName,
         target_commitish: commitish,
         name: tagName,
+        discussion_category_name: discussionCategory,
         body,
         draft,
         prerelease,
