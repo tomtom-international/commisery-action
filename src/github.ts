@@ -47,13 +47,6 @@ function githubCommitsAsICommits(
 }
 
 /**
- * Returns whether we are running in context of a Merge Group event
- */
-export function isMergeGroupEvent(): boolean {
-  return github.context.eventName === "merge_group";
-}
-
-/**
  * Returns whether we are running in context of a Pull Request event
  */
 export function isPullRequestEvent(): boolean {
