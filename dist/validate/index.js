@@ -31149,8 +31149,8 @@ async function determineLabels(conventionalCommits, config) {
  */
 async function run() {
     try {
-        if (!(0, github_1.isPullRequestEvent)() && !(0, github_1.isMergeGroupEvent)()) {
-            core.warning("Conventional Commit Message validation requires a workflow using the `pull_request` or `merge_group` trigger!");
+        if (!(0, github_1.isPullRequestEvent)()) {
+            core.warning("Conventional Commit Message validation requires a workflow using the `pull_request` trigger!");
             return;
         }
         await (0, github_1.getConfig)(core.getInput("config"));
@@ -32943,7 +32943,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.createBranch = exports.getCommitsBetweenRefs = exports.currentHeadMatchesTag = exports.getContent = exports.updateLabels = exports.getAssociatedPullRequests = exports.getAllTags = exports.getShaForTag = exports.matchTagsToCommits = exports.getReleaseConfiguration = exports.getConfig = exports.createTag = exports.updateDraftRelease = exports.getRelease = exports.createRelease = exports.getPullRequest = exports.getCommitsInPR = exports.getPullRequestTitle = exports.getRunNumber = exports.getPullRequestId = exports.isPullRequestEvent = exports.isMergeGroupEvent = void 0;
+exports.createBranch = exports.getCommitsBetweenRefs = exports.currentHeadMatchesTag = exports.getContent = exports.updateLabels = exports.getAssociatedPullRequests = exports.getAllTags = exports.getShaForTag = exports.matchTagsToCommits = exports.getReleaseConfiguration = exports.getConfig = exports.createTag = exports.updateDraftRelease = exports.getRelease = exports.createRelease = exports.getPullRequest = exports.getCommitsInPR = exports.getPullRequestTitle = exports.getRunNumber = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const fs = __importStar(__nccwpck_require__(7147));
 const github = __importStar(__nccwpck_require__(5438));
@@ -32968,13 +32968,6 @@ function githubCommitsAsICommits(commits) {
         };
     });
 }
-/**
- * Returns whether we are running in context of a Merge Group event
- */
-function isMergeGroupEvent() {
-    return github.context.eventName === "merge_group";
-}
-exports.isMergeGroupEvent = isMergeGroupEvent;
 /**
  * Returns whether we are running in context of a Pull Request event
  */
