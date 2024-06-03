@@ -31149,25 +31149,33 @@ async function determineLabels(conventionalCommits, config) {
  */
 async function run() {
     try {
-        if (!(0, github_1.isPullRequestEvent)() && !(0, github_1.isMergeGroupEvent)()) {
-            core.warning("Conventional Commit Message validation requires a workflow using the `pull_request` or `merge_group` trigger!");
-            return;
-        }
         await (0, github_1.getConfig)(core.getInput("config"));
         const config = new config_1.Configuration(".commisery.yml");
         let compliant = true;
         if (core.getBooleanInput("validate-commits")) {
+            if (!(0, github_1.isPullRequestEvent)() && !(0, github_1.isMergeGroupEvent)()) {
+                core.warning("Conventional Commit Message validation requires a workflow using the `pull_request` or `merge_group` trigger!");
+                return;
+            }
             // Validate the current PR's commit messages
             const result = await (0, validate_1.validateCommitsInCurrentPR)(config);
             compliant &&= result.compliant;
             await (0, github_1.updateLabels)(await determineLabels(result.messages, config));
         }
         if (core.getBooleanInput("validate-pull-request-title-bump")) {
+            if (!(0, github_1.isPullRequestEvent)()) {
+                core.warning("Conventional Commit Pull Request title bump level validation requires a workflow using the `pull_request` trigger!");
+                return;
+            }
             const ok = await (0, validate_1.validatePrTitleBump)(config);
             compliant &&= ok;
             // Validating the PR title bump level implies validating the title itself
         }
         else if (core.getBooleanInput("validate-pull-request")) {
+            if (!(0, github_1.isPullRequestEvent)()) {
+                core.warning("Conventional Commit Pull Request title validation requires a workflow using the `pull_request` trigger!");
+                return;
+            }
             const ok = (await (0, validate_1.validatePrTitle)(config)) !== undefined;
             compliant &&= ok;
         }
