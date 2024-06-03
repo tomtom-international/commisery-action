@@ -33,7 +33,7 @@ You can use the CLI as a hook in Git to check messages you wrote by creating a `
 
 ```sh
 #!/bin/sh
-exec commisery "$@"
+exec commisery check "$@"
 ```
 
 ## Configuration overview
