@@ -69,7 +69,7 @@ The below table indicates the behavior when creating a Development Release:
 | `0.1.0`         | Non-breaking change | `0.2.0-dev001` |
 | `0.2.0-dev001`  | Non-breaking change | `0.2.0-dev002` |
 | `0.1.0`         | Breaking Change     | `1.0.0-dev001` |
-| `0.2.0-dev001`  | Breaking change     | `1.0.0-dev002` |
+| `0.2.0-dev001`  | Breaking change     | `0.2.0-dev002` |
 
 
 ### Release Candidates
