@@ -64,17 +64,17 @@ async function determineLabels(
  */
 export async function run(): Promise<void> {
   try {
-    if (!isPullRequestEvent() && !isMergeGroupEvent()) {
-      core.warning(
-        "Conventional Commit Message validation requires a workflow using the `pull_request` or `merge_group` trigger!"
-      );
-      return;
-    }
     await getConfig(core.getInput("config"));
     const config = new Configuration(".commisery.yml");
     let compliant = true;
 
     if (core.getBooleanInput("validate-commits")) {
+      if (!isPullRequestEvent() && !isMergeGroupEvent()) {
+        core.warning(
+          "Conventional Commit Message validation requires a workflow using the `pull_request` or `merge_group` trigger!"
+        );
+        return;
+      }
       // Validate the current PR's commit messages
       const result = await validateCommitsInCurrentPR(config);
       compliant &&= result.compliant;
@@ -82,11 +82,23 @@ export async function run(): Promise<void> {
     }
 
     if (core.getBooleanInput("validate-pull-request-title-bump")) {
+      if (!isPullRequestEvent()) {
+        core.warning(
+          "Conventional Commit Pull Request title bump level validation requires a workflow using the `pull_request` trigger!"
+        );
+        return;
+      }
       const ok = await validatePrTitleBump(config);
       compliant &&= ok;
 
       // Validating the PR title bump level implies validating the title itself
     } else if (core.getBooleanInput("validate-pull-request")) {
+      if (!isPullRequestEvent()) {
+        core.warning(
+          "Conventional Commit Pull Request title validation requires a workflow using the `pull_request` trigger!"
+        );
+        return;
+      }
       const ok = (await validatePrTitle(config)) !== undefined;
       compliant &&= ok;
     }
