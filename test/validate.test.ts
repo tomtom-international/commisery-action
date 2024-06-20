@@ -125,6 +125,116 @@ describe("Warning cases", () => {
   );
 });
 
+describe("Event type cases", () => {
+  const eventTypeCases = [
+    {
+      testDescription:
+        "should issue a warning if not `pull_request` nor `merge_group` trigger",
+      messages: [OK_1],
+      prTitle: "ci: proper title",
+      warningMessages: [
+        "Conventional Commit Message validation requires a workflow using the `pull_request` or `merge_group` trigger!",
+      ],
+      isPullRequest: false,
+      isMergeGroup: false,
+      validateCommits: true,
+      validatePrTitleBump: true,
+      validatePrTitle: true,
+    },
+    {
+      testDescription: "should not issue a warning if `pull_request` trigger",
+      messages: [OK_1],
+      prTitle: "ci: proper title",
+      warningMessages: [],
+      isPullRequest: true,
+      isMergeGroup: false,
+      validateCommits: true,
+      validatePrTitleBump: true,
+      validatePrTitle: true,
+    },
+    {
+      testDescription: "should not issue a warning if `merge_group` trigger",
+      messages: [OK_1],
+      prTitle: "ci: proper title",
+      warningMessages: [],
+      isPullRequest: false,
+      isMergeGroup: true,
+      validateCommits: true,
+      validatePrTitleBump: false,
+      validatePrTitle: false,
+    },
+    {
+      testDescription: "should issue a warning if `merge_group` trigger",
+      messages: [OK_1],
+      prTitle: "ci: proper title",
+      warningMessages: [
+        "Conventional Commit Pull Request title bump level validation requires a workflow using the `pull_request` trigger!",
+      ],
+      isPullRequest: false,
+      isMergeGroup: true,
+      validateCommits: false,
+      validatePrTitleBump: true,
+      validatePrTitle: false,
+    },
+    {
+      testDescription: "should issue a warning if `merge_group` trigger",
+      messages: [OK_1],
+      prTitle: "ci: proper title",
+      warningMessages: [
+        "Conventional Commit Pull Request title validation requires a workflow using the `pull_request` trigger!",
+      ],
+      isPullRequest: false,
+      isMergeGroup: true,
+      validateCommits: false,
+      validatePrTitleBump: false,
+      validatePrTitle: true,
+    },
+  ];
+  test.each(eventTypeCases)(
+    "$testDescription",
+    ({
+      testDescription,
+      messages,
+      prTitle,
+      warningMessages,
+      isPullRequest,
+      isMergeGroup,
+      validateCommits,
+      validatePrTitleBump,
+      validatePrTitle,
+    }) => {
+      jest.spyOn(core, "getBooleanInput").mockImplementation(argument => {
+        if (argument === "validate-commits") {
+          return validateCommits;
+        } else if (argument === "validate-pull-request-title-bump") {
+          return validatePrTitleBump;
+        } else if (argument === "validate-pull-request") {
+          return validatePrTitle;
+        } else {
+          return true;
+        }
+      });
+      jest.spyOn(github, "getCommitsInPR").mockResolvedValue(messages);
+      jest.spyOn(github, "getPullRequestTitle").mockResolvedValue(prTitle);
+      jest.spyOn(github, "isPullRequestEvent").mockReturnValue(isPullRequest);
+      jest.spyOn(github, "isMergeGroupEvent").mockReturnValue(isMergeGroup);
+
+      validate.run().then(() => {
+        if (!warningMessages.length) {
+          expect(core.warning).not.toHaveBeenCalled();
+        } else {
+          expect(core.warning).toHaveBeenCalled();
+          for (const msg of warningMessages) {
+            expect(core.warning).toHaveBeenCalledWith(
+              expect.stringContaining(msg)
+            );
+          }
+        }
+      });
+    }
+  );
+});
+
 describe("Error cases", () => {
   const INVALID_CONVENTIONAL_COMMIT_MSG = "not valid Conventional Commits";
   const PR_TITLE_NOT_COMPLIANT_MSG = "pull request title is not compliant";
