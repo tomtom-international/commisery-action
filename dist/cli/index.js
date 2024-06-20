@@ -33956,7 +33956,7 @@ class Configuration {
                      *   release-branches: "^release/.*\d+\.\d+.*$"
                      */
                     if (typeof data[key] === "string") {
-                        this.releaseBranches = data[key];
+                        this.releaseBranches = new RegExp(data[key]);
                     }
                     else {
                         throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.releaseBranches}'!`);
