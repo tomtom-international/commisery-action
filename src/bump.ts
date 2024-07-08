@@ -367,6 +367,7 @@ export async function publishBump(
   headSha: string,
   changelog: string,
   isBranchAllowedToPublish: boolean,
+  discussionCategoryName?: string,
   updateDraftId?: number
 ): Promise<boolean> {
   const nv = nextVersion.toString();
@@ -415,7 +416,14 @@ export async function publishBump(
           }
         }
         if (!updated) {
-          await createRelease(nv, headSha, changelog, isDev, isRc);
+          await createRelease(
+            nv,
+            headSha,
+            changelog,
+            isDev,
+            isRc,
+            discussionCategoryName
+          );
         }
       }
     } catch (ex: unknown) {
@@ -513,7 +521,8 @@ export async function bumpSemVer(
       releaseMode,
       headSha,
       changelog,
-      isBranchAllowedToPublish
+      isBranchAllowedToPublish,
+      config.releaseDiscussionCategory
     );
   } else {
     core.info("ℹ️ No bump necessary");
@@ -861,6 +870,7 @@ export async function bumpSdkVer(
       headSha,
       changelog,
       isBranchAllowedToPublish,
+      config.releaseDiscussionCategory,
       // Re-use the latest draft release only when not running on a release branch,
       // otherwise we might randomly reset a `dev-N` number chain.
       !isReleaseBranch ? latestDraft?.id : undefined

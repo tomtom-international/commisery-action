@@ -115,19 +115,23 @@ export async function getPullRequest(
  * @param commitish The commitish (ref, sha, ..) the release shall be made from
  * @param body The release's text description
  * @param draft Create this release as a 'draft' release
+ * @param prerelease Create this release as a prerelease
+ * @param discussionCategory Create this release with link to this discussion category
  */
 export async function createRelease(
   tagName: string,
   commitish: string,
   body: string,
   draft: boolean,
-  prerelease: boolean
+  prerelease: boolean,
+  discussionCategory?: string
 ): Promise<void> {
   await getOctokit().rest.repos.createRelease({
     ...github.context.repo,
     tag_name: tagName,
     target_commitish: commitish,
     name: tagName,
+    discussion_category_name: discussionCategory,
     body,
     draft,
     prerelease,

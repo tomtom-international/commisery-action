@@ -72,6 +72,7 @@ const CONFIG_ITEMS = [
   "version-prefix",
   "version-scheme",
   "release-branches",
+  "release-discussion-category",
   "prereleases",
   "sdkver-create-release-branches",
   "sdkver-max-major",
@@ -102,6 +103,7 @@ export class Configuration {
   allowedBranches = ".*";
   maxSubjectLength = 80;
   releaseBranches = /^release\/.*\d+\.\d+\.*$/;
+  releaseDiscussionCategory?: string = undefined;
   versionPrefix = "*";
   versionScheme = "semver";
   prereleasePrefix?: string = undefined;
@@ -317,6 +319,22 @@ export class Configuration {
           }
           break;
 
+        case "release-discussion-category":
+          /* Example YAML:
+           *   release-discussion-category: ""
+           *   release-discussion-category: "release notes"
+           */
+          if (typeof data[key] === "string") {
+            this.releaseDiscussionCategory = data[key];
+          } else {
+            throw new Error(
+              `Incorrect type '${typeof data[
+                key
+              ]}' for '${key}', must be '${typeof this.releaseDiscussionCategory}'!`
+            );
+          }
+          break;
+
         case "initial-development":
           /* Example YAML:
            *   initial-development: true
@@ -424,6 +442,7 @@ export class Configuration {
     config.allowedBranches = this.allowedBranches;
     config.maxSubjectLength = this.maxSubjectLength;
     config.releaseBranches = this.releaseBranches;
+    config.releaseDiscussionCategory = this.releaseDiscussionCategory;
     config.versionScheme = this.versionScheme;
     config.prereleasePrefix = this.prereleasePrefix;
     config.tags = JSON.parse(JSON.stringify(this.tags));

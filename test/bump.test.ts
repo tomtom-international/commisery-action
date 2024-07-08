@@ -153,7 +153,8 @@ describe("Bump functionality", () => {
           U.HEAD_SHA,
           U.CHANGELOG_PLACEHOLDER,
           false,
-          false
+          false,
+          undefined
         );
       }
       expect(core.setOutput).toBeCalledWith(
@@ -456,7 +457,8 @@ describe("Initial development", () => {
       U.HEAD_SHA,
       U.CHANGELOG_PLACEHOLDER,
       false,
-      false
+      false,
+      undefined
     );
 
     expect(core.error).not.toHaveBeenCalled();
@@ -503,7 +505,8 @@ describe("Create changelog", () => {
         U.HEAD_SHA,
         U.CHANGELOG_PLACEHOLDER,
         false,
-        false
+        false,
+        undefined
       );
     } else {
       expect(changelog.generateChangelog).not.toHaveBeenCalled();
@@ -513,7 +516,8 @@ describe("Create changelog", () => {
         U.HEAD_SHA,
         "",
         false,
-        false
+        false,
+        undefined
       );
     }
   });
