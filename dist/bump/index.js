@@ -32586,8 +32586,10 @@ const CONFIG_ITEMS = [
     "prereleases",
     "sdkver-create-release-branches",
     "sdkver-max-major",
+    "pr-check-content",
 ];
 const VERSION_SCHEMES = ["semver", "sdkver"];
+const PR_CHECK_CONTENTS = ["title", "title-and-body"];
 /**
  * This function takes two values and throws when their types don't match.
  */
@@ -32612,6 +32614,7 @@ class Configuration {
     rules = new Map();
     sdkverCreateReleaseBranches = undefined;
     sdkverMaxMajor = 0;
+    prCheckContent = "title";
     set initialDevelopment(initialDevelopment) {
         this._initialDevelopment = initialDevelopment;
     }
@@ -32837,6 +32840,23 @@ class Configuration {
                         throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.sdkverMaxMajor}'!`);
                     }
                     break;
+                case "pr-check-content":
+                    /*
+                     * EXAMPLE YAML:
+                     *   pr-check-content: title-and-body  # defaults to "title"
+                     */
+                    if (typeof data[key] === "string") {
+                        if (PR_CHECK_CONTENTS.includes(data[key])) {
+                            this.prCheckContent = data[key];
+                        }
+                        else {
+                            throw new Error(`Incorrect value '${data[key]}' for '${key}', must be one of: '${PR_CHECK_CONTENTS.join('", "')}'`);
+                        }
+                    }
+                    else {
+                        throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.prCheckContent}'!`);
+                    }
+                    break;
             }
         }
         if ((this.sdkverCreateReleaseBranches !== undefined ||
@@ -32881,6 +32901,7 @@ class Configuration {
         config.rules = new Map(JSON.parse(JSON.stringify(Array.from(this.rules))));
         config.sdkverCreateReleaseBranches = this.sdkverCreateReleaseBranches;
         config.sdkverMaxMajor = this.sdkverMaxMajor;
+        config.prCheckContent = this.prCheckContent;
         return config;
     }
 }
@@ -33000,7 +33021,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.createBranch = exports.getCommitsBetweenRefs = exports.currentHeadMatchesTag = exports.getContent = exports.updateLabels = exports.getAssociatedPullRequests = exports.getAllTags = exports.getShaForTag = exports.matchTagsToCommits = exports.getReleaseConfiguration = exports.getConfig = exports.createTag = exports.updateDraftRelease = exports.getRelease = exports.createRelease = exports.getPullRequest = exports.getCommitsInPR = exports.getPullRequestTitle = exports.getRunNumber = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
+exports.createBranch = exports.getCommitsBetweenRefs = exports.currentHeadMatchesTag = exports.getContent = exports.updateLabels = exports.getAssociatedPullRequests = exports.getAllTags = exports.getShaForTag = exports.matchTagsToCommits = exports.getReleaseConfiguration = exports.getConfig = exports.createTag = exports.updateDraftRelease = exports.getRelease = exports.createRelease = exports.getPullRequest = exports.getCommitsInPR = exports.getPullRequestBody = exports.getPullRequestTitle = exports.getRunNumber = exports.getPullRequestId = exports.isPullRequestEvent = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const fs = __importStar(__nccwpck_require__(7147));
 const github = __importStar(__nccwpck_require__(5438));
@@ -33053,6 +33074,11 @@ async function getPullRequestTitle() {
     return (await getPullRequest(getPullRequestId())).title;
 }
 exports.getPullRequestTitle = getPullRequestTitle;
+async function getPullRequestBody() {
+    const body = (await getPullRequest(getPullRequestId())).body;
+    return body ? body : "";
+}
+exports.getPullRequestBody = getPullRequestBody;
 /**
  * Retrieves a list of commits associated with the specified pull request
  * @param pullRequestId GitHub pull request ID
@@ -33698,7 +33724,7 @@ function validateRules(message, config) {
 }
 exports.validateRules = validateRules;
 const ISSUE_REGEX_IGNORED_KEYWORDS = ["AES", "CVE", "PEP", "SHA", "UTF", "VT"];
-const ISSUE_REGEX = new RegExp(`(?!\\b(?:${ISSUE_REGEX_IGNORED_KEYWORDS.join("|")})\\b)\\b[A-Z]+-[0-9]+\\b(?!-)`);
+const ISSUE_REGEX = new RegExp(`(?!\\b(?:${ISSUE_REGEX_IGNORED_KEYWORDS.join("|")})\\b)\\b[A-Z]+-([0-9]+|SKIP)\\b(?!-)`);
 /**
  */
 class NonLowerCaseType {
@@ -34248,6 +34274,19 @@ class FooterContainsTicketReference {
         }
     }
 }
+class BodyMustNotBeEmpty {
+    id = "C027";
+    description = "Body must not be empty";
+    default = false;
+    validate(message, _) {
+        const bodyLength = message.body.reduce((acc, line) => acc + line.trim().length, 0);
+        if (bodyLength === 0) {
+            throw new logging_1.LlvmError({
+                message: `[${this.id}] ${this.description}`,
+            });
+        }
+    }
+}
 exports.ALL_RULES = [
     new NonLowerCaseType(),
     new OneWhitelineBetweenSubjectAndBody(),
@@ -34272,6 +34311,7 @@ exports.ALL_RULES = [
     new BreakingChangeMustBeFirstGitTrailer(),
     new GitTrailerNeedAColon(),
     new FooterContainsTicketReference(),
+    new BodyMustNotBeEmpty(),
 ];
 function getConventionalCommitRule(id) {
     for (const rule of exports.ALL_RULES) {
@@ -34643,7 +34683,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.validatePrTitleBump = exports.validatePrTitle = exports.validateCommitsInCurrentPR = exports.processCommits = exports.outputCommitListErrors = void 0;
+exports.validatePrTitleBump = exports.validatePr = exports.validateCommitsInCurrentPR = exports.processCommits = exports.outputCommitListErrors = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const commit_1 = __nccwpck_require__(1730);
 const github_1 = __nccwpck_require__(978);
@@ -34761,19 +34801,30 @@ async function validateCommitsInCurrentPR(config) {
     };
 }
 exports.validateCommitsInCurrentPR = validateCommitsInCurrentPR;
+async function getPrText(config) {
+    let prText = await (0, github_1.getPullRequestTitle)();
+    if (config.prCheckContent === "title-and-body") {
+        const prBodyText = await (0, github_1.getPullRequestBody)();
+        if (prBodyText.trim().length > 0) {
+            prText += `\n\n${prBodyText}`;
+        }
+    }
+    return prText;
+}
 /**
  * Validates the pull request title and, if compliant, returns it as a
  * ConventionalCommitMessage object.
  */
-async function validatePrTitle(_) {
-    const prTitleText = await (0, github_1.getPullRequestTitle)();
+async function validatePr(config) {
+    const prText = await getPrText(config);
+    core.info(`PR text: ${prText}`);
     let errors = [];
     let conventionalCommitMessage;
     core.info(""); // for vertical whitespace
     let errorMessage = "The pull request title is not compliant " +
         "with the Conventional Commits specification";
     try {
-        conventionalCommitMessage = new commit_1.ConventionalCommitMessage(prTitleText);
+        conventionalCommitMessage = new commit_1.ConventionalCommitMessage(prText, undefined, config);
     }
     catch (error) {
         if (error instanceof errors_1.ConventionalCommitError) {
@@ -34789,7 +34840,7 @@ async function validatePrTitle(_) {
             // We'll allow revert commit-like PR titles, as they are the default for
             // GitHub's "Revert" button.
             core.startGroup("The pull request title describes a revert, which is allowed.");
-            core.info(prTitleText);
+            core.info(prText);
             core.endGroup();
             return new commit_1.ConventionalCommitMessage("revert: placeholder");
         }
@@ -34799,16 +34850,16 @@ async function validatePrTitle(_) {
     }
     if (errors.length > 0) {
         core.setFailed(errorMessage);
-        outputCommitErrors(prTitleText, errors, undefined, true);
+        outputCommitErrors(prText, errors, undefined, true);
     }
     else {
         core.startGroup(`✅ The pull request title is compliant with the Conventional Commits specification`);
-        core.info(prTitleText);
+        core.info(prText);
         core.endGroup();
     }
     return conventionalCommitMessage;
 }
-exports.validatePrTitle = validatePrTitle;
+exports.validatePr = validatePr;
 /**
  * Validates bump level consistency between the PR title and its commits.
  * This implies that the PR title must comply with the Conventional Commits spec.
@@ -34816,7 +34867,14 @@ exports.validatePrTitle = validatePrTitle;
 async function validatePrTitleBump(config) {
     const prTitleText = await (0, github_1.getPullRequestTitle)();
     const commits = await (0, github_1.getCommitsInPR)((0, github_1.getPullRequestId)());
-    const prTitle = await validatePrTitle(config);
+    const prTitle = await validatePr((() => {
+        let result = config;
+        if (config.prCheckContent !== "title") {
+            result = config.copy();
+            result.prCheckContent = "title";
+        }
+        return result;
+    })());
     const baseError = "Cannot validate the consistency of bump levels between PR title and PR commits";
     if (prTitle === undefined) {
         core.warning(`${baseError}, as PR title is not a valid Conventional Commits message.`);

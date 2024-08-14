@@ -76,9 +76,11 @@ const CONFIG_ITEMS = [
   "prereleases",
   "sdkver-create-release-branches",
   "sdkver-max-major",
+  "pr-check-content",
 ];
 
 const VERSION_SCHEMES = ["semver", "sdkver"];
+const PR_CHECK_CONTENTS = ["title", "title-and-body"];
 /**
  * This function takes two values and throws when their types don't match.
  */
@@ -111,6 +113,7 @@ export class Configuration {
   rules: Map<string, IRuleConfigItem> = new Map<string, IRuleConfigItem>();
   sdkverCreateReleaseBranches?: string = undefined;
   sdkverMaxMajor = 0;
+  prCheckContent = "title";
 
   set initialDevelopment(initialDevelopment: boolean) {
     this._initialDevelopment = initialDevelopment;
@@ -400,6 +403,28 @@ export class Configuration {
             );
           }
           break;
+
+        case "pr-check-content":
+          /*
+           * EXAMPLE YAML:
+           *   pr-check-content: title-and-body  # defaults to "title"
+           */
+          if (typeof data[key] === "string") {
+            if (PR_CHECK_CONTENTS.includes(data[key])) {
+              this.prCheckContent = data[key];
+            } else {
+              throw new Error(
+                `Incorrect value '${data[key]}' for '${key}', must be one of: '${PR_CHECK_CONTENTS.join('", "')}'`
+              );
+            }
+          } else {
+            throw new Error(
+              `Incorrect type '${typeof data[
+                key
+              ]}' for '${key}', must be '${typeof this.prCheckContent}'!`
+            );
+          }
+          break;
       }
     }
     if (
@@ -449,6 +474,7 @@ export class Configuration {
     config.rules = new Map(JSON.parse(JSON.stringify(Array.from(this.rules))));
     config.sdkverCreateReleaseBranches = this.sdkverCreateReleaseBranches;
     config.sdkverMaxMajor = this.sdkverMaxMajor;
+    config.prCheckContent = this.prCheckContent;
     return config;
   }
 }

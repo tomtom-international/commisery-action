@@ -66,7 +66,7 @@ const ISSUE_REGEX_IGNORED_KEYWORDS = ["AES", "CVE", "PEP", "SHA", "UTF", "VT"];
 const ISSUE_REGEX = new RegExp(
   `(?!\\b(?:${ISSUE_REGEX_IGNORED_KEYWORDS.join(
     "|"
-  )})\\b)\\b[A-Z]+-[0-9]+\\b(?!-)`
+  )})\\b)\\b[A-Z]+-([0-9]+|SKIP)\\b(?!-)`
 );
 
 /**
@@ -696,6 +696,24 @@ class FooterContainsTicketReference implements IConventionalCommitRule {
   }
 }
 
+class BodyMustNotBeEmpty implements IConventionalCommitRule {
+  id = "C027";
+  description = "Body must not be empty";
+  default = false;
+
+  validate(message: ConventionalCommitMetadata, _: Configuration): void {
+    const bodyLength = message.body.reduce(
+      (acc, line) => acc + line.trim().length,
+      0
+    );
+    if (bodyLength === 0) {
+      throw new LlvmError({
+        message: `[${this.id}] ${this.description}`,
+      });
+    }
+  }
+}
+
 export const ALL_RULES = [
   new NonLowerCaseType(),
   new OneWhitelineBetweenSubjectAndBody(),
@@ -720,6 +738,7 @@ export const ALL_RULES = [
   new BreakingChangeMustBeFirstGitTrailer(),
   new GitTrailerNeedAColon(),
   new FooterContainsTicketReference(),
+  new BodyMustNotBeEmpty(),
 ];
 
 export function getConventionalCommitRule(id: string): IConventionalCommitRule {

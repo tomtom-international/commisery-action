@@ -100,12 +100,12 @@ describe("Rules", () => {
   test("[C002] Only one empty line between subject and body", () => {
     for (const message of [
       dedent(`feat: single line body
-        
-        
+
+
         This is the body`),
       dedent(`feat: footer only
-        
-        
+
+
         Implements: 123`),
     ]) {
       assertRuleValidationError(message, getConventionalCommitRule("C002"));
@@ -114,10 +114,10 @@ describe("Rules", () => {
     for (const message of [
       "feat: no body",
       dedent(`feat: single line body
-        
+
         This is the body`),
       dedent(`feat: footer only
-        
+
         Implements: 123`),
     ]) {
       assertRuleNoValidationError(message, getConventionalCommitRule("C002"));
@@ -438,15 +438,15 @@ describe("Rules", () => {
 
     for (const message of [
       dedent(`feat: one empty line
-      
+
       This is the body`),
       dedent(`feat(scope)!: multiple empty lines
-      
+
 
       This is the body
       `),
       dedent(`chore: footers after one whiteline
-      
+
       Implements: 1234`),
     ]) {
       assertRuleNoValidationError(message, getConventionalCommitRule("C018"));
@@ -467,10 +467,10 @@ describe("Rules", () => {
 
     for (const message of [
       dedent(`chore: this is a chore
-      
+
       Implementation of ISS-1`),
       dedent(`feat(scope)!: breaking change with scope
-      
+
       Implements: ISS-1`),
       "chore: remove UTF-8 implementation",
       "fix(server): add mitigation for CVE-1234-34567",
@@ -485,7 +485,7 @@ describe("Rules", () => {
   test(`[C020] Git-trailer should not contain whitespace(s)`, () => {
     for (const message of [
       dedent(`feat: multiple whitespaces in footers
-      
+
       correct-token: value
       Co-Authored by: value
       Approved by: value`),
@@ -502,16 +502,16 @@ describe("Rules", () => {
 
     for (const message of [
       dedent(`feat: one empty line
-      
+
       Implements: 1234`),
       dedent(`feat(scope)!: multiple empty lines
-      
+
 
       Correct-token: value
       Implements #1234
       `),
       dedent(`chore: footers after one whiteline
-      
+
       Implements #1234
       Implements: 1234`),
     ]) {
@@ -538,7 +538,7 @@ describe("Rules", () => {
 
       Reviewed-by: R. Blythe`),
       dedent(`test: keyword in body
-      
+
       Addresses 321 and 322 were not available, so we use address 323.
 
       Fixes SOMETHING-123
@@ -614,6 +614,51 @@ describe("Rules", () => {
       assertRuleNoValidationError(
         message,
         getConventionalCommitRule("C026"),
+        config
+      );
+    }
+  });
+
+  test("[C027] The Commit body must not be empty", () => {
+    const config = new Configuration();
+    config.setRuleActive("C027", true);
+
+    for (const message of [
+      "test: no footer",
+      dedent(`test: single footer
+
+        Implements: AES-128`),
+      dedent(`test: multiple footers
+
+        Implements: AES-128, CVE-123, PEP-8, SHA-256, UTF-16, VT-123
+        Token: Value`),
+    ]) {
+      assertRuleValidationError(
+        message,
+        getConventionalCommitRule("C027"),
+        config
+      );
+    }
+
+    for (const message of [
+      dedent(`test: body, no footer
+
+        Body`),
+      dedent(`test: body, one footer
+
+        Body
+
+        Fixes: ISS-1, TICKET-1234`),
+      dedent(`test: body, multiple footers
+
+        Body
+
+        Token: Value
+        Implements: TICKET-1234`),
+    ]) {
+      assertRuleNoValidationError(
+        message,
+        getConventionalCommitRule("C027"),
         config
       );
     }

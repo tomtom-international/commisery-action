@@ -82,7 +82,10 @@ describe("Configurable options", () => {
   });
 
   test("Default disabled ruleset", () => {
-    const expectedRules = ["C026"];
+    const expectedRules = [
+      "C026",
+      "C027",
+    ];
     withConfig("", (config: Configuration) => {
       const disabledRules = Array.from(config.rules)
         .filter(item => !item[1].enabled)
@@ -477,6 +480,21 @@ describe("Configurable options", () => {
     );
     expect(core.warning).toHaveBeenCalledTimes(1);
   });
+
+  test("Default prCheckContent", () => {
+    withConfig("", (config: Configuration) => {
+      expect(config.prCheckContent).toBe("title");
+    });
+  });
+
+  test("Customize prCheckContent", () => {
+    for (const value of ["title", "title-and-body"]) {
+      withConfig(`pr-check-content: ${value}`, (config: Configuration) => {
+        expect(config.prCheckContent).toBe(value);
+      });
+    }
+  });
+
 });
 
 describe("(Deep) Copy of Configuration", () => {

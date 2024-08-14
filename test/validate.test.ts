@@ -22,6 +22,7 @@ jest.mock("@actions/core");
 
 import { Configuration } from "../src/config";
 import * as validate from "../src/actions/validate";
+import { validatePr } from "../src/validate";
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -249,4 +250,78 @@ describe("Update labels", () => {
       });
     }
   );
+});
+
+describe("Validate PR", () => {
+  const configCheckTitleAndBody = (() => {
+    let config = new Configuration();
+    config.setRuleActive("C027", true);
+    config.prCheckContent = "title-and-body";
+    return config;
+  })();
+
+  describe("valid title and body", () => {
+    const prValidTestCases = [
+      {
+        testDescription: "PR body",
+        prTitle: "ci: proper title",
+        prBody: "body",
+        config: configCheckTitleAndBody,
+      },
+      {
+        testDescription: "PR body, trailers",
+        prTitle: "ci: proper title",
+        prBody: "body\n\nAnd-Also: trailer",
+        config: configCheckTitleAndBody,
+      },
+    ];
+    test.each(prValidTestCases)(
+      "$testDescription",
+      ({ testDescription, prTitle, prBody, config }) => {
+        jest.spyOn(github, "getPullRequestTitle").mockResolvedValue(prTitle);
+        jest.spyOn(github, "getPullRequestBody").mockResolvedValue(prBody);
+
+        validatePr(config).then(() => {
+          expect(core.info).toHaveBeenCalled();
+          expect(core.setFailed).not.toHaveBeenCalled();
+          expect(core.warning).not.toHaveBeenCalled();
+        });
+      }
+    );
+  });
+
+  describe("invalid title and body", () => {
+    const prInvalidTestCases = [
+      {
+        testDescription: "No PR body",
+        prTitle: "ci: proper title",
+        prBody: "",
+        config: configCheckTitleAndBody,
+      },
+      {
+        testDescription: "No PR body, trailers",
+        prTitle: "ci: proper title",
+        prBody: "And-Also: trailer",
+        config: configCheckTitleAndBody,
+      },
+      {
+        testDescription: "Empty PR body, trailers",
+        prTitle: "ci: proper title",
+        prBody: "\n\nAnd-Also: trailer",
+        config: configCheckTitleAndBody,
+      }
+    ];
+    test.each(prInvalidTestCases)(
+      "$testDescription",
+      ({ testDescription, prTitle, prBody, config }) => {
+        jest.spyOn(github, "getPullRequestTitle").mockResolvedValue(prTitle);
+        jest.spyOn(github, "getPullRequestBody").mockResolvedValue(prBody);
+
+        validatePr(config).then(() => {
+          expect(core.setFailed).toHaveBeenCalled();
+          expect(core.error).toHaveBeenCalled();
+        });
+      }
+    );
+  });
 });

@@ -33776,8 +33776,10 @@ const CONFIG_ITEMS = [
     "prereleases",
     "sdkver-create-release-branches",
     "sdkver-max-major",
+    "pr-check-content",
 ];
 const VERSION_SCHEMES = ["semver", "sdkver"];
+const PR_CHECK_CONTENTS = ["title", "title-and-body"];
 /**
  * This function takes two values and throws when their types don't match.
  */
@@ -33802,6 +33804,7 @@ class Configuration {
     rules = new Map();
     sdkverCreateReleaseBranches = undefined;
     sdkverMaxMajor = 0;
+    prCheckContent = "title";
     set initialDevelopment(initialDevelopment) {
         this._initialDevelopment = initialDevelopment;
     }
@@ -34027,6 +34030,23 @@ class Configuration {
                         throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.sdkverMaxMajor}'!`);
                     }
                     break;
+                case "pr-check-content":
+                    /*
+                     * EXAMPLE YAML:
+                     *   pr-check-content: title-and-body  # defaults to "title"
+                     */
+                    if (typeof data[key] === "string") {
+                        if (PR_CHECK_CONTENTS.includes(data[key])) {
+                            this.prCheckContent = data[key];
+                        }
+                        else {
+                            throw new Error(`Incorrect value '${data[key]}' for '${key}', must be one of: '${PR_CHECK_CONTENTS.join('", "')}'`);
+                        }
+                    }
+                    else {
+                        throw new Error(`Incorrect type '${typeof data[key]}' for '${key}', must be '${typeof this.prCheckContent}'!`);
+                    }
+                    break;
             }
         }
         if ((this.sdkverCreateReleaseBranches !== undefined ||
@@ -34071,6 +34091,7 @@ class Configuration {
         config.rules = new Map(JSON.parse(JSON.stringify(Array.from(this.rules))));
         config.sdkverCreateReleaseBranches = this.sdkverCreateReleaseBranches;
         config.sdkverMaxMajor = this.sdkverMaxMajor;
+        config.prCheckContent = this.prCheckContent;
         return config;
     }
 }
@@ -34350,7 +34371,7 @@ function validateRules(message, config) {
 }
 exports.validateRules = validateRules;
 const ISSUE_REGEX_IGNORED_KEYWORDS = ["AES", "CVE", "PEP", "SHA", "UTF", "VT"];
-const ISSUE_REGEX = new RegExp(`(?!\\b(?:${ISSUE_REGEX_IGNORED_KEYWORDS.join("|")})\\b)\\b[A-Z]+-[0-9]+\\b(?!-)`);
+const ISSUE_REGEX = new RegExp(`(?!\\b(?:${ISSUE_REGEX_IGNORED_KEYWORDS.join("|")})\\b)\\b[A-Z]+-([0-9]+|SKIP)\\b(?!-)`);
 /**
  */
 class NonLowerCaseType {
@@ -34900,6 +34921,19 @@ class FooterContainsTicketReference {
         }
     }
 }
+class BodyMustNotBeEmpty {
+    id = "C027";
+    description = "Body must not be empty";
+    default = false;
+    validate(message, _) {
+        const bodyLength = message.body.reduce((acc, line) => acc + line.trim().length, 0);
+        if (bodyLength === 0) {
+            throw new logging_1.LlvmError({
+                message: `[${this.id}] ${this.description}`,
+            });
+        }
+    }
+}
 exports.ALL_RULES = [
     new NonLowerCaseType(),
     new OneWhitelineBetweenSubjectAndBody(),
@@ -34924,6 +34958,7 @@ exports.ALL_RULES = [
     new BreakingChangeMustBeFirstGitTrailer(),
     new GitTrailerNeedAColon(),
     new FooterContainsTicketReference(),
+    new BodyMustNotBeEmpty(),
 ];
 function getConventionalCommitRule(id) {
     for (const rule of exports.ALL_RULES) {

@@ -74,6 +74,11 @@ export async function getPullRequestTitle(): Promise<string> {
   return (await getPullRequest(getPullRequestId())).title;
 }
 
+export async function getPullRequestBody(): Promise<string> {
+  const body = (await getPullRequest(getPullRequestId())).body;
+  return body ? body : "";
+}
+
 /**
  * Retrieves a list of commits associated with the specified pull request
  * @param pullRequestId GitHub pull request ID

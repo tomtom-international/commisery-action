@@ -20,6 +20,7 @@ import { ConventionalCommitMessage } from "./commit";
 import { Configuration } from "./config";
 import {
   getCommitsInPR,
+  getPullRequestBody,
   getPullRequestId,
   getPullRequestTitle,
 } from "./github";
@@ -177,14 +178,28 @@ export async function validateCommitsInCurrentPR(
   };
 }
 
+async function getPrText(
+  config: Configuration
+): Promise<string> {
+  let prText = await getPullRequestTitle();
+  if (config.prCheckContent === "title-and-body") {
+    const prBodyText = await getPullRequestBody();
+    if (prBodyText.trim().length > 0) {
+      prText += `\n\n${prBodyText}`;
+    }
+  }
+  return prText;
+}
+
 /**
  * Validates the pull request title and, if compliant, returns it as a
  * ConventionalCommitMessage object.
  */
-export async function validatePrTitle(
-  _: Configuration
+export async function validatePr(
+  config: Configuration
 ): Promise<ConventionalCommitMessage | undefined> {
-  const prTitleText = await getPullRequestTitle();
+  const prText = await getPrText(config);
+  core.info(`PR text: ${prText}`);
   let errors: LlvmError[] = [];
   let conventionalCommitMessage: ConventionalCommitMessage | undefined;
 
@@ -193,7 +208,11 @@ export async function validatePrTitle(
     "The pull request title is not compliant " +
     "with the Conventional Commits specification";
   try {
-    conventionalCommitMessage = new ConventionalCommitMessage(prTitleText);
+    conventionalCommitMessage = new ConventionalCommitMessage(
+      prText,
+      undefined,
+      config
+    );
   } catch (error: unknown) {
     if (error instanceof ConventionalCommitError) {
       errors = error.errors;
@@ -212,7 +231,7 @@ export async function validatePrTitle(
       core.startGroup(
         "The pull request title describes a revert, which is allowed."
       );
-      core.info(prTitleText);
+      core.info(prText);
       core.endGroup();
       return new ConventionalCommitMessage("revert: placeholder");
     } else {
@@ -221,12 +240,12 @@ export async function validatePrTitle(
   }
   if (errors.length > 0) {
     core.setFailed(errorMessage);
-    outputCommitErrors(prTitleText, errors, undefined, true);
+    outputCommitErrors(prText, errors, undefined, true);
   } else {
     core.startGroup(
       `✅ The pull request title is compliant with the Conventional Commits specification`
     );
-    core.info(prTitleText);
+    core.info(prText);
     core.endGroup();
   }
   return conventionalCommitMessage;
@@ -241,7 +260,14 @@ export async function validatePrTitleBump(
 ): Promise<boolean> {
   const prTitleText = await getPullRequestTitle();
   const commits = await getCommitsInPR(getPullRequestId());
-  const prTitle = await validatePrTitle(config);
+  const prTitle = await validatePr((() => {
+    let result = config;
+    if (config.prCheckContent !== "title") {
+      result = config.copy();
+      result.prCheckContent = "title";
+    }
+    return result;
+  })());
   const baseError =
     "Cannot validate the consistency of bump levels between PR title and PR commits";
 
