@@ -178,9 +178,10 @@ export async function validateCommitsInCurrentPR(
   };
 }
 
-async function getPrText(
-  config: Configuration
-): Promise<string> {
+/**
+ * Combine pull request title and body into a predicted commit message.
+ */
+async function getPrText(config: Configuration): Promise<string> {
   let prText = await getPullRequestTitle();
   if (config.prCheckContent === "title-and-body") {
     const prBodyText = await getPullRequestBody();
@@ -260,14 +261,16 @@ export async function validatePrTitleBump(
 ): Promise<boolean> {
   const prTitleText = await getPullRequestTitle();
   const commits = await getCommitsInPR(getPullRequestId());
-  const prTitle = await validatePr((() => {
-    let result = config;
-    if (config.prCheckContent !== "title") {
-      result = config.copy();
-      result.prCheckContent = "title";
-    }
-    return result;
-  })());
+  const prTitle = await validatePr(
+    (() => {
+      let result = config;
+      if (config.prCheckContent !== "title") {
+        result = config.copy();
+        result.prCheckContent = "title";
+      }
+      return result;
+    })()
+  );
   const baseError =
     "Cannot validate the consistency of bump levels between PR title and PR commits";
 

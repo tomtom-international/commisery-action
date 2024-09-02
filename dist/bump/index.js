@@ -34801,6 +34801,9 @@ async function validateCommitsInCurrentPR(config) {
     };
 }
 exports.validateCommitsInCurrentPR = validateCommitsInCurrentPR;
+/**
+ * Combine pull request title and body into a predicted commit message.
+ */
 async function getPrText(config) {
     let prText = await (0, github_1.getPullRequestTitle)();
     if (config.prCheckContent === "title-and-body") {
