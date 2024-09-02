@@ -200,7 +200,7 @@ export async function validatePr(
   config: Configuration
 ): Promise<ConventionalCommitMessage | undefined> {
   const prText = await getPrText(config);
-  core.info(`PR text: ${prText}`);
+  core.info(`|PR text: ${prText}|`);
   let errors: LlvmError[] = [];
   let conventionalCommitMessage: ConventionalCommitMessage | undefined;
 

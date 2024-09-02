@@ -15,6 +15,7 @@
  */
 
 import * as difflib from "difflib";
+import * as core from "@actions/core";
 
 import { ConventionalCommitMetadata } from "./commit";
 import { Configuration } from "./config";
@@ -104,6 +105,7 @@ class OneWhitelineBetweenSubjectAndBody implements IConventionalCommitRule {
 
   validate(message: ConventionalCommitMetadata, _: Configuration): void {
     if (message.body.length >= 2 && message.body[1].trim() === "") {
+      core.warning(`${message.body}`);
       throw new LlvmError({
         message: `[${this.id}] ${this.description}`,
         line: message.subject,
