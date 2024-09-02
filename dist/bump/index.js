@@ -33697,6 +33697,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getConventionalCommitRule = exports.ALL_RULES = exports.validateRules = void 0;
 const difflib = __importStar(__nccwpck_require__(5467));
+const core = __importStar(__nccwpck_require__(2186));
 const logging_1 = __nccwpck_require__(1517);
 /**
  * Validates the commit message against the specified ruleset
@@ -33757,6 +33758,7 @@ class OneWhitelineBetweenSubjectAndBody {
     default = true;
     validate(message, _) {
         if (message.body.length >= 2 && message.body[1].trim() === "") {
+            core.warning(`${message.body}`);
             throw new logging_1.LlvmError({
                 message: `[${this.id}] ${this.description}`,
                 line: message.subject,
@@ -34820,7 +34822,7 @@ async function getPrText(config) {
  */
 async function validatePr(config) {
     const prText = await getPrText(config);
-    core.info(`PR text: ${prText}`);
+    core.info(`|PR text: ${prText}|`);
     let errors = [];
     let conventionalCommitMessage;
     core.info(""); // for vertical whitespace
