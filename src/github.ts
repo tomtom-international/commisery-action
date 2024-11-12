@@ -18,17 +18,74 @@ import * as core from "@actions/core";
 import * as fs from "fs";
 import * as github from "@actions/github";
 import * as octokit from "@octokit/plugin-rest-endpoint-methods";
-import { GitHub } from "@actions/github/lib/utils";
+import { retry } from "@octokit/plugin-retry";
+import { throttling } from "@octokit/plugin-throttling";
+import { GitHub, getOctokitOptions } from "@actions/github/lib/utils";
 import { ICommit, IGitTag } from "./interfaces";
 import { SemVer } from "./semver";
 import * as Label from "./label";
+import type { Octokit } from "@octokit/core";
+import type { EndpointDefaults } from "@octokit/types";
+
+const OctokitConstructor = GitHub.plugin(throttling, retry);
+
+/**
+ * Automatically retries requests that return a 429 (Too Many Request) response status code
+ * till a maximum of 2 retries.
+ *
+ * This can occur when too many requests have been executed using the same token within
+ * a certain time frame.
+ */
+function onRateLimit(
+  retryAfter: number,
+  options: Required<EndpointDefaults>,
+  _octokit: Octokit,
+  retryCount: number
+): boolean {
+  core.warning(
+    `Request quota exhausted for request ${options.method} ${options.url}`
+  );
+  if (retryCount < 2) {
+    core.warning(`Retrying after ${retryAfter} seconds!`);
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Automatically retries requests that return a 403 (Forbidden) response status code
+ * till a maximum of 2 retries.
+ *
+ * This can occur when too many parallel requests are being made to the GitHub API
+ * using the same token.
+ */
+function onSecondaryRateLimit(
+  retryAfter: number,
+  options: Required<EndpointDefaults>,
+  _octokit: Octokit,
+  retryCount: number
+): boolean {
+  core.warning(`Abuse detected for request ${options.method} ${options.url}`);
+  if (retryCount < 2) {
+    core.warning(`Retrying after ${retryAfter} seconds!`);
+    return true;
+  }
+
+  return false;
+}
 
 /**
  * Get Octokit instance
  */
 function getOctokit(): InstanceType<typeof GitHub> {
   const githubToken = core.getInput("token");
-  return github.getOctokit(githubToken);
+  return new OctokitConstructor(
+    getOctokitOptions(githubToken, {
+      throttle: { onRateLimit, onSecondaryRateLimit },
+      retry: { retries: 3 },
+    })
+  );
 }
 
 /**
