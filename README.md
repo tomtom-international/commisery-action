@@ -80,3 +80,4 @@ You can find more information on how to use the CLI on the [dedicated page](docs
 
 [Conventional Commits]: https://www.conventionalcommits.org/en/v1.0.0/
 [Commisery]: https://pypi.org/project/commisery/
+
