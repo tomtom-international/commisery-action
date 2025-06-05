@@ -34,8 +34,9 @@
   "dependencies": {
     "@actions/core": "^1.10.0",
     "@actions/github": "^6.0.1",
+    "@octokit/plugin-rest-endpoint-methods": "^10.4.0",
     "@octokit/plugin-retry": "^6.0.1",
-    "@octokit/plugin-throttling": "^8.2.0",
+    "@octokit/plugin-throttling": "^8.2.0",    
     "commander": "^14.0.0",
     "dedent": "^1.6.0",
     "difflib": "^0.2.4",
@@ -43,7 +44,7 @@
     "yaml": "^2.8.0"
   },
   "devDependencies": {
-    "@octokit/plugin-rest-endpoint-methods": "^10",
+    
     "@tsconfig/node20": "^20.1.2",
     "@types/dedent": "^0.7.0",
     "@types/difflib": "^0.2.6",
