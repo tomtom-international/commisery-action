@@ -2821,80 +2821,6 @@ formatters.O = function (v) {
 
 /***/ }),
 
-/***/ 5281:
-/***/ ((module, exports) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = void 0;
-var _default = createDedent({});
-exports["default"] = _default;
-function createDedent(options) {
-  dedent.withOptions = newOptions => createDedent({
-    ...options,
-    ...newOptions
-  });
-  return dedent;
-  function dedent(strings, ...values) {
-    const raw = typeof strings === "string" ? [strings] : strings.raw;
-    const {
-      escapeSpecialCharacters = Array.isArray(strings)
-    } = options;
-
-    // first, perform interpolation
-    let result = "";
-    for (let i = 0; i < raw.length; i++) {
-      let next = raw[i];
-      if (escapeSpecialCharacters) {
-        // handle escaped newlines, backticks, and interpolation characters
-        next = next.replace(/\\\n[ \t]*/g, "").replace(/\\`/g, "`").replace(/\\\$/g, "$").replace(/\\{/g, "{");
-      }
-      result += next;
-      if (i < values.length) {
-        // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
-        result += values[i];
-      }
-    }
-
-    // now strip indentation
-    const lines = result.split("\n");
-    let mindent = null;
-    for (const l of lines) {
-      const m = l.match(/^(\s+)\S+/);
-      if (m) {
-        const indent = m[1].length;
-        if (!mindent) {
-          // this is the first indented line
-          mindent = indent;
-        } else {
-          mindent = Math.min(mindent, indent);
-        }
-      }
-    }
-    if (mindent !== null) {
-      const m = mindent; // appease TypeScript
-      result = lines
-      // https://github.com/typescript-eslint/typescript-eslint/issues/7140
-      // eslint-disable-next-line @typescript-eslint/prefer-string-starts-ends-with
-      .map(l => l[0] === " " || l[0] === "\t" ? l.slice(m) : l).join("\n");
-    }
-    return result
-    // dedent eats leading and trailing whitespace too
-    .trim()
-    // handle escaped newlines at the end to ensure they don't get stripped too
-    .replace(/\\n/g, "\n");
-  }
-}
-module.exports = exports.default;
-module.exports["default"] = exports.default;
-
-
-/***/ }),
-
 /***/ 4087:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
@@ -33168,7 +33094,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-const dedent_1 = __importDefault(__nccwpck_require__(5281));
+const dedent_1 = __importDefault(__nccwpck_require__(8333));
 const core = __importStar(__nccwpck_require__(2186));
 const fs = __importStar(__nccwpck_require__(7147));
 const os = __importStar(__nccwpck_require__(2037));
@@ -33345,7 +33271,7 @@ exports.prettyPrintCommitMessage = exports.getCommitMessages = exports.getRootPa
 const simple_git_1 = __nccwpck_require__(9103);
 const Color = __importStar(__nccwpck_require__(7871));
 const os = __importStar(__nccwpck_require__(2037));
-const dedent_1 = __importDefault(__nccwpck_require__(5281));
+const dedent_1 = __importDefault(__nccwpck_require__(8333));
 const semver_1 = __nccwpck_require__(8593);
 let __ROOT_PATH = undefined;
 /**
@@ -41420,6 +41346,87 @@ function suggestSimilar(word, candidates) {
 }
 
 exports.suggestSimilar = suggestSimilar;
+
+
+/***/ }),
+
+/***/ 8333:
+/***/ ((module, exports) => {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+const dedent = createDedent({});
+var _default = exports["default"] = dedent;
+function createDedent(options) {
+  dedent.withOptions = newOptions => createDedent({
+    ...options,
+    ...newOptions
+  });
+  return dedent;
+  function dedent(strings, ...values) {
+    const raw = typeof strings === "string" ? [strings] : strings.raw;
+    const {
+      escapeSpecialCharacters = Array.isArray(strings),
+      trimWhitespace = true
+    } = options;
+
+    // first, perform interpolation
+    let result = "";
+    for (let i = 0; i < raw.length; i++) {
+      let next = raw[i];
+      if (escapeSpecialCharacters) {
+        // handle escaped newlines, backticks, and interpolation characters
+        next = next.replace(/\\\n[ \t]*/g, "").replace(/\\`/g, "`").replace(/\\\$/g, "$").replace(/\\\{/g, "{");
+      }
+      result += next;
+      if (i < values.length) {
+        // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
+        result += values[i];
+      }
+    }
+
+    // now strip indentation
+    const lines = result.split("\n");
+    let mindent = null;
+    for (const l of lines) {
+      const m = l.match(/^(\s+)\S+/);
+      if (m) {
+        const indent = m[1].length;
+        if (!mindent) {
+          // this is the first indented line
+          mindent = indent;
+        } else {
+          mindent = Math.min(mindent, indent);
+        }
+      }
+    }
+    if (mindent !== null) {
+      const m = mindent; // appease TypeScript
+      result = lines
+      // https://github.com/typescript-eslint/typescript-eslint/issues/7140
+      // eslint-disable-next-line @typescript-eslint/prefer-string-starts-ends-with
+      .map(l => l[0] === " " || l[0] === "\t" ? l.slice(m) : l).join("\n");
+    }
+
+    // dedent eats leading and trailing whitespace too
+    if (trimWhitespace) {
+      result = result.trim();
+    }
+
+    // handle escaped newlines at the end to ensure they don't get stripped too
+    if (escapeSpecialCharacters) {
+      result = result.replace(/\\n/g, "\n");
+    }
+    return result;
+  }
+}
+module.exports = exports.default;
+module.exports["default"] = exports.default;
 
 
 /***/ }),
