@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "@actions/core": "^1.10.0",
-    "@actions/github": "^6",
+    "@actions/github": "^6.0.1",
     "@octokit/plugin-retry": "^6",
     "@octokit/plugin-throttling": "^8",
     "commander": "^12",
