@@ -37,7 +37,7 @@
     "@octokit/plugin-retry": "^6.0.1",
     "@octokit/plugin-throttling": "^8.2.0",
     "commander": "^14.0.0",
-    "dedent": "^1",
+    "dedent": "^1.6.0",
     "difflib": "^0.2.4",
     "simple-git": "^3.17.0",
     "yaml": "^2.2.2"
