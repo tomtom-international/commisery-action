@@ -71,9 +71,40 @@ jobs:
           create-tag: false                 # OPTIONAL, default: `false`
       - run: echo "Current version is ${{steps.release-version.outputs.current-version}}"
       - if: steps.release-version.outputs.next-version != ''
-        run: echo "Version bumped to ${{steps.release-version.outputs.next-version}}"
+        run: echo "Version bumped to ${{steps.release-version.outputs.next-version}} (${{fromJSON(steps.release-version.outputs.bump-metadata).bump.type}})"
 ```
 More info on the bump action and the available options [here](docs/github-action.md)
+
+#### Outputs
+
+| Name | Description |
+| --- | --- |
+| `next-version` | The next version (including any prefix), based on the commits since `current-version`, or an empty string if a version bump was not or could not be performed. |
+| `bump-metadata` | Stringified JSON object containing the new version, associated tag and GitHub release and the release type associateed. Returns an empty string in case no bump was performed. |
+| `current-version` | The version currently in the repository, or empty string if no SemVer-compatible tags were found (or none were found matching the version-prefix, if provided) |
+
+
+Example `bump-metadata` output value:
+ ```json
+  {
+    "bump": {
+      "from": "0.7.1",
+      "to": "1.0.0",
+      "type": "rel"
+    },
+    "release": {
+      "name": "1.0.0",
+      "id": 1234567,
+      "draft": false,
+      "prerelease": false
+    },
+    "tag": {
+      "ref": "refs/tags/1.0.0",
+      "name": "1.0.0",
+      "sha": "baaaadb0b"
+    }
+  }
+```
 
 ## Command-line Interface
 You can find more information on how to use the CLI on the [dedicated page](docs/cli.md)

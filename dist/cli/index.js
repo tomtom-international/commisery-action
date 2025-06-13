@@ -35135,25 +35135,40 @@ class SemVer {
             // development and the current major version is 0.
             //
             // NOTE: this will enforce a version bump (also for non-bumping commits)
-            return new SemVer({
-                major: 1,
-                minor: 0,
-                patch: 0,
-                prefix: this.prefix,
-            });
+            return {
+                version: new SemVer({
+                    major: 1,
+                    minor: 0,
+                    patch: 0,
+                    prefix: this.prefix,
+                }),
+                increment: SemVerType.MAJOR,
+            };
         }
         switch (what) {
             case SemVerType.MAJOR:
                 if (initialDevelopment && this.major <= 0) {
                     // Bumping major version during initial development is prohibited,
                     // bump the minor version instead.
-                    return this.nextMinor();
+                    return {
+                        version: this.nextMinor(),
+                        increment: SemVerType.MINOR,
+                    };
                 }
-                return this.nextMajor();
+                return {
+                    version: this.nextMajor(),
+                    increment: SemVerType.MAJOR,
+                };
             case SemVerType.MINOR:
-                return this.nextMinor();
+                return {
+                    version: this.nextMinor(),
+                    increment: SemVerType.MINOR,
+                };
             case SemVerType.PATCH:
-                return this.nextPatch();
+                return {
+                    version: this.nextPatch(),
+                    increment: SemVerType.PATCH,
+                };
             default:
                 return null;
         }

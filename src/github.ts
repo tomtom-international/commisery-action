@@ -21,7 +21,7 @@ import * as octokit from "@octokit/plugin-rest-endpoint-methods";
 import { retry } from "@octokit/plugin-retry";
 import { throttling } from "@octokit/plugin-throttling";
 import { GitHub, getOctokitOptions } from "@actions/github/lib/utils";
-import { ICommit, IGitTag } from "./interfaces";
+import { ICommit, IGitHubRelease, IGitTag } from "./interfaces";
 import { SemVer } from "./semver";
 import * as Label from "./label";
 import type { Octokit } from "@octokit/core";
@@ -182,8 +182,8 @@ export async function createRelease(
   draft: boolean,
   prerelease: boolean,
   discussionCategory?: string
-): Promise<void> {
-  await getOctokit().rest.repos.createRelease({
+): Promise<IGitHubRelease | undefined> {
+  const response = await getOctokit().rest.repos.createRelease({
     ...github.context.repo,
     tag_name: tagName,
     target_commitish: commitish,
@@ -193,6 +193,20 @@ export async function createRelease(
     draft,
     prerelease,
   });
+
+  if (response.status >= 400) {
+    core.error(
+      `createRelease: Failed to create release ${tagName} on ${commitish} with body:\n${body}`
+    );
+    return;
+  }
+
+  return {
+    id: response.data.id,
+    name: response.data.name ?? "",
+    draft: response.data.draft,
+    prerelease: response.data.prerelease,
+  };
 }
 
 /**
@@ -287,7 +301,7 @@ export async function updateDraftRelease(
   bodyContents: string,
   isDraft = true,
   isPrerelease = false
-): Promise<boolean> {
+): Promise<IGitHubRelease | undefined> {
   core.debug(
     `Update existing draft release with id ${id} to ${newName} (${tagName}) sha: ${sha}, ` +
       `and body below:\n${bodyContents}`
@@ -303,7 +317,16 @@ export async function updateDraftRelease(
     tag_name: tagName,
   });
 
-  return result.status < 400;
+  if (result.status >= 400) {
+    return;
+  }
+
+  return {
+    id: result.data.id,
+    name: result.data.name ?? "",
+    draft: result.data.draft,
+    prerelease: result.data.prerelease,
+  };
 }
 
 /**
@@ -311,12 +334,32 @@ export async function updateDraftRelease(
  * @param tagName Name of the tag
  * @param sha The SHA1 value of the tag
  */
-export async function createTag(tagName: string, sha: string): Promise<void> {
-  await getOctokit().rest.git.createRef({
+export async function createTag(
+  tagName: string,
+  sha: string
+): Promise<IGitTag | undefined> {
+  const ref = tagName.startsWith("refs/tags/")
+    ? tagName
+    : `refs/tags/${tagName}`;
+
+  const response = await getOctokit().rest.git.createRef({
     ...github.context.repo,
-    ref: tagName.startsWith("refs/tags/") ? tagName : `refs/tags/${tagName}`,
+    ref,
     sha,
   });
+
+  if (response.status >= 400) {
+    core.error(
+      `createTag: Failed to create tag ${tagName} on ${sha}. Response status: ${response.status}`
+    );
+    return;
+  }
+
+  return {
+    ref: response.data.ref,
+    name: response.data.ref.replace("refs/tags/", ""),
+    sha: response.data.object.sha,
+  };
 }
 
 /**
@@ -480,15 +523,22 @@ export async function getAllTags(): Promise<IGitTag[]> {
       }
     `);
 
-    const pageTags: IGitTag[] = result.repository.refs.edges.map(
-      x =>
-        ({
-          name: x.node.name,
-          commitSha: x.node.reftarget.tagtarget
-            ? x.node.reftarget.tagtarget.commitsha
-            : x.node.reftarget.commitsha,
-        }) as IGitTag
-    );
+    const pageTags: IGitTag[] = result.repository.refs.edges
+      .map(x => {
+        const sha =
+          x.node.reftarget.commitsha ?? x.node.reftarget.tagtarget?.commitsha;
+        if (!sha) {
+          core.warning(`Tag ${x.node.name} does not have a valid commit SHA.`);
+          return undefined;
+        }
+
+        return {
+          name: x.node.name.replace("refs/tags/", ""),
+          ref: x.node.name,
+          sha,
+        };
+      })
+      .filter((tag): tag is IGitTag => tag !== undefined);
 
     allTags.push(...pageTags);
     hasNextPage = result.repository.refs.pageInfo.hasNextPage;

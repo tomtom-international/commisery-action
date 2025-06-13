@@ -335,7 +335,7 @@ export async function generateChangelog(
     bump.foundVersion?.toString() ?? "",
     bump.foundVersion
       ?.bump(bump.requiredBump, bump.initialDevelopment)
-      ?.toString() ?? "",
+      ?.version?.toString() ?? "",
     bump.processedCommits
       .map(c => c.message)
       .filter(c => c) as ConventionalCommitMessage[]
