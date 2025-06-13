@@ -24,7 +24,7 @@
     "build:bump": "ncc build -o dist/bump src/actions/entrypoints/bump.ts",
     "test": "jest",
     "lint": "eslint **/*.ts --quiet",
-    "format": "prettier --write **/*.ts",
+    "format": "prettier --write src/ && prettier --write test/",
     "package": "pkg ."
   },
   "bin": {

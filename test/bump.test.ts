@@ -92,12 +92,14 @@ describe("Bump functionality", () => {
       messages: [U.NONE_MSG1, U.NONE_MSG2, U.NONE_MSG3],
       prTitle: U.PRTITLE("chore"),
       expectedVersion: "",
+      expectedReleaseType: "",
     },
     {
       testDescription: "bump patch",
       messages: [U.PATCH_MSG, U.NONE_MSG1, U.PATCH_MSG, U.NONE_MSG2],
       prTitle: U.PRTITLE("fix"),
       expectedVersion: U.PATCH_BUMPED_VERSION,
+      expectedReleaseType: "patch",
     },
     {
       // For default configurations, a revert commit will trigger a patch bump
@@ -105,30 +107,34 @@ describe("Bump functionality", () => {
       messages: [U.toICommit("revert: valid message"), U.NONE_MSG1],
       prTitle: U.PRTITLE("revert"),
       expectedVersion: U.PATCH_BUMPED_VERSION,
+      expectedReleaseType: "patch",
     },
     {
       testDescription: "bump minor",
       messages: [U.PATCH_MSG, U.MINOR_MSG, U.PATCH_MSG, U.NONE_MSG1],
       expectedVersion: U.MINOR_BUMPED_VERSION,
       prTitle: U.PRTITLE("feat"),
+      expectedReleaseType: "minor",
     },
     {
       testDescription: "bump major",
       messages: [U.PATCH_MSG, U.MINOR_MSG, U.MAJOR_MSG, U.NONE_MSG1],
       prTitle: U.PRTITLE("feat!"),
       expectedVersion: U.MAJOR_BUMPED_VERSION,
+      expectedReleaseType: "major",
     },
     {
       testDescription: "bump major by footer",
       messages: [U.PATCH_MSG, U.MINOR_MSG, U.MAJOR_MSG_FOOTER, U.NONE_MSG1],
       prTitle: U.PRTITLE("chore"),
       expectedVersion: U.MAJOR_BUMPED_VERSION,
+      expectedReleaseType: "major",
     },
   ];
 
   test.each(bumpTests)(
     "$testDescription",
-    async ({ messages, prTitle, expectedVersion }) => {
+    async ({ messages, prTitle, expectedVersion, expectedReleaseType }) => {
       jest.spyOn(github, "getPullRequestTitle").mockResolvedValue(prTitle);
       jest
         .spyOn(github, "matchTagsToCommits")
@@ -157,11 +163,19 @@ describe("Bump functionality", () => {
           undefined
         );
       }
-      expect(core.setOutput).toBeCalledWith(
+      expect(core.setOutput).toHaveBeenCalledWith(
         "current-version",
         U.INITIAL_VERSION
       );
-      expect(core.setOutput).toBeCalledWith("next-version", expectedVersion);
+      expect(core.setOutput).toHaveBeenCalledWith(
+        "next-version",
+        expectedVersion
+      );
+      expect(core.setOutput).toHaveBeenCalledWith(
+        "next-version-release-type",
+        expectedReleaseType
+      );
+
       expect(core.warning).not.toHaveBeenCalled();
       expect(core.error).not.toHaveBeenCalled();
       expect(core.setFailed).not.toHaveBeenCalled();
@@ -270,8 +284,12 @@ describe("Trouble bumping", () => {
       expect.stringContaining("No matching SemVer tags found")
     );
 
-    expect(core.setOutput).toBeCalledWith("current-version", "");
-    expect(core.setOutput).toBeCalledWith("next-version", "");
+    expect(core.setOutput).toHaveBeenCalledWith("current-version", "");
+    expect(core.setOutput).toHaveBeenCalledWith("next-version", "");
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "next-version-release-type",
+      ""
+    );
 
     expect(core.error).not.toHaveBeenCalled();
     expect(core.setFailed).not.toHaveBeenCalled();
@@ -303,10 +321,17 @@ describe("Trouble bumping", () => {
     );
 
     // Still handle proper commits and bump correctly
-    expect(core.setOutput).toBeCalledWith("current-version", U.INITIAL_VERSION);
-    expect(core.setOutput).toBeCalledWith(
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "current-version",
+      U.INITIAL_VERSION
+    );
+    expect(core.setOutput).toHaveBeenCalledWith(
       "next-version",
       U.PATCH_BUMPED_VERSION
+    );
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "next-version-release-type",
+      "patch"
     );
 
     expect(core.error).not.toHaveBeenCalled();
@@ -314,7 +339,9 @@ describe("Trouble bumping", () => {
   });
 
   test("can't create tag, unknown reason", async () => {
-    jest.spyOn(github, "createTag").mockRejectedValue;
+    jest
+      .spyOn(github, "createTag")
+      .mockRejectedValue(new Error("Mocked error"));
     jest.spyOn(github, "createRelease").mockImplementation(() => {
       throw new Error("Mocked error");
     });
@@ -323,10 +350,14 @@ describe("Trouble bumping", () => {
 
     expect(github.getShaForTag).toHaveBeenCalledTimes(1);
 
-    expect(core.setOutput).toBeCalledWith("current-version", U.INITIAL_VERSION);
-    expect(core.setOutput).toBeCalledWith(
-      "next-version",
-      U.PATCH_BUMPED_VERSION
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "current-version",
+      U.INITIAL_VERSION
+    );
+    expect(core.setOutput).toHaveBeenCalledWith("next-version", "");
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "next-version-release-type",
+      ""
     );
 
     expect(core.error).not.toHaveBeenCalled();
@@ -347,10 +378,14 @@ describe("Trouble bumping", () => {
 
     expect(github.getShaForTag).toHaveBeenCalledTimes(1);
 
-    expect(core.setOutput).toBeCalledWith("current-version", U.INITIAL_VERSION);
-    expect(core.setOutput).toBeCalledWith(
-      "next-version",
-      U.PATCH_BUMPED_VERSION
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "current-version",
+      U.INITIAL_VERSION
+    );
+    expect(core.setOutput).toHaveBeenCalledWith("next-version", "");
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "next-version-release-type",
+      ""
     );
 
     expect(core.error).not.toHaveBeenCalled();
@@ -375,10 +410,14 @@ describe("Trouble bumping", () => {
       `refs/tags/${U.PATCH_BUMPED_VERSION}`
     );
 
-    expect(core.setOutput).toBeCalledWith("current-version", U.INITIAL_VERSION);
-    expect(core.setOutput).toBeCalledWith(
-      "next-version",
-      U.PATCH_BUMPED_VERSION
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "current-version",
+      U.INITIAL_VERSION
+    );
+    expect(core.setOutput).toHaveBeenCalledWith("next-version", "");
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "next-version-release-type",
+      ""
     );
 
     expect(core.error).not.toHaveBeenCalled();
@@ -416,13 +455,17 @@ describe("Initial development", () => {
     );
 
     // Bump minor, not major
-    expect(core.setOutput).toBeCalledWith(
+    expect(core.setOutput).toHaveBeenCalledWith(
       "current-version",
       INITIAL_DEVELOPMENT_VERSION
     );
-    expect(core.setOutput).toBeCalledWith(
+    expect(core.setOutput).toHaveBeenCalledWith(
       "next-version",
       SemVer.fromString(INITIAL_DEVELOPMENT_VERSION)?.nextMinor().toString()
+    );
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "next-version-release-type",
+      "minor"
     );
 
     expect(core.error).not.toHaveBeenCalled();
@@ -446,11 +489,15 @@ describe("Initial development", () => {
     );
 
     // Bump major, even with non-bumping commits
-    expect(core.setOutput).toBeCalledWith(
+    expect(core.setOutput).toHaveBeenCalledWith(
       "current-version",
       INITIAL_DEVELOPMENT_VERSION
     );
-    expect(core.setOutput).toBeCalledWith("next-version", "1.0.0");
+    expect(core.setOutput).toHaveBeenCalledWith("next-version", "1.0.0");
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "next-version-release-type",
+      "major"
+    );
     expect(github.createRelease).toHaveBeenCalledTimes(1);
     expect(github.createRelease).toHaveBeenCalledWith(
       "1.0.0",

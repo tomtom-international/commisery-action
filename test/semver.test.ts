@@ -96,23 +96,33 @@ describe("Semantic Version parsing incorrect input", () => {
 describe("Semantic Version bumping by type", () => {
   test("Bump major", () => {
     expect(SemVer.fromString("v1.2.3-4")?.bump(SemVerType.MAJOR)).toStrictEqual(
-      new SemVer({ major: 2, minor: 0, patch: 0, prefix: "v" })
+      {
+        version: new SemVer({ major: 2, minor: 0, patch: 0, prefix: "v" }),
+        increment: SemVerType.MAJOR,
+      }
     );
   });
   test("Bump minor", () => {
     expect(SemVer.fromString("v1.2.3-4")?.bump(SemVerType.MINOR)).toStrictEqual(
-      new SemVer({ major: 1, minor: 3, patch: 0, prefix: "v" })
+      {
+        version: new SemVer({ major: 1, minor: 3, patch: 0, prefix: "v" }),
+        increment: SemVerType.MINOR,
+      }
     );
   });
   test("Bump patch on prerelease", () => {
     expect(SemVer.fromString("v1.2.3-4")?.bump(SemVerType.PATCH)).toStrictEqual(
-      new SemVer({ major: 1, minor: 2, patch: 3, prefix: "v" })
+      {
+        version: new SemVer({ major: 1, minor: 2, patch: 3, prefix: "v" }),
+        increment: SemVerType.PATCH,
+      }
     );
   });
   test("Bump patch", () => {
-    expect(SemVer.fromString("v1.2.3")?.bump(SemVerType.PATCH)).toStrictEqual(
-      new SemVer({ major: 1, minor: 2, patch: 4, prefix: "v" })
-    );
+    expect(SemVer.fromString("v1.2.3")?.bump(SemVerType.PATCH)).toStrictEqual({
+      version: new SemVer({ major: 1, minor: 2, patch: 4, prefix: "v" }),
+      increment: SemVerType.PATCH,
+    });
   });
 
   test("No bump", () => {
@@ -125,23 +135,33 @@ describe("Semantic Version bumping by type", () => {
 describe("Semantic Version bumping by type (initial development)", () => {
   test("Bump major", () => {
     expect(SemVer.fromString("v0.2.3-4")?.bump(SemVerType.MAJOR)).toStrictEqual(
-      new SemVer({ major: 0, minor: 3, patch: 0, prefix: "v" })
+      {
+        version: new SemVer({ major: 0, minor: 3, patch: 0, prefix: "v" }),
+        increment: SemVerType.MINOR,
+      }
     );
   });
   test("Bump minor", () => {
     expect(SemVer.fromString("v0.2.3-4")?.bump(SemVerType.MINOR)).toStrictEqual(
-      new SemVer({ major: 0, minor: 3, patch: 0, prefix: "v" })
+      {
+        version: new SemVer({ major: 0, minor: 3, patch: 0, prefix: "v" }),
+        increment: SemVerType.MINOR,
+      }
     );
   });
   test("Bump patch on prerelease", () => {
     expect(SemVer.fromString("v0.2.3-4")?.bump(SemVerType.PATCH)).toStrictEqual(
-      new SemVer({ major: 0, minor: 2, patch: 3, prefix: "v" })
+      {
+        version: new SemVer({ major: 0, minor: 2, patch: 3, prefix: "v" }),
+        increment: SemVerType.PATCH,
+      }
     );
   });
   test("Bump patch", () => {
-    expect(SemVer.fromString("v0.2.3")?.bump(SemVerType.PATCH)).toStrictEqual(
-      new SemVer({ major: 0, minor: 2, patch: 4, prefix: "v" })
-    );
+    expect(SemVer.fromString("v0.2.3")?.bump(SemVerType.PATCH)).toStrictEqual({
+      version: new SemVer({ major: 0, minor: 2, patch: 4, prefix: "v" }),
+      increment: SemVerType.PATCH,
+    });
   });
   test("No bump", () => {
     expect(SemVer.fromString("v0.2.3")?.bump(SemVerType.NONE)).toStrictEqual(
@@ -154,27 +174,42 @@ describe("Semantic Version bumping by type (end of initial development)", () => 
   test("Bump major", () => {
     expect(
       SemVer.fromString("v0.2.3-4")?.bump(SemVerType.MAJOR, false)
-    ).toStrictEqual(new SemVer({ major: 1, minor: 0, patch: 0, prefix: "v" }));
+    ).toStrictEqual({
+      version: new SemVer({ major: 1, minor: 0, patch: 0, prefix: "v" }),
+      increment: SemVerType.MAJOR,
+    });
   });
   test("Bump minor", () => {
     expect(
       SemVer.fromString("v0.2.3-4")?.bump(SemVerType.MINOR, false)
-    ).toStrictEqual(new SemVer({ major: 1, minor: 0, patch: 0, prefix: "v" }));
+    ).toStrictEqual({
+      version: new SemVer({ major: 1, minor: 0, patch: 0, prefix: "v" }),
+      increment: SemVerType.MAJOR,
+    });
   });
   test("Bump patch on prerelease", () => {
     expect(
       SemVer.fromString("v0.2.3-4")?.bump(SemVerType.PATCH, false)
-    ).toStrictEqual(new SemVer({ major: 1, minor: 0, patch: 0, prefix: "v" }));
+    ).toStrictEqual({
+      version: new SemVer({ major: 1, minor: 0, patch: 0, prefix: "v" }),
+      increment: SemVerType.MAJOR,
+    });
   });
   test("Bump patch", () => {
     expect(
       SemVer.fromString("v0.2.3")?.bump(SemVerType.PATCH, false)
-    ).toStrictEqual(new SemVer({ major: 1, minor: 0, patch: 0, prefix: "v" }));
+    ).toStrictEqual({
+      version: new SemVer({ major: 1, minor: 0, patch: 0, prefix: "v" }),
+      increment: SemVerType.MAJOR,
+    });
   });
   test("No bump", () => {
     expect(
       SemVer.fromString("v0.2.3")?.bump(SemVerType.NONE, false)
-    ).toStrictEqual(new SemVer({ major: 1, minor: 0, patch: 0, prefix: "v" }));
+    ).toStrictEqual({
+      version: new SemVer({ major: 1, minor: 0, patch: 0, prefix: "v" }),
+      increment: SemVerType.MAJOR,
+    });
   });
 });
 
