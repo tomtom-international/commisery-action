@@ -29,6 +29,7 @@ import {
   IVersionBumpTypeAndMessages,
   ReleaseMode,
   SdkVerBumpType,
+  IVersionOutput,
 } from "../interfaces";
 
 /**
@@ -48,6 +49,140 @@ export async function run(): Promise<void> {
   await getConfig(core.getInput("config"));
   const config = new Configuration(".commisery.yml");
 
+  const { branchName, isBranchAllowedToPublish } =
+    checkBranchPublishingPermission(config);
+
+  try {
+    const prefix = core.getInput("version-prefix");
+    if (prefix !== "") {
+      config.versionPrefix = prefix;
+    }
+    const release = core.getBooleanInput("create-release");
+    const tag = core.getBooleanInput("create-tag");
+    let releaseMode: ReleaseMode = "none";
+    if (release) {
+      releaseMode = "release";
+    } else if (tag) {
+      releaseMode = "tag";
+    }
+
+    if (release && tag) {
+      core.warning(
+        'Defining both inputs "create-release" and "create-tag" as "true" is not needed; ' +
+          'a Git tag is implicitly created when using "create-release".'
+      );
+    }
+
+    core.startGroup("🔍 Finding latest topological tag..");
+    const bumpInfo: IVersionBumpTypeAndMessages =
+      await getVersionBumpTypeAndMessages(context.sha, config);
+
+    if (!bumpInfo.foundVersion) {
+      // We haven't found a (matching) SemVer tag in the commit and tag list
+      core.setOutput("current-version", "");
+      core.setOutput("next-version", "");
+      core.setOutput("bump-metadata", "");
+      core.warning(`⚠️ No matching SemVer tags found.`);
+      core.endGroup();
+      return;
+    }
+
+    const currentVersion = bumpInfo.foundVersion.toString();
+    core.info(
+      `ℹ️ Found ${
+        config.versionScheme === "semver" ? "SemVer" : "SdkVer"
+      } tag: ${currentVersion}`
+    );
+    core.setOutput("current-version", currentVersion);
+    core.endGroup();
+
+    if (bumpInfo.foundVersion.major <= 0) {
+      core.info("");
+      core.warning(
+        config.initialDevelopment
+          ? "This repository is under 'initial development'; breaking changes will bump the `MINOR` version."
+          : "Enforcing version `1.0.0` as we are no longer in `initial development`."
+      );
+    }
+
+    printNonCompliance(bumpInfo.processedCommits);
+    core.info("");
+
+    const createChangelog = core.getBooleanInput("create-changelog");
+    const releaseTypeInput = core.getInput("release-type");
+
+    // Variable to store the version info from either semver or sdkver bump
+    let versionInfo: IVersionOutput | undefined;
+
+    if (config.versionScheme === "semver") {
+      if (releaseTypeInput !== "") {
+        core.warning(
+          "The input value 'release-type' has no effect when using SemVer as the version scheme."
+        );
+      }
+      core.startGroup("🔍 Determining SemVer bump");
+      versionInfo = await bumpSemVer(
+        config,
+        bumpInfo,
+        releaseMode,
+        branchName,
+        context.sha,
+        isBranchAllowedToPublish,
+        createChangelog
+      );
+    } else if (config.versionScheme === "sdkver") {
+      if (!["rel", "rc", "dev", ""].includes(releaseTypeInput)) {
+        throw new Error(
+          "The input value 'release-type' must be one of: [rel, rc, dev]"
+        );
+      }
+      const releaseType = (
+        releaseTypeInput !== "" ? releaseTypeInput : "dev"
+      ) as SdkVerBumpType;
+      core.startGroup("🔍 Determining SdkVer bump");
+      // For non-release branches, a flow similar to SemVer can be followed,
+      // but release branches get linear increments.
+      versionInfo = await bumpSdkVer(
+        config,
+        bumpInfo,
+        releaseMode,
+        releaseType,
+        context.sha,
+        branchName,
+        isBranchAllowedToPublish,
+        createChangelog
+      );
+    } else {
+      throw new Error(
+        `Unimplemented 'version-scheme': ${config.versionScheme}`
+      );
+    }
+
+    core.setOutput("next-version", versionInfo?.bump.to ?? "");
+    core.setOutput(
+      "bump-metadata",
+      versionInfo ? JSON.stringify(versionInfo) : ""
+    );
+  } catch (ex: unknown) {
+    core.startGroup("❌ Exception");
+    core.setOutput("next-version", "");
+    core.setOutput("bump-metadata", "");
+    core.setFailed((ex as Error).message);
+    core.endGroup();
+  }
+}
+
+/**
+ * Checks if the current branch is allowed to publish based on the configuration.
+ *
+ * @param config - The commisery configuration
+ * @returns An object containing the branch name and a boolean indicating if the branch is allowed to publish
+ * @internal
+ */
+function checkBranchPublishingPermission(config: Configuration): {
+  branchName: string;
+  isBranchAllowedToPublish: boolean;
+} {
   let isBranchAllowedToPublish = false;
   const branchName = context.ref.replace("refs/heads/", "");
 
@@ -69,109 +204,9 @@ export async function run(): Promise<void> {
         `Only branches that match the following ECMA-262 regular expression` +
           `may publish:\n${config.allowedBranches}`
       );
-    }
-  }
-
-  try {
-    const prefix = core.getInput("version-prefix");
-    if (prefix !== "") {
-      config.versionPrefix = prefix;
-    }
-    const release = core.getBooleanInput("create-release");
-    const tag = core.getBooleanInput("create-tag");
-    const releaseMode: ReleaseMode = release ? "release" : tag ? "tag" : "none";
-
-    if (release && tag) {
-      core.warning(
-        'Defining both inputs "create-release" and "create-tag" as "true" is not needed; ' +
-          'a Git tag is implicitly created when using "create-release".'
-      );
-    }
-
-    core.startGroup("🔍 Finding latest topological tag..");
-    const bumpInfo: IVersionBumpTypeAndMessages =
-      await getVersionBumpTypeAndMessages(context.sha, config);
-
-    if (!bumpInfo.foundVersion) {
-      // We haven't found a (matching) SemVer tag in the commit and tag list
-      core.setOutput("current-version", "");
-      core.setOutput("next-version", "");
-      core.warning(`⚠️ No matching SemVer tags found.`);
       core.endGroup();
-      return;
-    } else {
-      const currentVersion = bumpInfo.foundVersion.toString();
-      core.info(
-        `ℹ️ Found ${
-          config.versionScheme === "semver" ? "SemVer" : "SdkVer"
-        } tag: ${currentVersion}`
-      );
-      core.setOutput("current-version", currentVersion);
     }
-    core.endGroup();
-
-    if (bumpInfo.foundVersion.major <= 0) {
-      core.info("");
-      core.warning(
-        config.initialDevelopment
-          ? "This repository is under 'initial development'; breaking changes will bump the `MINOR` version."
-          : "Enforcing version `1.0.0` as we are no longer in `initial development`."
-      );
-    }
-
-    printNonCompliance(bumpInfo.processedCommits);
-
-    const createChangelog = core.getBooleanInput("create-changelog");
-
-    core.info("");
-    const releaseTypeInput = core.getInput("release-type");
-
-    if (config.versionScheme === "semver") {
-      if (releaseTypeInput !== "") {
-        core.warning(
-          "The input value 'release-type' has no effect when using SemVer as the version scheme."
-        );
-      }
-      core.startGroup("🔍 Determining SemVer bump");
-      await bumpSemVer(
-        config,
-        bumpInfo,
-        releaseMode,
-        branchName,
-        context.sha,
-        isBranchAllowedToPublish,
-        createChangelog
-      );
-    } else if (config.versionScheme === "sdkver") {
-      if (!["rel", "rc", "dev", ""].includes(releaseTypeInput)) {
-        throw new Error(
-          "The input value 'release-type' must be one of: [rel, rc, dev]"
-        );
-      }
-      const releaseType = (
-        releaseTypeInput !== "" ? releaseTypeInput : "dev"
-      ) as SdkVerBumpType;
-      core.startGroup("🔍 Determining SdkVer bump");
-      // For non-release branches, a flow similar to SemVer can be followed,
-      // but release branches get linear increments.
-      await bumpSdkVer(
-        config,
-        bumpInfo,
-        releaseMode,
-        releaseType,
-        context.sha,
-        branchName,
-        isBranchAllowedToPublish,
-        createChangelog
-      );
-    } else {
-      throw new Error(
-        `Unimplemented 'version-scheme': ${config.versionScheme}`
-      );
-    }
-  } catch (ex: unknown) {
-    core.startGroup("❌ Exception");
-    core.setFailed((ex as Error).message);
-    core.endGroup();
   }
+
+  return { branchName, isBranchAllowedToPublish };
 }

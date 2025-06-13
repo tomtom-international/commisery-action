@@ -45,6 +45,38 @@ export interface IConfigurationRules {
   [key: string]: ITypeTagConfigItem;
 }
 
+export interface IBumpInfo {
+  from: SemVer;
+  to: SemVer;
+  type: string;
+}
+
+export type ReleaseType =
+  | "rel" // SdkVer
+  | "rc"
+  | "dev"
+  | "major" // SemVer
+  | "minor"
+  | "patch"
+  | "prerelease";
+
+export interface IVersionOutput {
+  tag?: IGitTag;
+  release?: IGitHubRelease;
+  bump: {
+    from: string;
+    to: string;
+    type: ReleaseType;
+  };
+}
+
+export interface IGitHubRelease {
+  name: string;
+  id: number;
+  draft: boolean;
+  prerelease: boolean;
+}
+
 export interface ISemVer {
   major: number;
   minor: number;
@@ -55,8 +87,9 @@ export interface ISemVer {
 }
 
 export interface IGitTag {
+  ref: string;
   name: string;
-  commitSha: string;
+  sha: string;
 }
 
 export interface ICommit {

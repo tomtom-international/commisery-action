@@ -33060,6 +33060,92 @@ async function run() {
     // Try to download and load configuration
     await (0, github_2.getConfig)(core.getInput("config"));
     const config = new config_1.Configuration(".commisery.yml");
+    const { branchName, isBranchAllowedToPublish } = checkBranchPublishingPermission(config);
+    try {
+        const prefix = core.getInput("version-prefix");
+        if (prefix !== "") {
+            config.versionPrefix = prefix;
+        }
+        const release = core.getBooleanInput("create-release");
+        const tag = core.getBooleanInput("create-tag");
+        let releaseMode = "none";
+        if (release) {
+            releaseMode = "release";
+        }
+        else if (tag) {
+            releaseMode = "tag";
+        }
+        if (release && tag) {
+            core.warning('Defining both inputs "create-release" and "create-tag" as "true" is not needed; ' +
+                'a Git tag is implicitly created when using "create-release".');
+        }
+        core.startGroup("🔍 Finding latest topological tag..");
+        const bumpInfo = await (0, bump_1.getVersionBumpTypeAndMessages)(github_1.context.sha, config);
+        if (!bumpInfo.foundVersion) {
+            // We haven't found a (matching) SemVer tag in the commit and tag list
+            core.setOutput("current-version", "");
+            core.setOutput("next-version", "");
+            core.setOutput("bump-metadata", "");
+            core.warning(`⚠️ No matching SemVer tags found.`);
+            core.endGroup();
+            return;
+        }
+        const currentVersion = bumpInfo.foundVersion.toString();
+        core.info(`ℹ️ Found ${config.versionScheme === "semver" ? "SemVer" : "SdkVer"} tag: ${currentVersion}`);
+        core.setOutput("current-version", currentVersion);
+        core.endGroup();
+        if (bumpInfo.foundVersion.major <= 0) {
+            core.info("");
+            core.warning(config.initialDevelopment
+                ? "This repository is under 'initial development'; breaking changes will bump the `MINOR` version."
+                : "Enforcing version `1.0.0` as we are no longer in `initial development`.");
+        }
+        (0, bump_1.printNonCompliance)(bumpInfo.processedCommits);
+        core.info("");
+        const createChangelog = core.getBooleanInput("create-changelog");
+        const releaseTypeInput = core.getInput("release-type");
+        // Variable to store the version info from either semver or sdkver bump
+        let versionInfo;
+        if (config.versionScheme === "semver") {
+            if (releaseTypeInput !== "") {
+                core.warning("The input value 'release-type' has no effect when using SemVer as the version scheme.");
+            }
+            core.startGroup("🔍 Determining SemVer bump");
+            versionInfo = await (0, bump_1.bumpSemVer)(config, bumpInfo, releaseMode, branchName, github_1.context.sha, isBranchAllowedToPublish, createChangelog);
+        }
+        else if (config.versionScheme === "sdkver") {
+            if (!["rel", "rc", "dev", ""].includes(releaseTypeInput)) {
+                throw new Error("The input value 'release-type' must be one of: [rel, rc, dev]");
+            }
+            const releaseType = (releaseTypeInput !== "" ? releaseTypeInput : "dev");
+            core.startGroup("🔍 Determining SdkVer bump");
+            // For non-release branches, a flow similar to SemVer can be followed,
+            // but release branches get linear increments.
+            versionInfo = await (0, bump_1.bumpSdkVer)(config, bumpInfo, releaseMode, releaseType, github_1.context.sha, branchName, isBranchAllowedToPublish, createChangelog);
+        }
+        else {
+            throw new Error(`Unimplemented 'version-scheme': ${config.versionScheme}`);
+        }
+        core.setOutput("next-version", versionInfo?.bump.to ?? "");
+        core.setOutput("bump-metadata", versionInfo ? JSON.stringify(versionInfo) : "");
+    }
+    catch (ex) {
+        core.startGroup("❌ Exception");
+        core.setOutput("next-version", "");
+        core.setOutput("bump-metadata", "");
+        core.setFailed(ex.message);
+        core.endGroup();
+    }
+}
+exports.run = run;
+/**
+ * Checks if the current branch is allowed to publish based on the configuration.
+ *
+ * @param config - The commisery configuration
+ * @returns An object containing the branch name and a boolean indicating if the branch is allowed to publish
+ * @internal
+ */
+function checkBranchPublishingPermission(config) {
     let isBranchAllowedToPublish = false;
     const branchName = github_1.context.ref.replace("refs/heads/", "");
     if (github_1.context.ref.startsWith("refs/heads/")) {
@@ -33075,74 +33161,11 @@ async function run() {
             core.startGroup(`ℹ️ Branch ${branchName} is not allowed to publish`);
             core.info(`Only branches that match the following ECMA-262 regular expression` +
                 `may publish:\n${config.allowedBranches}`);
-        }
-    }
-    try {
-        const prefix = core.getInput("version-prefix");
-        if (prefix !== "") {
-            config.versionPrefix = prefix;
-        }
-        const release = core.getBooleanInput("create-release");
-        const tag = core.getBooleanInput("create-tag");
-        const releaseMode = release ? "release" : tag ? "tag" : "none";
-        if (release && tag) {
-            core.warning('Defining both inputs "create-release" and "create-tag" as "true" is not needed; ' +
-                'a Git tag is implicitly created when using "create-release".');
-        }
-        core.startGroup("🔍 Finding latest topological tag..");
-        const bumpInfo = await (0, bump_1.getVersionBumpTypeAndMessages)(github_1.context.sha, config);
-        if (!bumpInfo.foundVersion) {
-            // We haven't found a (matching) SemVer tag in the commit and tag list
-            core.setOutput("current-version", "");
-            core.setOutput("next-version", "");
-            core.warning(`⚠️ No matching SemVer tags found.`);
             core.endGroup();
-            return;
-        }
-        else {
-            const currentVersion = bumpInfo.foundVersion.toString();
-            core.info(`ℹ️ Found ${config.versionScheme === "semver" ? "SemVer" : "SdkVer"} tag: ${currentVersion}`);
-            core.setOutput("current-version", currentVersion);
-        }
-        core.endGroup();
-        if (bumpInfo.foundVersion.major <= 0) {
-            core.info("");
-            core.warning(config.initialDevelopment
-                ? "This repository is under 'initial development'; breaking changes will bump the `MINOR` version."
-                : "Enforcing version `1.0.0` as we are no longer in `initial development`.");
-        }
-        (0, bump_1.printNonCompliance)(bumpInfo.processedCommits);
-        const createChangelog = core.getBooleanInput("create-changelog");
-        core.info("");
-        const releaseTypeInput = core.getInput("release-type");
-        if (config.versionScheme === "semver") {
-            if (releaseTypeInput !== "") {
-                core.warning("The input value 'release-type' has no effect when using SemVer as the version scheme.");
-            }
-            core.startGroup("🔍 Determining SemVer bump");
-            await (0, bump_1.bumpSemVer)(config, bumpInfo, releaseMode, branchName, github_1.context.sha, isBranchAllowedToPublish, createChangelog);
-        }
-        else if (config.versionScheme === "sdkver") {
-            if (!["rel", "rc", "dev", ""].includes(releaseTypeInput)) {
-                throw new Error("The input value 'release-type' must be one of: [rel, rc, dev]");
-            }
-            const releaseType = (releaseTypeInput !== "" ? releaseTypeInput : "dev");
-            core.startGroup("🔍 Determining SdkVer bump");
-            // For non-release branches, a flow similar to SemVer can be followed,
-            // but release branches get linear increments.
-            await (0, bump_1.bumpSdkVer)(config, bumpInfo, releaseMode, releaseType, github_1.context.sha, branchName, isBranchAllowedToPublish, createChangelog);
-        }
-        else {
-            throw new Error(`Unimplemented 'version-scheme': ${config.versionScheme}`);
         }
     }
-    catch (ex) {
-        core.startGroup("❌ Exception");
-        core.setFailed(ex.message);
-        core.endGroup();
-    }
+    return { branchName, isBranchAllowedToPublish };
 }
-exports.run = run;
 
 
 /***/ }),
@@ -33306,13 +33329,13 @@ async function getVersionBumpTypeAndMessages(targetSha, config) {
         // Try and match this commit's hash to one of the tags in `tags`
         for (const tag of tags) {
             let semVer = null;
-            core.debug(`Considering tag ${tag.name} (${tag.commitSha}) on ${commitSha}`);
-            semVer = getSemVerIfMatches(config.versionPrefix, tag.name, tag.commitSha, commitSha);
+            core.debug(`Considering tag ${tag.name} (${tag.sha}) on ${commitSha}`);
+            semVer = getSemVerIfMatches(config.versionPrefix, tag.name, tag.sha, commitSha);
             if (semVer) {
                 // We've found a tag that matches to this commit. Now, we need to make sure that
                 // we return the _highest_ version tag associated with this commit.
                 core.debug(`Matching tag found (${tag.name}), checking other tags for commit ${commitSha}..`);
-                const matchTags = tags.filter(t => t.commitSha === commitSha);
+                const matchTags = tags.filter(t => t.sha === commitSha);
                 if (matchTags.length > 1) {
                     core.debug(`${matchTags.length} other tags found`);
                     matchTags.sort((lhs, rhs) => semver_1.SemVer.sortSemVer(lhs.name, rhs.name));
@@ -33321,7 +33344,7 @@ async function getVersionBumpTypeAndMessages(targetSha, config) {
                         const t = matchTags.pop();
                         if (!t)
                             break;
-                        semVer = getSemVerIfMatches(config.versionPrefix, t.name, t.commitSha, commitSha);
+                        semVer = getSemVerIfMatches(config.versionPrefix, t.name, t.sha, commitSha);
                     }
                 }
                 else {
@@ -33377,12 +33400,11 @@ async function tryUpdateDraftRelease(cv, changelog, sha) {
     if (!npv)
         return;
     npv.build = shortSha(sha);
-    const updateSuccess = await (0, github_1.updateDraftRelease)(latestDraftRelease.id, npv.toString(), npv.toString(), sha, changelog);
-    if (!updateSuccess) {
+    const updatedRelease = await (0, github_1.updateDraftRelease)(latestDraftRelease.id, npv.toString(), npv.toString(), sha, changelog);
+    if (!updatedRelease) {
         core.info(`Error renaming existing draft release.`);
-        return;
     }
-    return npv.toString();
+    return updatedRelease;
 }
 async function newDraftRelease(currentVersion, changelog, sha, prefix) {
     // Either update went wrong or there was nothing to update
@@ -33394,8 +33416,8 @@ async function newDraftRelease(currentVersion, changelog, sha, prefix) {
     else {
         nextPrereleaseVersion.prerelease = `${prefix}001`;
     }
-    await (0, github_1.createRelease)(nextPrereleaseVersion.toString(), sha, changelog, true, false);
-    return nextPrereleaseVersion.toString();
+    const newRelease = await (0, github_1.createRelease)(nextPrereleaseVersion.toString(), sha, changelog, true, false);
+    return newRelease;
 }
 async function bumpDraftRelease(bumpInfo, changelog, sha, preRelPrefix) {
     const cv = bumpInfo.foundVersion;
@@ -33403,7 +33425,12 @@ async function bumpDraftRelease(bumpInfo, changelog, sha, preRelPrefix) {
         throw Error("Found version is falsy"); // should never happen
     const result = (await tryUpdateDraftRelease(cv, changelog, sha)) ??
         (await newDraftRelease(cv, changelog, sha, preRelPrefix));
-    core.info(`ℹ️ Next prerelease: ${result}`);
+    if (result) {
+        core.info(`ℹ️ Next prerelease: ${result.name}`);
+    }
+    else {
+        core.warning(`⚠️ No prerelease created.`);
+    }
     return result;
 }
 exports.bumpDraftRelease = bumpDraftRelease;
@@ -33438,42 +33465,51 @@ function printNonCompliance(commits) {
 }
 exports.printNonCompliance = printNonCompliance;
 async function publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish, discussionCategoryName, updateDraftId) {
+    let releaseMetadata;
+    let tagMetadata;
     const nv = nextVersion.toString();
     core.info(`ℹ️ Next version: ${nv}`);
-    core.setOutput("next-version", nv);
     core.endGroup();
     if (releaseMode !== "none") {
         if (!isBranchAllowedToPublish) {
-            return false;
+            return {};
         }
         if ((0, github_1.isPullRequestEvent)()) {
             core.startGroup(`ℹ️ Not creating ${releaseMode} on a pull request event.`);
             core.info("We cannot create a release or tag in a pull request context, due to " +
                 "potential parallelism (i.e. races) in pull request builds.");
-            return false;
+            return {};
         }
         core.startGroup(`ℹ️ Creating ${releaseMode} ${nv}..`);
         try {
             if (releaseMode === "tag") {
-                await (0, github_1.createTag)(nv, headSha);
+                tagMetadata = await (0, github_1.createTag)(nv, headSha);
             }
             else {
                 // If version is a prerelease, but not an RC, create a draft release
                 // If version is an RC, create a GitHub "pre-release"
                 const isRc = nextVersion.prerelease.startsWith(RC_PREFIX);
                 const isDev = nextVersion.prerelease !== "" && !isRc;
-                let updated = false;
                 if (updateDraftId) {
-                    updated = await (0, github_1.updateDraftRelease)(updateDraftId, nv, nv, headSha, changelog, isDev, // draft
+                    releaseMetadata = await (0, github_1.updateDraftRelease)(updateDraftId, nv, nv, headSha, changelog, isDev, // draft
                     isRc // prerelease
                     );
-                    if (!updated) {
+                    if (!releaseMetadata) {
                         core.info(`Error renaming existing draft release, ` +
                             `creating new draft release.`);
                     }
                 }
-                if (!updated) {
-                    await (0, github_1.createRelease)(nv, headSha, changelog, isDev, isRc, discussionCategoryName);
+                if (!releaseMetadata) {
+                    releaseMetadata = await (0, github_1.createRelease)(nv, headSha, changelog, isDev, isRc, discussionCategoryName);
+                    // Only set the tag information in case we created a release
+                    // which implicitly creates a tag (i.e. not applicable for draft-releases).
+                    if (releaseMetadata) {
+                        tagMetadata = {
+                            name: releaseMetadata.name,
+                            ref: `refs/tags/${releaseMetadata.name}`,
+                            sha: headSha,
+                        };
+                    }
                 }
             }
         }
@@ -33499,7 +33535,7 @@ async function publishBump(nextVersion, releaseMode, headSha, changelog, isBranc
                 throw ex;
             }
             core.endGroup();
-            return false;
+            return {};
         }
         core.info("Succeeded");
     }
@@ -33509,9 +33545,12 @@ async function publishBump(nextVersion, releaseMode, headSha, changelog, isBranc
             ' - "create-release" set to "true" to create a GitHub release, or\n' +
             ' - "create-tag" set to "true" for a lightweight Git tag.\n' +
             "Note that setting both options is not needed, since a GitHub release implicitly creates a Git tag.");
-        return false;
+        return {};
     }
-    return true;
+    return {
+        release: releaseMetadata,
+        tag: tagMetadata,
+    };
 }
 exports.publishBump = publishBump;
 async function bumpSemVer(config, bumpInfo, releaseMode, branchName, headSha, isBranchAllowedToPublish, createChangelog) {
@@ -33527,27 +33566,48 @@ async function bumpSemVer(config, bumpInfo, releaseMode, branchName, headSha, is
     }
     // Reject MAJOR and MINOR version bumps if we're on a release branch
     // (Purposefully do this check _after_ listing the processed commits.)
-    if (branchName.match(config.releaseBranches) &&
+    if (new RegExp(config.releaseBranches).test(branchName) &&
         [semver_1.SemVerType.MAJOR, semver_1.SemVerType.MINOR].includes(bumpInfo.requiredBump)) {
         core.setFailed(`A ${semver_1.SemVerType[bumpInfo.requiredBump]} bump is requested, but ` +
             `we can only create PATCH bumps on a release branch.`);
-        return false;
+        return;
     }
-    const nextVersion = bumpInfo.foundVersion?.bump(bumpInfo.requiredBump, config.initialDevelopment);
+    let bumpMetadata;
+    if (bumpInfo.foundVersion) {
+        const bumpResult = bumpInfo.foundVersion.bump(bumpInfo.requiredBump, config.initialDevelopment);
+        if (bumpResult) {
+            bumpMetadata = {
+                from: bumpInfo.foundVersion,
+                to: bumpResult.version,
+                type: semver_1.SemVerType[bumpResult.increment].toLowerCase(),
+            };
+        }
+    }
+    let versionMetadata;
+    let bumped = false;
     let changelog = "";
     if (createChangelog)
         changelog = await (0, changelog_1.generateChangelog)(bumpInfo);
-    let bumped = false;
-    if (nextVersion) {
+    if (bumpMetadata) {
         const buildMetadata = core.getInput("build-metadata");
         if (buildMetadata) {
-            nextVersion.build = buildMetadata;
+            bumpMetadata.to.build = buildMetadata;
         }
-        bumped = await publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish, config.releaseDiscussionCategory);
+        const { release, tag } = await publishBump(bumpMetadata.to, releaseMode, headSha, changelog, isBranchAllowedToPublish, config.releaseDiscussionCategory);
+        versionMetadata = {
+            bump: {
+                from: bumpMetadata.from.toString(),
+                to: bumpMetadata.to.toString(),
+                type: bumpMetadata.type,
+            },
+            tag,
+            release,
+        };
+        // If we have a release and/or a tag, we consider the bump successful
+        bumped = release !== undefined || tag !== undefined;
     }
     else {
         core.info("ℹ️ No bump necessary");
-        core.setOutput("next-version", "");
     }
     core.endGroup();
     if (!bumped && config.prereleasePrefix !== undefined) {
@@ -33557,8 +33617,21 @@ async function bumpSemVer(config, bumpInfo, releaseMode, branchName, headSha, is
             !(0, github_1.isPullRequestEvent)() &&
             releaseMode === "release") {
             // Create/rename draft release
-            const ver = await bumpDraftRelease(bumpInfo, changelog, headSha, config.prereleasePrefix);
-            core.info(`ℹ️ Created draft prerelease version ${ver}`);
+            const draftRelease = await bumpDraftRelease(bumpInfo, changelog, headSha, config.prereleasePrefix);
+            if (!draftRelease) {
+                return;
+            }
+            core.info(`ℹ️ Created draft prerelease version ${draftRelease.name}`);
+            if (!bumpInfo.foundVersion)
+                throw Error("Found version is falsy"); // should never happen
+            return {
+                release: draftRelease,
+                bump: {
+                    from: bumpInfo.foundVersion.toString(),
+                    to: draftRelease.name,
+                    type: "prerelease",
+                },
+            };
         }
         else {
             const reason = isBranchAllowedToPublish !== true
@@ -33571,7 +33644,7 @@ async function bumpSemVer(config, bumpInfo, releaseMode, branchName, headSha, is
             core.info(`ℹ️ While configured to bump prereleases, ${reason}.`);
         }
     }
-    return bumped;
+    return bumped ? versionMetadata : undefined;
 }
 exports.bumpSemVer = bumpSemVer;
 function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatchesTag, hasBreakingChange, devPrereleaseText, headSha, isInitialDevelopment) {
@@ -33581,11 +33654,11 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
         throw new errors_1.BumpError(msg);
     };
     const bumpOrError = (t) => {
-        const v = currentVersion.bump(t, isInitialDevelopment);
-        if (!v) {
+        const bumpResult = currentVersion.bump(t, isInitialDevelopment);
+        if (!bumpResult?.version) {
             throw new errors_1.BumpError(`Bump ${t.toString()} for ${currentVersion} failed`);
         }
-        return v;
+        return bumpResult.version;
     };
     core.info(`Determining SDK bump for version ${currentVersion.toString()}:`);
     core.info(` - current version type: ${currentIsRel ? "release" : currentIsRc ? "release candidate" : "dev"}`);
@@ -33593,6 +33666,7 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
     core.info(` - branch type: ${isReleaseBranch ? "" : "not "}release`);
     core.info(` - breaking changes: ${hasBreakingChange ? "yes" : "no"}`);
     let nextVersion = null;
+    let nextBumpType = null;
     if (isReleaseBranch) {
         // If current branch HEAD is a release candidate:
         //   !createRel && !createRc = bump rc-val
@@ -33626,12 +33700,14 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
                 // Pushes on release branches with a finalized release always
                 // bump PATCH, no exception.
                 nextVersion = bumpOrError(semver_1.SemVerType.PATCH);
+                nextBumpType = "rel";
             }
             else if (currentIsRc) {
                 // A release bump on a release candidate results in a full release
                 const nv = semver_1.SemVer.copy(currentVersion);
                 nv.prerelease = "";
                 nextVersion = nv;
+                nextBumpType = "rel";
             }
         }
         else {
@@ -33641,6 +33717,7 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
                 // cleared, as that contains the commit hash of the previous dev version.
                 // Also zero pad to at least two digits.
                 nextVersion = currentVersion.nextPrerelease(undefined, "", 2);
+                nextBumpType = "rc";
                 if (!nextVersion) {
                     fatal(`Unable to bump RC version for: ${currentVersion.toString()}; ` +
                         `make sure it contains an index number.`);
@@ -33649,6 +33726,7 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
             else {
                 // Current version is a release, so bump patch
                 nextVersion = bumpOrError(semver_1.SemVerType.PATCH);
+                nextBumpType = "rel";
             }
         }
     }
@@ -33675,17 +33753,13 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
             if (currentIsRel || (currentIsRc && !headMatchesTag)) {
                 nextVersion = bumpOrError(releaseBump);
             }
-            else if (currentIsRc && headMatchesTag) {
-                nextVersion = semver_1.SemVer.copy(currentVersion);
-                nextVersion.prerelease = "";
-                nextVersion.build = "";
-            }
             else {
                 // Behavior for rc and dev is the same
                 nextVersion = semver_1.SemVer.copy(currentVersion);
                 nextVersion.prerelease = "";
                 nextVersion.build = "";
             }
+            nextBumpType = "rel";
         }
         else if (sdkVerBumpType === "rc") {
             if (currentIsRel || currentIsRc) {
@@ -33703,16 +33777,19 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
                 nextVersion.build = "";
             }
             nextVersion.prerelease = `${RC_PREFIX}01`;
+            nextBumpType = "rc";
         }
         else if (sdkVerBumpType === "dev") {
             // TODO: decide on how best to handle hasBreakingChange in this case
             if (currentIsRel || currentIsRc) {
                 nextVersion = bumpOrError(releaseBump);
                 nextVersion.prerelease = `${devPrereleaseText}001`;
+                nextBumpType = "dev";
             }
             else {
                 // Keep prefix, clear postfix, zero pad to at least three digits
                 nextVersion = currentVersion.nextPrerelease(undefined, "", 3);
+                nextBumpType = "dev";
                 if (!nextVersion) {
                     // This can only happen if the current version is something
                     // unexpected and invalid, like a prerelease without a number, e.g.:
@@ -33734,19 +33811,25 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
     if (buildMetadata) {
         nextVersion.build = buildMetadata;
     }
-    if (sdkVerBumpType === "dev" && !isReleaseBranch) {
+    if (nextBumpType === "dev") {
         nextVersion.prerelease += `.${shortSha(headSha)}`;
     }
-    return nextVersion;
+    if (nextVersion && nextBumpType) {
+        return {
+            from: currentVersion,
+            to: nextVersion,
+            type: nextBumpType,
+        };
+    }
 }
 /**
  * Bump and release/tag SDK versions
  */
 async function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, branchName, isBranchAllowedToPublish, createChangelog) {
-    const isReleaseBranch = branchName.match(config.releaseBranches) !== null;
+    const isReleaseBranch = new RegExp(config.releaseBranches).test(branchName);
     let hasBreakingChange = bumpInfo.processedCommits.some(c => c.message?.breakingChange);
     if (!bumpInfo.foundVersion)
-        return false; // should never happen
+        return; // should never happen
     // SdkVer requires a prerelease, so apply the default if not set
     config.prereleasePrefix = config.prereleasePrefix ?? "dev";
     let cv = semver_1.SemVer.copy(bumpInfo.foundVersion);
@@ -33782,42 +33865,53 @@ async function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha
     }
     // TODO: This is wasteful, as this info has already been available before
     const headMatchesTag = await (0, github_1.currentHeadMatchesTag)(cv.toString());
-    const nextVersion = getNextSdkVer(cv, sdkVerBumpType, isReleaseBranch, headMatchesTag, hasBreakingChange, config.prereleasePrefix ?? "dev", headSha, config.initialDevelopment);
+    const bump = getNextSdkVer(cv, sdkVerBumpType, isReleaseBranch, headMatchesTag, hasBreakingChange, config.prereleasePrefix ?? "dev", headSha, config.initialDevelopment);
     let bumped = false;
-    if (nextVersion) {
+    let changelog = "";
+    let releaseBranchName;
+    let versionOutput;
+    if (bump?.to) {
         // Since we want the changelog since the last _full_ release, we
         // can only rely on the `bumpInfo` if the "current version" is a
         // full release. In other cases, we need to gather some information
         // to generate the proper changelog.
         const previousRelease = await (0, github_1.getRelease)({
-            prefixToMatch: nextVersion.prefix,
+            prefixToMatch: bump.to.prefix,
             draftOnly: false,
             fullReleasesOnly: true,
             constraint: {
-                major: nextVersion.major,
-                minor: nextVersion.minor,
+                major: bump.to.major,
+                minor: bump.to.minor,
             },
         });
         core.info(`The full release preceding the current one is ${previousRelease?.name ?? "undefined"}`);
-        let changelog = "";
         if (createChangelog) {
             if (previousRelease && cv.prerelease) {
                 const toVersion = 
                 // Since "dev" releases on non-release-branches result in a draft
                 // release, we'll need to use the commit sha.
-                sdkVerBumpType === "dev" && !isReleaseBranch
-                    ? shortSha(headSha)
-                    : nextVersion.toString();
+                bump.type === "dev" ? shortSha(headSha) : bump.to.toString();
                 changelog = await (0, changelog_1.generateChangelogForCommits)(previousRelease.name, toVersion, await collectChangelogCommits(previousRelease.name, config));
             }
             else {
                 changelog = await (0, changelog_1.generateChangelog)(bumpInfo);
             }
         }
-        bumped = await publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish, config.releaseDiscussionCategory, 
+        const { release, tag } = await publishBump(bump.to, releaseMode, headSha, changelog, isBranchAllowedToPublish, config.releaseDiscussionCategory, 
         // Re-use the latest draft release only when not running on a release branch,
         // otherwise we might randomly reset a `dev-N` number chain.
         !isReleaseBranch ? latestDraft?.id : undefined);
+        versionOutput = {
+            tag,
+            release,
+            bump: {
+                from: bumpInfo.foundVersion.toString(),
+                to: bump.to.toString(),
+                type: bump.type,
+            },
+        };
+        // If we have a release and/or a tag, we consider the bump successful
+        bumped = release !== undefined || tag !== undefined;
     }
     if (!bumped) {
         core.info("ℹ️ No bump was performed");
@@ -33827,8 +33921,9 @@ async function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha
         // and are currently not running on a release branch.
         if (config.sdkverCreateReleaseBranches !== undefined &&
             !isReleaseBranch &&
-            sdkVerBumpType !== "dev") {
-            const releaseBranchName = `${config.sdkverCreateReleaseBranches}${nextVersion.major}.${nextVersion.minor}`;
+            bump?.type !== "dev" &&
+            bump?.to) {
+            releaseBranchName = `${config.sdkverCreateReleaseBranches}${bump.to.major}.${bump.to.minor}`;
             core.info(`Creating release branch ${releaseBranchName}..`);
             try {
                 await (0, github_1.createBranch)(`refs/heads/${releaseBranchName}`, headSha);
@@ -33852,9 +33947,8 @@ async function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha
             }
         }
     }
-    core.setOutput("next-version", nextVersion?.toString() ?? "");
     core.endGroup();
-    return bumped;
+    return bumped ? versionOutput : undefined;
 }
 exports.bumpSdkVer = bumpSdkVer;
 /**
@@ -34146,7 +34240,7 @@ exports.generateChangelogForCommits = generateChangelogForCommits;
 async function generateChangelog(bump) {
     return await generateChangelogForCommits(bump.foundVersion?.toString() ?? "", bump.foundVersion
         ?.bump(bump.requiredBump, bump.initialDevelopment)
-        ?.toString() ?? "", bump.processedCommits
+        ?.version?.toString() ?? "", bump.processedCommits
         .map(c => c.message)
         .filter(c => c));
 }
@@ -35047,7 +35141,7 @@ exports.getPullRequest = getPullRequest;
  * @param discussionCategory Create this release with link to this discussion category
  */
 async function createRelease(tagName, commitish, body, draft, prerelease, discussionCategory) {
-    await getOctokit().rest.repos.createRelease({
+    const response = await getOctokit().rest.repos.createRelease({
         ...github.context.repo,
         tag_name: tagName,
         target_commitish: commitish,
@@ -35057,6 +35151,16 @@ async function createRelease(tagName, commitish, body, draft, prerelease, discus
         draft,
         prerelease,
     });
+    if (response.status >= 400) {
+        core.error(`createRelease: Failed to create release ${tagName} on ${commitish} with body:\n${body}`);
+        return;
+    }
+    return {
+        id: response.data.id,
+        name: response.data.name ?? "",
+        draft: response.data.draft,
+        prerelease: response.data.prerelease,
+    };
 }
 exports.createRelease = createRelease;
 /**
@@ -35131,7 +35235,15 @@ async function updateDraftRelease(id, newName, tagName, sha, bodyContents, isDra
         name: newName,
         tag_name: tagName,
     });
-    return result.status < 400;
+    if (result.status >= 400) {
+        return;
+    }
+    return {
+        id: result.data.id,
+        name: result.data.name ?? "",
+        draft: result.data.draft,
+        prerelease: result.data.prerelease,
+    };
 }
 exports.updateDraftRelease = updateDraftRelease;
 /**
@@ -35140,11 +35252,23 @@ exports.updateDraftRelease = updateDraftRelease;
  * @param sha The SHA1 value of the tag
  */
 async function createTag(tagName, sha) {
-    await getOctokit().rest.git.createRef({
+    const ref = tagName.startsWith("refs/tags/")
+        ? tagName
+        : `refs/tags/${tagName}`;
+    const response = await getOctokit().rest.git.createRef({
         ...github.context.repo,
-        ref: tagName.startsWith("refs/tags/") ? tagName : `refs/tags/${tagName}`,
+        ref,
         sha,
     });
+    if (response.status >= 400) {
+        core.error(`createTag: Failed to create tag ${tagName} on ${sha}. Response status: ${response.status}`);
+        return;
+    }
+    return {
+        ref: response.data.ref,
+        name: response.data.ref.replace("refs/tags/", ""),
+        sha: response.data.object.sha,
+    };
 }
 exports.createTag = createTag;
 /**
@@ -35264,12 +35388,20 @@ async function getAllTags() {
         }
       }
     `);
-        const pageTags = result.repository.refs.edges.map(x => ({
-            name: x.node.name,
-            commitSha: x.node.reftarget.tagtarget
-                ? x.node.reftarget.tagtarget.commitsha
-                : x.node.reftarget.commitsha,
-        }));
+        const pageTags = result.repository.refs.edges
+            .map(x => {
+            const sha = x.node.reftarget.commitsha ?? x.node.reftarget.tagtarget?.commitsha;
+            if (!sha) {
+                core.warning(`Tag ${x.node.name} does not have a valid commit SHA.`);
+                return undefined;
+            }
+            return {
+                name: x.node.name.replace("refs/tags/", ""),
+                ref: x.node.name,
+                sha,
+            };
+        })
+            .filter((tag) => tag !== undefined);
         allTags.push(...pageTags);
         hasNextPage = result.repository.refs.pageInfo.hasNextPage;
         endCursor = result.repository.refs.pageInfo.endCursor;
@@ -36435,25 +36567,40 @@ class SemVer {
             // development and the current major version is 0.
             //
             // NOTE: this will enforce a version bump (also for non-bumping commits)
-            return new SemVer({
-                major: 1,
-                minor: 0,
-                patch: 0,
-                prefix: this.prefix,
-            });
+            return {
+                version: new SemVer({
+                    major: 1,
+                    minor: 0,
+                    patch: 0,
+                    prefix: this.prefix,
+                }),
+                increment: SemVerType.MAJOR,
+            };
         }
         switch (what) {
             case SemVerType.MAJOR:
                 if (initialDevelopment && this.major <= 0) {
                     // Bumping major version during initial development is prohibited,
                     // bump the minor version instead.
-                    return this.nextMinor();
+                    return {
+                        version: this.nextMinor(),
+                        increment: SemVerType.MINOR,
+                    };
                 }
-                return this.nextMajor();
+                return {
+                    version: this.nextMajor(),
+                    increment: SemVerType.MAJOR,
+                };
             case SemVerType.MINOR:
-                return this.nextMinor();
+                return {
+                    version: this.nextMinor(),
+                    increment: SemVerType.MINOR,
+                };
             case SemVerType.PATCH:
-                return this.nextPatch();
+                return {
+                    version: this.nextPatch(),
+                    increment: SemVerType.PATCH,
+                };
             default:
                 return null;
         }

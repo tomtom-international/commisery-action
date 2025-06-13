@@ -69,6 +69,10 @@ outputs:
     description: >-
       The next version (including any prefix), based on the commits since `current-version`, or an empty
       string if a version bump was not or could not be performed
+  bump-metadata:
+    description: >-
+      Stringified JSON object containing the new version, associated tag and GitHub release and the release
+      type associated. Returns an empty string in case no bump was performed.
 
 runs:
   using: 'node20'
