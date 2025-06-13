@@ -72,3 +72,10 @@ export interface IValidationResult {
 
 export type ReleaseMode = "none" | "release" | "tag"; // keep values user-friendly
 export type SdkVerBumpType = "dev" | "rc" | "rel";
+
+export interface IVersionBumpInfo {
+  /** The next version after the bump */
+  nextVersion?: SemVer;
+  /** Type of release being made */
+  releaseType?: string;
+}

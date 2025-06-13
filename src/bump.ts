@@ -40,6 +40,7 @@ import {
   ICommit,
   IValidationResult,
   IVersionBumpTypeAndMessages,
+  IVersionBumpInfo,
   ReleaseMode,
   SdkVerBumpType,
 } from "./interfaces";
@@ -372,7 +373,6 @@ export async function publishBump(
 ): Promise<boolean> {
   const nv = nextVersion.toString();
   core.info(`ℹ️ Next version: ${nv}`);
-  core.setOutput("next-version", nv);
   core.endGroup();
   if (releaseMode !== "none") {
     if (!isBranchAllowedToPublish) {
@@ -475,7 +475,7 @@ export async function bumpSemVer(
   headSha: string,
   isBranchAllowedToPublish: boolean,
   createChangelog: boolean
-): Promise<boolean> {
+): Promise<IVersionBumpInfo> {
   const compliantCommits = bumpInfo.processedCommits
     .filter(c => c.message !== undefined)
     .map(c => ({
@@ -491,25 +491,35 @@ export async function bumpSemVer(
   // Reject MAJOR and MINOR version bumps if we're on a release branch
   // (Purposefully do this check _after_ listing the processed commits.)
   if (
-    branchName.match(config.releaseBranches) &&
+    new RegExp(config.releaseBranches).test(branchName) &&
     [SemVerType.MAJOR, SemVerType.MINOR].includes(bumpInfo.requiredBump)
   ) {
     core.setFailed(
       `A ${SemVerType[bumpInfo.requiredBump]} bump is requested, but ` +
         `we can only create PATCH bumps on a release branch.`
     );
-    return false;
+    return {};
   }
 
-  const nextVersion = bumpInfo.foundVersion?.bump(
-    bumpInfo.requiredBump,
-    config.initialDevelopment
-  );
+  let nextVersion: SemVer | undefined;
+  let releaseType: string | undefined;
+
+  if (bumpInfo.foundVersion) {
+    const bumpResult = bumpInfo.foundVersion.bump(
+      bumpInfo.requiredBump,
+      config.initialDevelopment
+    );
+    if (bumpResult) {
+      nextVersion = bumpResult.version;
+      releaseType = SemVerType[bumpResult.increment].toLowerCase();
+    }
+  }
 
   let changelog = "";
   if (createChangelog) changelog = await generateChangelog(bumpInfo);
 
   let bumped = false;
+
   if (nextVersion) {
     const buildMetadata = core.getInput("build-metadata");
     if (buildMetadata) {
@@ -526,9 +536,10 @@ export async function bumpSemVer(
     );
   } else {
     core.info("ℹ️ No bump necessary");
-    core.setOutput("next-version", "");
   }
   core.endGroup();
+
+  let prereleaseVersion: string | undefined;
 
   if (!bumped && config.prereleasePrefix !== undefined) {
     // When configured to create GitHub releases, and the `bump-prereleases` config item
@@ -539,14 +550,22 @@ export async function bumpSemVer(
       releaseMode === "release"
     ) {
       // Create/rename draft release
-      const ver = await bumpDraftRelease(
+      prereleaseVersion = await bumpDraftRelease(
         bumpInfo,
         changelog,
         headSha,
         config.prereleasePrefix
       );
 
-      core.info(`ℹ️ Created draft prerelease version ${ver}`);
+      if (prereleaseVersion) {
+        releaseType = "prerelease";
+        core.info(`ℹ️ Created draft prerelease version ${prereleaseVersion}`);
+      }
+
+      return {
+        nextVersion,
+        releaseType,
+      };
     } else {
       const reason =
         isBranchAllowedToPublish !== true
@@ -559,7 +578,11 @@ export async function bumpSemVer(
       core.info(`ℹ️ While configured to bump prereleases, ${reason}.`);
     }
   }
-  return bumped;
+
+  return {
+    nextVersion: bumped ? nextVersion ?? undefined : undefined,
+    releaseType: bumped ? releaseType : undefined,
+  };
 }
 
 function getNextSdkVer(
@@ -571,7 +594,7 @@ function getNextSdkVer(
   devPrereleaseText: string,
   headSha: string,
   isInitialDevelopment: boolean
-): SemVer {
+): IVersionBumpInfo {
   const currentIsRc = currentVersion.prerelease.startsWith(RC_PREFIX);
   const currentIsRel = currentVersion.prerelease === "";
 
@@ -579,11 +602,11 @@ function getNextSdkVer(
     throw new BumpError(msg);
   };
   const bumpOrError = (t: SemVerType): SemVer => {
-    const v = currentVersion.bump(t, isInitialDevelopment);
-    if (!v) {
+    const bumpResult = currentVersion.bump(t, isInitialDevelopment);
+    if (!bumpResult?.version) {
       throw new BumpError(`Bump ${t.toString()} for ${currentVersion} failed`);
     }
-    return v;
+    return bumpResult.version;
   };
 
   core.info(`Determining SDK bump for version ${currentVersion.toString()}:`);
@@ -597,6 +620,7 @@ function getNextSdkVer(
   core.info(` - breaking changes: ${hasBreakingChange ? "yes" : "no"}`);
 
   let nextVersion: SemVer | null = null;
+  let nextBumpType: SdkVerBumpType | null = null;
 
   if (isReleaseBranch) {
     // If current branch HEAD is a release candidate:
@@ -636,11 +660,13 @@ function getNextSdkVer(
         // Pushes on release branches with a finalized release always
         // bump PATCH, no exception.
         nextVersion = bumpOrError(SemVerType.PATCH);
+        nextBumpType = "rel";
       } else if (currentIsRc) {
         // A release bump on a release candidate results in a full release
         const nv = SemVer.copy(currentVersion);
         nv.prerelease = "";
         nextVersion = nv;
+        nextBumpType = "rel";
       }
     } else {
       // Bumps for "rc" and "dev" are identical on a release branch
@@ -649,6 +675,7 @@ function getNextSdkVer(
         // cleared, as that contains the commit hash of the previous dev version.
         // Also zero pad to at least two digits.
         nextVersion = currentVersion.nextPrerelease(undefined, "", 2);
+        nextBumpType = "rc";
         if (!nextVersion) {
           fatal(
             `Unable to bump RC version for: ${currentVersion.toString()}; ` +
@@ -658,6 +685,7 @@ function getNextSdkVer(
       } else {
         // Current version is a release, so bump patch
         nextVersion = bumpOrError(SemVerType.PATCH);
+        nextBumpType = "rel";
       }
     }
   } else {
@@ -683,15 +711,12 @@ function getNextSdkVer(
       if (currentIsRel || (currentIsRc && !headMatchesTag)) {
         nextVersion = bumpOrError(releaseBump);
       } else if (currentIsRc && headMatchesTag) {
-        nextVersion = SemVer.copy(currentVersion);
-        nextVersion.prerelease = "";
-        nextVersion.build = "";
-      } else {
         // Behavior for rc and dev is the same
         nextVersion = SemVer.copy(currentVersion);
         nextVersion.prerelease = "";
         nextVersion.build = "";
       }
+      nextBumpType = "rel";
     } else if (sdkVerBumpType === "rc") {
       if (currentIsRel || currentIsRc) {
         //                   ^^^^
@@ -707,20 +732,24 @@ function getNextSdkVer(
         nextVersion.build = "";
       }
       nextVersion.prerelease = `${RC_PREFIX}01`;
+      nextBumpType = "rc";
     } else if (sdkVerBumpType === "dev") {
       // TODO: decide on how best to handle hasBreakingChange in this case
       if (currentIsRel || currentIsRc) {
         nextVersion = bumpOrError(releaseBump);
         nextVersion.prerelease = `${devPrereleaseText}001`;
+        nextBumpType = "dev";
       } else {
         // Keep prefix, clear postfix, zero pad to at least three digits
         nextVersion = currentVersion.nextPrerelease(undefined, "", 3);
+        nextBumpType = "dev";
         if (!nextVersion) {
           // This can only happen if the current version is something
           // unexpected and invalid, like a prerelease without a number, e.g.:
           //     1.2.3-rc        1.2.3-dev        1.2.3-testing
           nextVersion = bumpOrError(SemVerType.MINOR);
           nextVersion.prerelease = `${devPrereleaseText}001`;
+          nextBumpType = "dev";
           core.warning(
             `Failed to bump the prerelease for version ${currentVersion.toString()}` +
               `; moving to next release version ${nextVersion.toString()}`
@@ -740,11 +769,14 @@ function getNextSdkVer(
     nextVersion.build = buildMetadata;
   }
 
-  if (sdkVerBumpType === "dev" && !isReleaseBranch) {
+  if (nextBumpType === "dev") {
     nextVersion.prerelease += `.${shortSha(headSha)}`;
   }
 
-  return nextVersion;
+  return {
+    nextVersion,
+    releaseType: nextBumpType ?? undefined,
+  };
 }
 
 /**
@@ -759,12 +791,12 @@ export async function bumpSdkVer(
   branchName: string,
   isBranchAllowedToPublish: boolean,
   createChangelog: boolean
-): Promise<boolean> {
-  const isReleaseBranch = branchName.match(config.releaseBranches) !== null;
+): Promise<IVersionBumpInfo> {
+  const isReleaseBranch = new RegExp(config.releaseBranches).test(branchName);
   let hasBreakingChange = bumpInfo.processedCommits.some(
     c => c.message?.breakingChange
   );
-  if (!bumpInfo.foundVersion) return false; // should never happen
+  if (!bumpInfo.foundVersion) return {}; // should never happen
 
   // SdkVer requires a prerelease, so apply the default if not set
   config.prereleasePrefix = config.prereleasePrefix ?? "dev";
@@ -812,7 +844,7 @@ export async function bumpSdkVer(
   }
   // TODO: This is wasteful, as this info has already been available before
   const headMatchesTag = await currentHeadMatchesTag(cv.toString());
-  const nextVersion = getNextSdkVer(
+  const { nextVersion, releaseType } = getNextSdkVer(
     cv,
     sdkVerBumpType,
     isReleaseBranch,
@@ -824,6 +856,8 @@ export async function bumpSdkVer(
   );
 
   let bumped = false;
+  let changelog = "";
+  let releaseBranchName: string | undefined;
 
   if (nextVersion) {
     // Since we want the changelog since the last _full_ release, we
@@ -844,16 +878,13 @@ export async function bumpSdkVer(
         previousRelease?.name ?? "undefined"
       }`
     );
-    let changelog = "";
 
     if (createChangelog) {
       if (previousRelease && cv.prerelease) {
         const toVersion =
           // Since "dev" releases on non-release-branches result in a draft
           // release, we'll need to use the commit sha.
-          sdkVerBumpType === "dev" && !isReleaseBranch
-            ? shortSha(headSha)
-            : nextVersion.toString();
+          releaseType === "dev" ? shortSha(headSha) : nextVersion.toString();
         changelog = await generateChangelogForCommits(
           previousRelease.name,
           toVersion,
@@ -876,6 +907,7 @@ export async function bumpSdkVer(
       !isReleaseBranch ? latestDraft?.id : undefined
     );
   }
+
   if (!bumped) {
     core.info("ℹ️ No bump was performed");
   } else {
@@ -884,9 +916,10 @@ export async function bumpSdkVer(
     if (
       config.sdkverCreateReleaseBranches !== undefined &&
       !isReleaseBranch &&
-      sdkVerBumpType !== "dev"
+      releaseType !== "dev" &&
+      nextVersion
     ) {
-      const releaseBranchName = `${config.sdkverCreateReleaseBranches}${nextVersion.major}.${nextVersion.minor}`;
+      releaseBranchName = `${config.sdkverCreateReleaseBranches}${nextVersion.major}.${nextVersion.minor}`;
       core.info(`Creating release branch ${releaseBranchName}..`);
       try {
         await createBranch(`refs/heads/${releaseBranchName}`, headSha);
@@ -912,9 +945,13 @@ export async function bumpSdkVer(
       }
     }
   }
-  core.setOutput("next-version", nextVersion?.toString() ?? "");
+
   core.endGroup();
-  return bumped;
+
+  return {
+    nextVersion: bumped ? nextVersion : undefined,
+    releaseType: bumped ? releaseType : undefined,
+  };
 }
 
 /**
