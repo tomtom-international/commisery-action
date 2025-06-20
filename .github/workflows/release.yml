@@ -26,12 +26,13 @@ jobs:
   github-release:
     name: Release Action
     outputs:
-      next-version: ${{ steps.commisery.outputs.next-version }}
+      bump-metadata: ${{ steps.commisery.outputs.bump-metadata }}
+
     runs-on: ubuntu-latest
     steps:
       - name: Generate version
         id: commisery
-        uses: tomtom-international/commisery-action/bump@v2
+        uses: ./bump
         with:
           create-release: true
           token: ${{ github.token }}
@@ -40,15 +41,15 @@ jobs:
   release-action:
     runs-on: ubuntu-latest
     needs: github-release
-    if: needs.github-release.outputs.next-version != ''
+    if: needs.github-release.outputs.bump-metadata != ''
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.github-release.outputs.next-version }}
+          ref: ${{ fromJSON(needs.github-release.outputs.bump-metadata).tag.ref }}
 
-      - name: Update the ${{ needs.github-release.outputs.next-version }} tag
+      - name: Update the ${{ fromJSON(needs.github-release.outputs.bump-metadata).tag.name }} tag
         uses: actions/publish-action@v0.2.2
         with:
-          source-tag: ${{ needs.github-release.outputs.next-version }}
+          source-tag: ${{ fromJSON(needs.github-release.outputs.bump-metadata).tag.name }}
