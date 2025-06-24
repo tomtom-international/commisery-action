@@ -324,6 +324,7 @@ const testSuiteDefinitions = [
         ["main branch"            , "1.2.0"      , "dev"  , undefined        , "master"       , true     , `2.0.0-dev001.${U.HEAD_SHA_ABBREV_8}`, "dev"         , false               , 0                 ],
         ["main branch, draft init", "0.2.0"      , "dev"  , "0.3.0-dev001.2" , "master"       , true     , `0.3.0-dev002.${U.HEAD_SHA_ABBREV_8}`, "dev"         , true                , 0                 ],
         ["main branch, draft max" , "1.2.0"      , "dev"  , "1.3.0-dev001.2" , "master"       , true     , `1.3.0-dev002.${U.HEAD_SHA_ABBREV_8}`, "dev"         , false               , 1                 ],
+        ["main branch, draft max2", "1.2.0"      , "dev"  , "1.3.0-dev001.2" , "master"       , true     , `2.0.0-dev001.${U.HEAD_SHA_ABBREV_8}`, "dev"         , false               , 2                 ],
         ["main branch, draft"     , "1.2.0"      , "dev"  , "1.3.0-dev001.2" , "master"       , true     , `1.3.0-dev002.${U.HEAD_SHA_ABBREV_8}`, "dev"         , false               , 0                 ],
         ["release branch"         , "1.2.0"      , "dev"  , undefined        , "release/1.2.0", true     , undefined                            , ""            , false               , 0                 ],
         ["release branch, draft"  , "1.2.0"      , "dev"  , "1.3.0-dev001.3" , "release/1.2.0", true     , undefined                            , ""            , false               , 0                 ],
@@ -334,29 +335,35 @@ const testSuiteDefinitions = [
   {
     suite: "Rc bumps with breaking changes",
     tests: [
-     // [ test description      , version      ,  bump  , latest draft , branch         , breaking?, expected version , expected bump , initial development?, max major version ]
-        ["main branch, init"    , "0.2.0"      , "rc"   , undefined    , "master"       , true     , "0.3.0-rc01"     , "rc"          , true                , 0                 ],
-        ["main branch, no init" , "0.2.0"      , "rc"   , undefined    , "master"       , true     , "1.0.0-rc01"     , "rc"          , false               , 0                 ],
-        ["main branch, max"     , "1.2.0"      , "rc"   , undefined    , "master"       , true     , "1.3.0-rc01"     , "rc"          , false               , 1                 ],
-        ["main branch, max2"    , "1.2.0"      , "rc"   , undefined    , "master"       , true     , "2.0.0-rc01"     , "rc"          , false               , 2                 ],
-        ["main branch"          , "1.2.0"      , "rc"   , undefined    , "master"       , true     , "2.0.0-rc01"     , "rc"          , false               , 0                 ],
-        ["main branch+RC"       , "1.2.0-rc01" , "rc"   , undefined    , "master"       , true     , "2.0.0-rc01"     , "rc"          , false               , 0                 ],
-        ["release branch"       , "1.2.0"      , "rc"   , undefined    , "release/1.2.0", true     , undefined        , ""            , false               , 0                 ],
-        ["release branch+RC"    , "1.2.0-rc01" , "rc"   , undefined    , "release/1.2.0", true     , undefined        , ""            , false               , 0                 ],
-        ["RB+ RC for next major", "2.0.0-rc01" , "dev"  , undefined    , "release/2.0.0", true     , "2.0.0-rc02"     , "rc"          , false               , 0                 ],
+     // [ test description      , version      ,  bump  , latest draft    , branch         , breaking?, expected version , expected bump , initial development?, max major version ]
+        ["main branch, init"    , "0.2.0"      , "rc"   , undefined       , "master"       , true     , "0.3.0-rc01"     , "rc"          , true                , 0                 ],
+        ["main branch, no init" , "0.2.0"      , "rc"   , undefined       , "master"       , true     , "1.0.0-rc01"     , "rc"          , false               , 0                 ],
+        ["main branch, max"     , "1.2.0"      , "rc"   , undefined       , "master"       , true     , "1.3.0-rc01"     , "rc"          , false               , 1                 ],
+        ["main branch, max2"    , "1.2.0"      , "rc"   , undefined       , "master"       , true     , "2.0.0-rc01"     , "rc"          , false               , 2                 ],
+        ["main branch, dev"     , "1.2.0"      , "rc"   , "1.3.0-dev001.2", "master"       , true     , "2.0.0-rc01"     , "rc"          , false               , 0                 ],
+        ["main branch, dev max" , "1.2.0"      , "rc"   , "1.3.0-dev001.2", "master"       , true     , "1.3.0-rc01"     , "rc"          , false               , 1                 ],
+        ["main branch, dev max2", "1.2.0"      , "rc"   , "1.3.0-dev001.2", "master"       , true     , "2.0.0-rc01"     , "rc"          , false               , 2                 ],
+        ["main branch"          , "1.2.0"      , "rc"   , undefined       , "master"       , true     , "2.0.0-rc01"     , "rc"          , false               , 0                 ],
+        ["main branch+RC"       , "1.2.0-rc01" , "rc"   , undefined       , "master"       , true     , "2.0.0-rc01"     , "rc"          , false               , 0                 ],
+        ["release branch"       , "1.2.0"      , "rc"   , undefined       , "release/1.2.0", true     , undefined        , ""            , false               , 0                 ],
+        ["release branch+RC"    , "1.2.0-rc01" , "rc"   , undefined       , "release/1.2.0", true     , undefined        , ""            , false               , 0                 ],
+        ["RB+ RC for next major", "2.0.0-rc01" , "dev"  , undefined       , "release/2.0.0", true     , undefined        , ""            , false               , 0                 ],
     ],
   },
   {
     suite: "Release bumps with breaking changes",
     tests: [
-     // [ test description      , version      ,  bump  , latest draft , branch         , breaking?, expected version, expected bump , initial development?, max major version ]
-        ["main branch, init"    , "0.2.0"      , "rel"  , undefined    , "master"       , true     , "0.3.0"         , "rel"          , true                , 0                 ],
-        ["main branch, no init" , "0.2.0"      , "rel"  , undefined    , "master"       , true     , "1.0.0"         , "rel"          , false               , 0                 ],
-        ["main branch, max"     , "1.2.0"      , "rel"  , undefined    , "master"       , true     , "1.3.0"         , "rel"          , false               , 1                 ],
-        ["main branch, max2"    , "1.2.0"      , "rel"  , undefined    , "master"       , true     , "2.0.0"         , "rel"          , false               , 2                 ],
-        ["main branch"          , "1.2.0"      , "rel"  , undefined    , "master"       , true     , "2.0.0"         , "rel"          , false               , 0                 ],
-        ["release branch"       , "1.2.0"      , "rel"  , undefined    , "release/1.2.0", true     , undefined       , ""             , false               , 0                 ],
-        ["release branch+RC"    , "1.2.0-rc01" , "rel"  , undefined    , "release/1.2.0", true     , undefined       , ""             , false               , 0                 ],
+     // [ test description      , version      ,  bump  , latest draft    , branch         , breaking?, expected version, expected bump , initial development?, max major version ]
+        ["main branch, init"    , "0.2.0"      , "rel"  , undefined       , "master"       , true     , "0.3.0"         , "rel"          , true                , 0                 ],
+        ["main branch, no init" , "0.2.0"      , "rel"  , undefined       , "master"       , true     , "1.0.0"         , "rel"          , false               , 0                 ],
+        ["main branch, max"     , "1.2.0"      , "rel"  , undefined       , "master"       , true     , "1.3.0"         , "rel"          , false               , 1                 ],
+        ["main branch, max2"    , "1.2.0"      , "rel"  , undefined       , "master"       , true     , "2.0.0"         , "rel"          , false               , 2                 ],
+        ["main branch, dev"     , "1.2.0"      , "rel"  , "1.3.0-dev001.2", "master"       , true     , "2.0.0"         , "rel"          , false               , 0                 ],
+        ["main branch, dev max" , "1.2.0"      , "rel"  , "1.3.0-dev001.2", "master"       , true     , "1.3.0"         , "rel"          , false               , 1                 ],
+        ["main branch, dev max2", "1.2.0"      , "rel"  , "1.3.0-dev001.2", "master"       , true     , "2.0.0"         , "rel"          , false               , 2                 ],
+        ["main branch"          , "1.2.0"      , "rel"  , undefined       , "master"       , true     , "2.0.0"         , "rel"          , false               , 0                 ],
+        ["release branch"       , "1.2.0"      , "rel"  , undefined       , "release/1.2.0", true     , undefined       , ""             , false               , 0                 ],
+        ["release branch+RC"    , "1.2.0-rc01" , "rel"  , undefined       , "release/1.2.0", true     , undefined       , ""             , false               , 0                 ],
     ],
   },
   // DRAFT RELEASE HANDLING
@@ -383,6 +390,7 @@ const testSuiteDefinitions = [
         ["rb: previous version" , "1.2.0"     , "rc"   , "1.1.0-dev034", "release/1.2.0", false    , "1.2.1"         , "rel"         , false               , 0                 ],
         ["rb: current version"  , "1.2.0"     , "rc"   , "1.2.0-dev023", "release/1.2.0", false    , "1.2.1"         , "rel"         , false               , 0                 ],
         ["rb: next version"     , "1.2.0"     , "rc"   , "1.3.0-dev019", "release/1.2.0", false    , "1.2.1"         , "rel"         , false               , 0                 ],
+        
     ],
   },
   // MISCELLANEOUS ERRORS

@@ -6,5 +6,11 @@
     "singleQuote": false,
     "trailingComma": "es5",
     "bracketSpacing": true,
-    "arrowParens": "avoid"
+    "arrowParens": "avoid",
+    "overrides": [{
+        "files": "src/bump/sdkver.ts",
+        "options": {
+            "printWidth": 120
+        }
+    }]
 }

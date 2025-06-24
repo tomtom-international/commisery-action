@@ -17,12 +17,12 @@
 import * as core from "@actions/core";
 
 import { context } from "@actions/github";
+import { bumpSdkVer } from "../bump/sdkver";
 import {
-  bumpSdkVer,
   bumpSemVer,
   getVersionBumpTypeAndMessages,
   printNonCompliance,
-} from "../bump";
+} from "../bump/semver";
 import { Configuration } from "../config";
 import { getConfig } from "../github";
 import {

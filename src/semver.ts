@@ -112,7 +112,13 @@ export class SemVer implements ISemVer {
     return `${this.prefix}${this.major}.${this.minor}.${this.patch}${prerelease}${build}`;
   }
 
-  nextMajor(): SemVer {
+  nextMajor(initialDevelopment?: boolean): SemVer {
+    if (initialDevelopment && this.major <= 0) {
+      // Bumping major version during initial development is prohibited,
+      // bump the minor version instead.
+      return this.nextMinor();
+    }
+
     return new SemVer({
       major: this.major + 1,
       minor: 0,
