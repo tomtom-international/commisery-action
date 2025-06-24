@@ -17,12 +17,12 @@
 import * as core from "@actions/core";
 
 import { context } from "@actions/github";
+import { bumpSdkVer } from "../bump/sdkver";
 import {
-  bumpSdkVer,
   bumpSemVer,
   getVersionBumpTypeAndMessages,
   printNonCompliance,
-} from "../bump";
+} from "../bump/semver";
 import { Configuration } from "../config";
 import { getConfig } from "../github";
 import {
@@ -31,6 +31,7 @@ import {
   SdkVerBumpType,
   IVersionOutput,
 } from "../interfaces";
+import { SemVerType } from "../semver";
 
 /**
  * Bump action entrypoint
@@ -59,6 +60,7 @@ export async function run(): Promise<void> {
     }
     const release = core.getBooleanInput("create-release");
     const tag = core.getBooleanInput("create-tag");
+
     let releaseMode: ReleaseMode = "none";
     if (release) {
       releaseMode = "release";
@@ -76,6 +78,22 @@ export async function run(): Promise<void> {
     core.startGroup("🔍 Finding latest topological tag..");
     const bumpInfo: IVersionBumpTypeAndMessages =
       await getVersionBumpTypeAndMessages(context.sha, config);
+
+    let incrementTypeOverride = core.getInput("increment-type-override");
+    if (incrementTypeOverride) {
+      if (
+        Object.keys(SemVerType).includes(incrementTypeOverride.toUpperCase())
+      ) {
+        bumpInfo.requiredBump =
+          SemVerType[
+            incrementTypeOverride.toUpperCase() as keyof typeof SemVerType
+          ];
+      } else {
+        core.warning(
+          `The input 'increment-type-override' must be one of: [major, minor, patch]. Using default behavior.`
+        );
+      }
+    }
 
     if (!bumpInfo.foundVersion) {
       // We haven't found a (matching) SemVer tag in the commit and tag list

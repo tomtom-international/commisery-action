@@ -44,11 +44,22 @@ inputs:
   version-prefix:
     description: 'Optional version prefix (eg. "", "v", "componentX-"). If set, only tags with this exact prefix shall be considered. "*" is a special value, meaning the closest version is used, regardless of prefix".'
     required: false
+  increment-type-override:
+    description: >-
+      Optional override for the type of version increment to apply for this build. 
+      If not set, the action will determine the increment type based on the commits since the last tag.
+      One of ["major", "minor", "patch"]
+    default: ""
+    required: false
   release-type:
     description: >-
       The type of version increment to apply for this build when using the SdkVer version scheme. 
-      This has no effect when using the SemVer version scheme. 
+      This has no effect when using the SemVer version scheme.
       One of ["rel", "rc", "dev"] [EXPERIMENTAL]
+
+      To ensure a breaking change in SdkVer, either use a conventional commit with a breaking change,
+      or set the `increment-type-override` to `major`. Other values of `increment-type-override`
+      will be ignored.
     default: ""
     required: false
   create-changelog:

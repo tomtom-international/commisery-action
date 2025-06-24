@@ -21,7 +21,7 @@ import * as bumpaction from "../src/actions/bump";
 import * as changelog from "../src/changelog";
 import * as validate from "../src/validate";
 
-import { getVersionBumpTypeAndMessages } from "../src/bump";
+import { getVersionBumpTypeAndMessages } from "../src/bump/semver";
 import * as fs from "fs";
 import { SemVer } from "../src/semver";
 import * as U from "./test_utils";

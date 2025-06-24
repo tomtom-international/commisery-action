@@ -15,7 +15,6 @@
  */
 
 import * as core from "@actions/core";
-import { getVersionBumpType } from "../bump";
 import { ConventionalCommitMessage } from "../commit";
 
 import { Configuration } from "../config";
@@ -27,6 +26,7 @@ import {
   validatePrTitle,
   validatePrTitleBump,
 } from "../validate";
+import { getVersionBumpType } from "../bump/semver";
 
 /**
  * Determine labels to add based on the provided conventional commits
