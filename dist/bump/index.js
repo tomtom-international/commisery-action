@@ -33045,6 +33045,7 @@ const sdkver_1 = __nccwpck_require__(6503);
 const semver_1 = __nccwpck_require__(2786);
 const config_1 = __nccwpck_require__(5354);
 const github_2 = __nccwpck_require__(9248);
+const semver_2 = __nccwpck_require__(1475);
 /**
  * Bump action entrypoint
  * Finds out the current version based on SemVer Git tags, optionally creates a
@@ -33082,6 +33083,16 @@ async function run() {
         }
         core.startGroup("🔍 Finding latest topological tag..");
         const bumpInfo = await (0, semver_1.getVersionBumpTypeAndMessages)(github_1.context.sha, config);
+        let incrementTypeOverride = core.getInput("increment-type-override");
+        if (incrementTypeOverride) {
+            if (Object.keys(semver_2.SemVerType).includes(incrementTypeOverride.toUpperCase())) {
+                bumpInfo.requiredBump =
+                    semver_2.SemVerType[incrementTypeOverride.toUpperCase()];
+            }
+            else {
+                core.warning(`The input 'increment-type-override' must be one of: [major, minor, patch]. Using default behavior.`);
+            }
+        }
         if (!bumpInfo.foundVersion) {
             // We haven't found a (matching) SemVer tag in the commit and tag list
             core.setOutput("current-version", "");
@@ -33415,25 +33426,30 @@ const versionUpdateCases = [
     { currentType: "rel", bumpType: "rel", isReleaseBranch: true, updater: (params) => { return updateReleaseVersion(params); } },
 ];
 /**
- * Increments a development version, i.e. 1.0.0-dev001.SHA -> 1.0.0-dev002.SHA
+ * Increments a development version, i.e.
+ *   Non-breaking: 1.0.0-dev001.SHA -> 1.0.0-dev002.SHA
+ *   Breaking: 1.0.0-dev001.SHA -> 2.0.0-dev001.SHA
  *
  * Exceptions:
  * - A new development version is created when the previous version is not using a SdkVer compatible prerelease pattern.
  */
 function updateDevelopmentVersion(params) {
-    let nextVersion = params.currentVersion.nextPrerelease(undefined, "", 3);
+    let nextVersion = params.hasBreakingChange && !params.isInitialDevelopment
+        ? params.currentVersion.nextMajor(params.isInitialDevelopment)
+        : params.currentVersion.nextPrerelease(undefined, "", 3);
     if (!nextVersion)
         return newDevelopmentVersion(params);
-    nextVersion.prerelease = `${nextVersion.prerelease}.${(0, bump_1.shortSha)(params.headSha)}`;
+    nextVersion.prerelease = `${nextVersion.prerelease ? nextVersion.prerelease : "dev001"}.${(0, bump_1.shortSha)(params.headSha)}`;
     return { from: params.currentVersion, to: nextVersion, type: "dev" };
 }
 /**
- * Increments a release candidate version, i.e. 1.0.0-rc01 -> 1.0.0-rc02
+ * Increments a release candidate version, i.e.
+ *   Non-breaking: 1.0.0-rc01 -> 1.0.0-rc02
+ *   Breaking: 1.0.0-rc01 -> 1.0.0-rc02
  *
  * Exceptions:
  * - No release candidate version is created when the head matches a tag.
  * - Release candidates can only be updated on a release branch.
- * - Breaking changes are not allowed when updating a release candidate version.
  * - A new release candidate will not be created when the previous version is not using a SdkVer compatible prerelease pattern.
  */
 function updateReleaseCandidateVersion(params) {
@@ -33441,8 +33457,6 @@ function updateReleaseCandidateVersion(params) {
         throw new errors_1.BumpError("Do now update release candidate version when the head matches a tag.");
     if (!params.isReleaseBranch)
         throw new errors_1.BumpError("Cannot update release candidate version on a non-release branch.");
-    if (params.hasBreakingChange)
-        throw new errors_1.BumpError("Cannot update release candidates with a breaking change.");
     let nextVersion = params.currentVersion.nextPrerelease(undefined, "", 2);
     if (!nextVersion)
         throw new errors_1.BumpError(`Failed to determine next prerelease version from ${params.currentVersion.toString()}`);
@@ -33517,7 +33531,7 @@ function promoteToReleaseCandidateVersion(params) {
     let nextVersion = params.hasBreakingChange
         ? params.currentVersion.nextMajor()
         : semver_1.SemVer.copy(params.currentVersion);
-    nextVersion.prerelease = `${bump_1.RC_PREFIX}01`;
+    nextVersion.prerelease = `rc01`;
     nextVersion.build = "";
     return { from: params.currentVersion, to: nextVersion, type: "rc" };
 }
@@ -33582,6 +33596,7 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
         isInitialDevelopment,
     };
     const match = findVersionUpdateCase(params);
+    //console.log(match)
     if (match) {
         return match.updater(params);
     }
@@ -33596,7 +33611,7 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
  */
 async function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, branchName, isBranchAllowedToPublish, createChangelog) {
     const isReleaseBranch = new RegExp(config.releaseBranches).test(branchName);
-    let hasBreakingChange = bumpInfo.processedCommits.some(c => c.message?.breakingChange);
+    let hasBreakingChange = bumpInfo.requiredBump === semver_1.SemVerType.MAJOR;
     if (!bumpInfo.foundVersion)
         return; // should never happen
     // SdkVer requires a prerelease, so apply the default if not set
@@ -33622,6 +33637,8 @@ async function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha
         if (draftVersion && cv.lessThan(draftVersion)) {
             cv = draftVersion;
         }
+        const releaseVersion = semver_1.SemVer.fromString(latestRelease?.name ?? "0.0.0");
+        hasBreakingChange = hasBreakingChange && releaseVersion?.major === draftVersion?.major;
     }
     // TODO: This is wasteful, as this info has already been available before
     const headMatchesTag = await (0, github_1.currentHeadMatchesTag)(cv.toString());

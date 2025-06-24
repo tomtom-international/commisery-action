@@ -63,6 +63,8 @@ export const mockGetInput = (setting: string, _options?: unknown) => {
       return "";
     case "release-type":
       return "";
+    case "increment-type-override":
+      return "";
   }
   throw new Error(`getInput("${setting}") not mocked`);
 };

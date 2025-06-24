@@ -21,7 +21,7 @@ import { generateChangelogForCommits, generateChangelog } from "../changelog";
 import { Configuration } from "../config";
 import { createBranch, currentHeadMatchesTag, getCommitsBetweenRefs, getRunNumber, getRelease } from "../github";
 import { ConventionalCommitMessage } from "../commit";
-import { SemVer } from "../semver";
+import { SemVer, SemVerType } from "../semver";
 import { BumpError } from "../errors";
 import * as interfaces from "../interfaces";
 import { processCommitsForBump, publishBump, RC_PREFIX, shortSha } from "./bump";
@@ -77,33 +77,38 @@ const versionUpdateCases: VersionUpdateCase[] = [
 ];
 
 /**
- * Increments a development version, i.e. 1.0.0-dev001.SHA -> 1.0.0-dev002.SHA
+ * Increments a development version, i.e.
+ *   Non-breaking: 1.0.0-dev001.SHA -> 1.0.0-dev002.SHA
+ *   Breaking: 1.0.0-dev001.SHA -> 2.0.0-dev001.SHA
  *
  * Exceptions:
  * - A new development version is created when the previous version is not using a SdkVer compatible prerelease pattern.
  */
 function updateDevelopmentVersion(params: VersionUpdateParams): interfaces.IBumpInfo {
-  let nextVersion = params.currentVersion.nextPrerelease(undefined, "", 3);
+  let nextVersion =
+    params.hasBreakingChange && !params.isInitialDevelopment
+      ? params.currentVersion.nextMajor(params.isInitialDevelopment)
+      : params.currentVersion.nextPrerelease(undefined, "", 3);
   if (!nextVersion) return newDevelopmentVersion(params);
 
-  nextVersion.prerelease = `${nextVersion.prerelease}.${shortSha(params.headSha)}`;
+  nextVersion.prerelease = `${nextVersion.prerelease ? nextVersion.prerelease : "dev001"}.${shortSha(params.headSha)}`;
   return { from: params.currentVersion, to: nextVersion, type: "dev" };
 }
 
 /**
- * Increments a release candidate version, i.e. 1.0.0-rc01 -> 1.0.0-rc02
+ * Increments a release candidate version, i.e.
+ *   Non-breaking: 1.0.0-rc01 -> 1.0.0-rc02
+ *   Breaking: 1.0.0-rc01 -> 1.0.0-rc02
  *
  * Exceptions:
  * - No release candidate version is created when the head matches a tag.
  * - Release candidates can only be updated on a release branch.
- * - Breaking changes are not allowed when updating a release candidate version.
  * - A new release candidate will not be created when the previous version is not using a SdkVer compatible prerelease pattern.
  */
 function updateReleaseCandidateVersion(params: VersionUpdateParams): interfaces.IBumpInfo {
   if (params.headMatchesTag)
     throw new BumpError("Do now update release candidate version when the head matches a tag.");
   if (!params.isReleaseBranch) throw new BumpError("Cannot update release candidate version on a non-release branch.");
-  if (params.hasBreakingChange) throw new BumpError("Cannot update release candidates with a breaking change.");
 
   let nextVersion = params.currentVersion.nextPrerelease(undefined, "", 2);
   if (!nextVersion)
@@ -185,7 +190,7 @@ function promoteToReleaseCandidateVersion(params: VersionUpdateParams): interfac
   let nextVersion: SemVer | null = params.hasBreakingChange
     ? params.currentVersion.nextMajor()
     : SemVer.copy(params.currentVersion);
-  nextVersion.prerelease = `${RC_PREFIX}01`;
+  nextVersion.prerelease = `rc01`;
   nextVersion.build = "";
 
   return { from: params.currentVersion, to: nextVersion, type: "rc" };
@@ -268,6 +273,7 @@ function getNextSdkVer(
   };
 
   const match = findVersionUpdateCase(params);
+  //console.log(match)
   if (match) {
     return match.updater(params);
   }
@@ -295,7 +301,7 @@ export async function bumpSdkVer(
   createChangelog: boolean
 ): Promise<interfaces.IVersionOutput | undefined> {
   const isReleaseBranch = new RegExp(config.releaseBranches).test(branchName);
-  let hasBreakingChange = bumpInfo.processedCommits.some(c => c.message?.breakingChange);
+  let hasBreakingChange = bumpInfo.requiredBump === SemVerType.MAJOR;
   if (!bumpInfo.foundVersion) return; // should never happen
 
   // SdkVer requires a prerelease, so apply the default if not set
@@ -328,6 +334,9 @@ export async function bumpSdkVer(
     if (draftVersion && cv.lessThan(draftVersion)) {
       cv = draftVersion;
     }
+
+    const releaseVersion = SemVer.fromString(latestRelease?.name ?? "0.0.0");
+    hasBreakingChange = hasBreakingChange && releaseVersion?.major === draftVersion?.major;
   }
 
   // TODO: This is wasteful, as this info has already been available before
