@@ -26,7 +26,7 @@ import * as fs from "fs";
 import { SemVer } from "../src/semver";
 import * as U from "./test_utils";
 import { Configuration } from "../src/config";
-import { IGitHubRelease, IGitTag } from "../src/interfaces";
+import { IGitHubRelease, IGitTag, IVersionOutput } from "../src/interfaces";
 import { BASE_COMMIT } from "./test_utils";
 import { ALL_RULES } from "../src/rules";
 
@@ -189,12 +189,12 @@ describe("Bump functionality", () => {
               to: expectedVersion,
               type: expectedReleaseType,
             },
+            release,
             tag: {
               name: expectedVersion,
               ref: `refs/tags/${expectedVersion}`,
               sha: U.HEAD_SHA,
             },
-            release,
           })
         );
       } else {
@@ -242,7 +242,29 @@ describe("Releases and tags", () => {
         return false;
       });
 
+    const expectedTag: IGitTag | undefined =
+      rel || tag
+        ? {
+            name: U.PATCH_BUMPED_VERSION,
+            ref: `refs/tags/${U.PATCH_BUMPED_VERSION}`,
+            sha: U.HEAD_SHA,
+          }
+        : undefined;
+
+    const expectedRelease: IGitHubRelease | undefined = rel
+      ? {
+          name: U.PATCH_BUMPED_VERSION,
+          id: 123456,
+          draft: false,
+          prerelease: false,
+        }
+      : undefined;
+
+    jest.spyOn(github, "createRelease").mockResolvedValue(expectedRelease);
+    jest.spyOn(github, "createTag").mockResolvedValue(expectedTag);
+
     await bumpaction.run();
+
     if (!rel && !tag) {
       expect(core.startGroup).toHaveBeenCalledWith(
         expect.stringContaining(
@@ -277,6 +299,29 @@ describe("Releases and tags", () => {
     if (!(tag && rel)) expect(core.warning).not.toHaveBeenCalled();
     expect(core.error).not.toHaveBeenCalled();
     expect(core.setFailed).not.toHaveBeenCalled();
+
+    const expectedMetadata: IVersionOutput = {
+      bump: {
+        from: U.INITIAL_VERSION,
+        to: U.PATCH_BUMPED_VERSION,
+        type: "patch",
+      },
+      release: expectedRelease,
+      tag: expectedTag,
+    };
+
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "current-version",
+      U.INITIAL_VERSION
+    );
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "next-version",
+      U.PATCH_BUMPED_VERSION
+    );
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "bump-metadata",
+      JSON.stringify(expectedMetadata)
+    );
   });
 });
 
@@ -375,8 +420,8 @@ describe("Trouble bumping", () => {
           to: U.PATCH_BUMPED_VERSION,
           type: "patch",
         },
-        tag,
         release,
+        tag,
       })
     );
 
@@ -525,8 +570,8 @@ describe("Initial development", () => {
           to: nextVersion,
           type: "minor",
         },
-        tag,
         release,
+        tag,
       })
     );
 
@@ -578,8 +623,8 @@ describe("Initial development", () => {
           to: "1.0.0",
           type: "major",
         },
-        tag,
         release,
+        tag,
       })
     );
 
