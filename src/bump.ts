@@ -626,7 +626,7 @@ export async function bumpSemVer(
     }
   }
 
-  return bumped ? versionMetadata : undefined;
+  return bumped || releaseMode === "none" ? versionMetadata : undefined;
 }
 
 function getNextSdkVer(
@@ -956,13 +956,13 @@ export async function bumpSdkVer(
     );
 
     versionOutput = {
-      tag,
-      release,
       bump: {
         from: bumpInfo.foundVersion.toString(),
         to: bump.to.toString(),
         type: bump.type as ReleaseType,
       },
+      tag,
+      release,
     };
 
     // If we have a release and/or a tag, we consider the bump successful
@@ -1009,7 +1009,7 @@ export async function bumpSdkVer(
 
   core.endGroup();
 
-  return bumped ? versionOutput : undefined;
+  return bumped || releaseMode === "none" ? versionOutput : undefined;
 }
 
 /**

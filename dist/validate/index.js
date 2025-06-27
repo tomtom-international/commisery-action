@@ -33579,7 +33579,7 @@ async function bumpSemVer(config, bumpInfo, releaseMode, branchName, headSha, is
             core.info(`ℹ️ While configured to bump prereleases, ${reason}.`);
         }
     }
-    return bumped ? versionMetadata : undefined;
+    return bumped || releaseMode === "none" ? versionMetadata : undefined;
 }
 exports.bumpSemVer = bumpSemVer;
 function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatchesTag, hasBreakingChange, devPrereleaseText, headSha, isInitialDevelopment) {
@@ -33837,13 +33837,13 @@ async function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha
         // otherwise we might randomly reset a `dev-N` number chain.
         !isReleaseBranch ? latestDraft?.id : undefined);
         versionOutput = {
-            tag,
-            release,
             bump: {
                 from: bumpInfo.foundVersion.toString(),
                 to: bump.to.toString(),
                 type: bump.type,
             },
+            tag,
+            release,
         };
         // If we have a release and/or a tag, we consider the bump successful
         bumped = release !== undefined || tag !== undefined;
@@ -33883,7 +33883,7 @@ async function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha
         }
     }
     core.endGroup();
-    return bumped ? versionOutput : undefined;
+    return bumped || releaseMode === "none" ? versionOutput : undefined;
 }
 exports.bumpSdkVer = bumpSdkVer;
 /**

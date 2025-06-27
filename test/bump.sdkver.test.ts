@@ -209,13 +209,13 @@ const testFunction = async (p: SdkBumpTestParameters) => {
     expect(core.setOutput).toHaveBeenCalledWith(
       "bump-metadata",
       JSON.stringify({
-        tag,
-        release,
         bump: {
           from: p.initialVersion,
           to: p.expectedVersion,
           type: p.expectedBumpType,
         },
+        tag,
+        release,
       } as IVersionOutput)
     );
 
@@ -587,13 +587,13 @@ describe("Create changelog", () => {
     expect(core.setOutput).toHaveBeenCalledWith(
       "bump-metadata",
       JSON.stringify({
-        tag: tag,
-        release: release,
         bump: {
           from: U.INITIAL_VERSION,
           to: U.MINOR_BUMPED_VERSION,
           type: "rel",
         },
+        tag: tag,
+        release: release,
       } as IVersionOutput)
     );
   });
