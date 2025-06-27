@@ -33518,25 +33518,26 @@ async function bumpSemVer(config, bumpInfo, releaseMode, branchName, headSha, is
             };
         }
     }
+    let versionMetadata;
     let bumped = false;
     let changelog = "";
     if (createChangelog)
         changelog = await (0, changelog_1.generateChangelog)(bumpInfo);
-    let versionMetadata;
     if (bumpMetadata) {
+        const buildMetadata = core.getInput("build-metadata");
+        if (buildMetadata) {
+            bumpMetadata.to.build = buildMetadata;
+        }
+        const { release, tag } = await publishBump(bumpMetadata.to, releaseMode, headSha, changelog, isBranchAllowedToPublish, config.releaseDiscussionCategory);
         versionMetadata = {
             bump: {
                 from: bumpMetadata.from.toString(),
                 to: bumpMetadata.to.toString(),
                 type: bumpMetadata.type,
             },
+            release,
+            tag,
         };
-        const buildMetadata = core.getInput("build-metadata");
-        if (buildMetadata) {
-            bumpMetadata.to.build = buildMetadata;
-        }
-        const { release, tag } = await publishBump(bumpMetadata.to, releaseMode, headSha, changelog, isBranchAllowedToPublish, config.releaseDiscussionCategory);
-        versionMetadata = { ...versionMetadata, release, tag };
         // If we have a release and/or a tag, we consider the bump successful
         bumped = release !== undefined || tag !== undefined;
     }
@@ -33805,13 +33806,6 @@ async function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha
     let releaseBranchName;
     let versionOutput;
     if (bump?.to) {
-        versionOutput = {
-            bump: {
-                from: bumpInfo.foundVersion.toString(),
-                to: bump.to.toString(),
-                type: bump.type,
-            },
-        };
         // Since we want the changelog since the last _full_ release, we
         // can only rely on the `bumpInfo` if the "current version" is a
         // full release. In other cases, we need to gather some information
@@ -33842,7 +33836,15 @@ async function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha
         // Re-use the latest draft release only when not running on a release branch,
         // otherwise we might randomly reset a `dev-N` number chain.
         !isReleaseBranch ? latestDraft?.id : undefined);
-        versionOutput = { ...versionOutput, tag, release };
+        versionOutput = {
+            bump: {
+                from: bumpInfo.foundVersion.toString(),
+                to: bump.to.toString(),
+                type: bump.type,
+            },
+            tag,
+            release,
+        };
         // If we have a release and/or a tag, we consider the bump successful
         bumped = release !== undefined || tag !== undefined;
     }
