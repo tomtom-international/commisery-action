@@ -189,12 +189,12 @@ describe("Bump functionality", () => {
               to: expectedVersion,
               type: expectedReleaseType,
             },
-            release,
             tag: {
               name: expectedVersion,
               ref: `refs/tags/${expectedVersion}`,
               sha: U.HEAD_SHA,
             },
+            release,
           })
         );
       } else {
@@ -306,8 +306,8 @@ describe("Releases and tags", () => {
         to: U.PATCH_BUMPED_VERSION,
         type: "patch",
       },
-      release: expectedRelease,
       tag: expectedTag,
+      release: expectedRelease,
     };
 
     expect(core.setOutput).toHaveBeenCalledWith(
@@ -420,8 +420,8 @@ describe("Trouble bumping", () => {
           to: U.PATCH_BUMPED_VERSION,
           type: "patch",
         },
-        release,
         tag,
+        release,
       })
     );
 
@@ -570,8 +570,8 @@ describe("Initial development", () => {
           to: nextVersion,
           type: "minor",
         },
-        release,
         tag,
+        release,
       })
     );
 
@@ -623,8 +623,8 @@ describe("Initial development", () => {
           to: "1.0.0",
           type: "major",
         },
-        release,
         tag,
+        release,
       })
     );
 

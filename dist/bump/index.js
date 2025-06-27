@@ -33600,8 +33600,8 @@ async function bumpSemVer(config, bumpInfo, releaseMode, branchName, headSha, is
                 to: bumpMetadata.to.toString(),
                 type: bumpMetadata.type,
             },
-            release,
             tag,
+            release,
         };
         // If we have a release and/or a tag, we consider the bump successful
         bumped = release !== undefined || tag !== undefined;

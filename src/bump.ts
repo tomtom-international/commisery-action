@@ -544,6 +544,7 @@ export async function bumpSemVer(
   }
 
   let versionMetadata: IVersionOutput | undefined;
+
   let bumped = false;
 
   let changelog = "";
@@ -570,8 +571,8 @@ export async function bumpSemVer(
         to: bumpMetadata.to.toString(),
         type: bumpMetadata.type as ReleaseType,
       },
-      release,
       tag,
+      release,
     };
 
     // If we have a release and/or a tag, we consider the bump successful
