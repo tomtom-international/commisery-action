@@ -108,9 +108,6 @@ export async function run(): Promise<void> {
       }
     }
 
-    printNonCompliance(bumpInfo.processedCommits);
-    core.info("");
-
     const createChangelog = core.getBooleanInput("create-changelog");
     const releaseTypeInput = core.getInput("release-type");
 
@@ -123,6 +120,9 @@ export async function run(): Promise<void> {
           "The input value 'release-type' has no effect when using SemVer as the version scheme."
         );
       }
+      printNonCompliance(bumpInfo.processedCommits);
+      core.info("");
+
       core.startGroup("🔍 Determining SemVer bump");
       versionInfo = await bumpSemVer(
         config,

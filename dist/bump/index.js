@@ -33102,8 +33102,6 @@ async function run() {
                 core.info("This repository is under 'initial development'; breaking changes will bump the `MINOR` version.");
             }
         }
-        (0, bump_1.printNonCompliance)(bumpInfo.processedCommits);
-        core.info("");
         const createChangelog = core.getBooleanInput("create-changelog");
         const releaseTypeInput = core.getInput("release-type");
         // Variable to store the version info from either semver or sdkver bump
@@ -33112,6 +33110,8 @@ async function run() {
             if (releaseTypeInput !== "") {
                 core.warning("The input value 'release-type' has no effect when using SemVer as the version scheme.");
             }
+            (0, bump_1.printNonCompliance)(bumpInfo.processedCommits);
+            core.info("");
             core.startGroup("🔍 Determining SemVer bump");
             versionInfo = await (0, bump_1.bumpSemVer)(config, bumpInfo, releaseMode, branchName, github_1.context.sha, isBranchAllowedToPublish, createChangelog);
         }
