@@ -551,7 +551,7 @@ describe("Initial development", () => {
     jest.spyOn(github, "createRelease").mockResolvedValue(release);
 
     await bumpaction.run();
-    expect(core.warning).toHaveBeenCalledWith(
+    expect(core.info).toHaveBeenCalledWith(
       expect.stringContaining("This repository is under 'initial development'")
     );
 
