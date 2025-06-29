@@ -33095,10 +33095,12 @@ async function run() {
         core.setOutput("current-version", currentVersion);
         core.endGroup();
         if (bumpInfo.foundVersion.major <= 0) {
-            core.info("");
-            core.warning(config.initialDevelopment
-                ? "This repository is under 'initial development'; breaking changes will bump the `MINOR` version."
-                : "Enforcing version `1.0.0` as we are no longer in `initial development`.");
+            if (!config.initialDevelopment) {
+                core.warning("Enforcing version `1.0.0` as we are no longer in `initial development`.");
+            }
+            else {
+                core.info("This repository is under 'initial development'; breaking changes will bump the `MINOR` version.");
+            }
         }
         (0, bump_1.printNonCompliance)(bumpInfo.processedCommits);
         core.info("");
