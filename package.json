@@ -36,6 +36,7 @@
     "@octokit/plugin-rest-endpoint-methods": "^10.4.0",
     "@octokit/plugin-retry": "^6.0.1",
     "@octokit/plugin-throttling": "^8.2.0",    
+    "@octokit/request-error": "^5.1.1",
     "commander": "^14.0.0",
     "dedent": "^1.6.0",
     "difflib": "^0.2.4",
