@@ -20,6 +20,7 @@ import * as github from "@actions/github";
 import * as octokit from "@octokit/plugin-rest-endpoint-methods";
 import { retry } from "@octokit/plugin-retry";
 import { throttling } from "@octokit/plugin-throttling";
+import { RequestError } from "@octokit/request-error";
 import { GitHub, getOctokitOptions } from "@actions/github/lib/utils";
 import { ICommit, IGitHubRelease, IGitTag } from "./interfaces";
 import { SemVer } from "./semver";
@@ -644,9 +645,14 @@ export async function getContent(path: string): Promise<string | undefined> {
       return Buffer.from(response.data.content, "base64").toString("utf8");
     }
   } catch (error: unknown) {
-    // We intentially capture all failures and return `undefined` in case the
-    // file does not exist or cannot be accessed.
+    // Capture failures and return `undefined` in case the
+    // file does not exist.
+    if (error instanceof RequestError && error.status === 404) {
+      return;
+    }
     core.debug((error as Error).message);
+
+    throw error;
   }
 }
 

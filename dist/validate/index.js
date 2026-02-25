@@ -34955,6 +34955,7 @@ const fs = __importStar(__nccwpck_require__(9896));
 const github = __importStar(__nccwpck_require__(3228));
 const plugin_retry_1 = __nccwpck_require__(3450);
 const plugin_throttling_1 = __nccwpck_require__(4759);
+const request_error_1 = __nccwpck_require__(3708);
 const utils_1 = __nccwpck_require__(8006);
 const semver_1 = __nccwpck_require__(1475);
 const Label = __importStar(__nccwpck_require__(8249));
@@ -35425,9 +35426,13 @@ async function getContent(path) {
         }
     }
     catch (error) {
-        // We intentially capture all failures and return `undefined` in case the
-        // file does not exist or cannot be accessed.
+        // Capture failures and return `undefined` in case the
+        // file does not exist.
+        if (error instanceof request_error_1.RequestError && error.status === 404) {
+            return;
+        }
         core.debug(error.message);
+        throw error;
     }
 }
 exports.getContent = getContent;
