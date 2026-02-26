@@ -23,7 +23,7 @@ import {
   getVersionBumpTypeAndMessages,
   printNonCompliance,
 } from "../bump";
-import { Configuration } from "../config";
+import { Configuration, VERSION_SCHEMES } from "../config";
 import { getConfig } from "../github";
 import {
   IVersionBumpTypeAndMessages,
@@ -53,6 +53,17 @@ export async function run(): Promise<void> {
     checkBranchPublishingPermission(config);
 
   try {
+    const scheme = core.getInput("version-scheme");
+    if (scheme !== "") {
+      if (VERSION_SCHEMES.includes(scheme)) {
+        config.versionScheme = scheme
+      } else {
+        throw new Error(
+          `Incorrect version scheme value '${scheme}',
+           must be one of: '${VERSION_SCHEMES.join('", "')}'`
+        );
+      }
+    }
     const prefix = core.getInput("version-prefix");
     if (prefix !== "") {
       config.versionPrefix = prefix;

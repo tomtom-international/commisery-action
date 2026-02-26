@@ -650,7 +650,7 @@ export async function getContent(path: string): Promise<string | undefined> {
     if (error instanceof RequestError && error.status === 404) {
       return;
     }
-    core.debug((error as Error).message);
+    core.setFailed((error as Error).message);
 
     throw error;
   }

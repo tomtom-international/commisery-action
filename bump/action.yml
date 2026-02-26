@@ -44,6 +44,9 @@ inputs:
   version-prefix:
     description: 'Optional version prefix (eg. "", "v", "componentX-"). If set, only tags with this exact prefix shall be considered. "*" is a special value, meaning the closest version is used, regardless of prefix".'
     required: false
+  version-scheme:
+    description: 'Version scheme to use. One of ["semver", "sdkver"]'
+    required: false
   release-type:
     description: >-
       The type of version increment to apply for this build when using the SdkVer version scheme. 

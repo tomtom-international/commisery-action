@@ -758,6 +758,8 @@ describe("Version prefix handling", () => {
         switch (setting) {
           case "version-prefix":
             return versionPrefixInput ?? "*";
+          case "version-scheme":
+            return "";
         }
         return "";
       });
@@ -782,6 +784,92 @@ describe("Version prefix handling", () => {
       const matcherFunc = (github.matchTagsToCommits as jest.Mock).mock
         .calls[0][1];
       expect(matcherFunc(commitSha)).toEqual(expected);
+    }
+  );
+});
+
+describe("version-scheme input", () => {
+  beforeEach(() => {
+    jest
+      .spyOn(github, "matchTagsToCommits")
+      .mockResolvedValue([
+        SemVer.fromString(U.INITIAL_VERSION),
+        [U.PATCH_MSG].concat(U.DEFAULT_COMMIT_LIST),
+      ]);
+  });
+
+  const versionSchemeTests = [
+    {
+      desc: "empty string uses config default (semver)",
+      versionScheme: "",
+      expectSetFailed: false,
+      expectedSchemeInfo: "Found SemVer tag:",
+      expectedSchemeGroup: "Determining SemVer bump",
+    },
+    {
+      desc: "valid value 'semver'",
+      versionScheme: "semver",
+      expectSetFailed: false,
+      expectedSchemeInfo: "Found SemVer tag:",
+      expectedSchemeGroup: "Determining SemVer bump",
+    },
+    {
+      desc: "valid value 'sdkver'",
+      versionScheme: "sdkver",
+      expectSetFailed: false,
+      expectedSchemeInfo: "Found SdkVer tag:",
+      expectedSchemeGroup: "Determining SdkVer bump",
+    },
+    {
+      desc: "invalid value triggers setFailed",
+      versionScheme: "invalid-scheme",
+      expectSetFailed: true,
+      expectedSchemeInfo: undefined,
+      expectedSchemeGroup: undefined,
+    },
+  ];
+
+  test.each(versionSchemeTests)(
+    "$desc",
+    async ({
+      versionScheme,
+      expectSetFailed,
+      expectedSchemeInfo,
+      expectedSchemeGroup,
+    }) => {
+      jest.spyOn(core, "getInput").mockImplementation((setting, options?) => {
+        switch (setting) {
+          case "version-scheme":
+            return versionScheme;
+          case "version-prefix":
+            return "*";
+          case "config":
+            return ".commisery.yml";
+          case "build-metadata":
+            return "";
+          case "release-type":
+            return "";
+        }
+        return "";
+      });
+
+      await bumpaction.run();
+
+      if (expectSetFailed) {
+        expect(core.setFailed).toHaveBeenCalledWith(
+          expect.stringContaining(
+            `Incorrect version scheme value '${versionScheme}'`
+          )
+        );
+      } else {
+        expect(core.setFailed).not.toHaveBeenCalled();
+        expect(core.info).toHaveBeenCalledWith(
+          expect.stringContaining(expectedSchemeInfo!)
+        );
+        expect(core.startGroup).toHaveBeenCalledWith(
+          expect.stringContaining(expectedSchemeGroup!)
+        );
+      }
     }
   );
 });
