@@ -78,7 +78,7 @@ const CONFIG_ITEMS = [
   "sdkver-max-major",
 ];
 
-const VERSION_SCHEMES = ["semver", "sdkver"];
+export const VERSION_SCHEMES = ["semver", "sdkver"];
 /**
  * This function takes two values and throws when their types don't match.
  */

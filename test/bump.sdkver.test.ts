@@ -44,6 +44,8 @@ const setInputSpyWith = (a: { [b: string]: string }): void => {
   jest.spyOn(core, "getInput").mockImplementation((setting, options?) => {
     if (a[setting]) return a[setting];
     switch (setting) {
+      case "version-scheme":
+        return "";
       case "version-prefix":
         return "";
       case "config":

@@ -55,6 +55,8 @@ export const DEFAULT_COMMIT_LIST = [
 
 export const mockGetInput = (setting: string, _options?: unknown) => {
   switch (setting) {
+    case "version-scheme":
+      return "";
     case "version-prefix":
       return "*";
     case "config":

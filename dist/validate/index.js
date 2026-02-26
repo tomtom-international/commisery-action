@@ -34480,7 +34480,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports._testData = exports.Configuration = void 0;
+exports._testData = exports.Configuration = exports.VERSION_SCHEMES = void 0;
 const rules_1 = __nccwpck_require__(9244);
 const core = __importStar(__nccwpck_require__(7484));
 const fs = __importStar(__nccwpck_require__(9896));
@@ -34536,7 +34536,7 @@ const CONFIG_ITEMS = [
     "sdkver-create-release-branches",
     "sdkver-max-major",
 ];
-const VERSION_SCHEMES = ["semver", "sdkver"];
+exports.VERSION_SCHEMES = ["semver", "sdkver"];
 /**
  * This function takes two values and throws when their types don't match.
  */
@@ -34701,11 +34701,11 @@ class Configuration {
                      *   version-scheme: "semver"
                      */
                     if (typeof data[key] === "string") {
-                        if (VERSION_SCHEMES.includes(data[key])) {
+                        if (exports.VERSION_SCHEMES.includes(data[key])) {
                             this.versionScheme = data[key];
                         }
                         else {
-                            throw new Error(`Incorrect value '${data[key]}' for '${key}', must be one of: '${VERSION_SCHEMES.join('", "')}'`);
+                            throw new Error(`Incorrect value '${data[key]}' for '${key}', must be one of: '${exports.VERSION_SCHEMES.join('", "')}'`);
                         }
                     }
                     else {
@@ -35431,7 +35431,7 @@ async function getContent(path) {
         if (error instanceof request_error_1.RequestError && error.status === 404) {
             return;
         }
-        core.debug(error.message);
+        core.setFailed(error.message);
         throw error;
     }
 }
