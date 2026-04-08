@@ -37527,14 +37527,12 @@ function create(category, value) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.LlvmWarning = exports.LlvmError = exports.LlvmMessage = exports.LlvmLevel = void 0;
 const os_1 = __nccwpck_require__(857);
-// eslint-disable-next-line no-shadow
 var LlvmLevel;
 (function (LlvmLevel) {
     LlvmLevel["ERROR"] = "ERROR";
     LlvmLevel["WARNING"] = "WARNING";
     LlvmLevel["NOTE"] = "NOTE";
 })(LlvmLevel || (exports.LlvmLevel = LlvmLevel = {}));
-// eslint-disable-next-line no-shadow
 var TextFormat;
 (function (TextFormat) {
     TextFormat[TextFormat["BOLD"] = 1] = "BOLD";
@@ -38376,7 +38374,6 @@ const SEMVER_RE = new RegExp([
 /**
  * SemVer version core types
  */
-// eslint-disable-next-line no-shadow
 var SemVerType;
 (function (SemVerType) {
     SemVerType[SemVerType["NONE"] = 0] = "NONE";

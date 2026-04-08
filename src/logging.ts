@@ -38,14 +38,12 @@ export interface ILlvmMessage {
   message?: string;
 }
 
-// eslint-disable-next-line no-shadow
 export enum LlvmLevel {
   ERROR = "ERROR",
   WARNING = "WARNING",
   NOTE = "NOTE",
 }
 
-// eslint-disable-next-line no-shadow
 enum TextFormat {
   BOLD = 1,
   RED = 31,
