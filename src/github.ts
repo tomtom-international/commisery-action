@@ -231,10 +231,12 @@ export async function getRelease(params: {
   );
   const octo = getOctokit();
 
+  type ReleaseList =
+    octokit.RestEndpointMethodTypes["repos"]["listReleases"]["response"]["data"];
   const result = (
-    await octo.paginate(octo.rest.repos.listReleases, {
+    (await octo.paginate(octo.rest.repos.listReleases, {
       ...github.context.repo,
-    })
+    })) as ReleaseList
   ).map(r => ({ isDraft: r.draft, tagName: r.tag_name, id: r.id }));
 
   core.debug(`getRelease: listReleases returned:\n${JSON.stringify(result)}`);

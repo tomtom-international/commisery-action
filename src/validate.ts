@@ -279,11 +279,11 @@ export async function validatePrTitleBump(
 
   const highestBump: SemVerType =
     results.length > 0
-      ? results.reduce((acc, val) => {
+      ? (results.reduce((acc, val) => {
           const accb = acc.message?.bump ?? SemVerType.NONE;
           const valb = val.message?.bump ?? SemVerType.NONE;
           return accb > valb ? acc : val;
-        }).message?.bump ?? SemVerType.NONE
+        }).message?.bump ?? SemVerType.NONE)
       : SemVerType.NONE;
 
   if (highestBump !== prTitle.bump) {

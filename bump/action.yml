@@ -78,5 +78,5 @@ outputs:
       type associated. Returns an empty string in case no bump was performed.
 
 runs:
-  using: 'node20'
+  using: 'node24'
   main: '../dist/bump/index.js'

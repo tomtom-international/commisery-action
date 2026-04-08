@@ -29,6 +29,7 @@ jest.mock("fs", () => ({
   },
   existsSync: jest.fn(),
   readFileSync: jest.fn(),
+  constants: jest.requireActual("fs").constants,
 }));
 
 afterEach(() => {

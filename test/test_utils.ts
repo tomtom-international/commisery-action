@@ -93,5 +93,6 @@ export const getMockRequestError = (statusCode: number) =>
       url: "",
       data: "",
       headers: { header: "" },
+      retryCount: 0,
     },
   });
