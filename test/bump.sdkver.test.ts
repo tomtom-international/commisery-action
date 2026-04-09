@@ -29,6 +29,7 @@ jest.mock("fs", () => ({
   promises: { access: jest.fn() },
   existsSync: jest.fn(),
   readFileSync: jest.fn(),
+  constants: jest.requireActual("fs").constants,
 }));
 jest.mock("@actions/core");
 jest.mock("@actions/github");

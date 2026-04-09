@@ -34,7 +34,6 @@ const SEMVER_RE = new RegExp(
 /**
  * SemVer version core types
  */
-// eslint-disable-next-line no-shadow
 export enum SemVerType {
   NONE = 0,
   PATCH = 1,

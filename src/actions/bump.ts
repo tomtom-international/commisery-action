@@ -56,7 +56,7 @@ export async function run(): Promise<void> {
     const scheme = core.getInput("version-scheme");
     if (scheme !== "") {
       if (VERSION_SCHEMES.includes(scheme)) {
-        config.versionScheme = scheme
+        config.versionScheme = scheme;
       } else {
         throw new Error(
           `Incorrect version scheme value '${scheme}',

@@ -50,7 +50,6 @@ rules:
   "@typescript-eslint/explicit-function-return-type":
     - error
     - allowExpressions: true
-  "@typescript-eslint/func-call-spacing": [error, never]
   "@typescript-eslint/no-array-constructor": error
   "@typescript-eslint/no-empty-interface": error
   "@typescript-eslint/no-explicit-any": error
@@ -72,7 +71,6 @@ rules:
   "@typescript-eslint/require-array-sort-compare": error
   "@typescript-eslint/restrict-plus-operands": error
   semi: off
-  "@typescript-eslint/type-annotation-spacing": error
   "@typescript-eslint/unbound-method": error
   import/extensions: # see https://github.com/import-js/eslint-plugin-import/blob/HEAD/docs/rules/extensions.md
     - error
