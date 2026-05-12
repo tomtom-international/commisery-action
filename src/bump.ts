@@ -813,7 +813,7 @@ function getNextSdkVer(
   }
 
   if (nextBumpType === "dev") {
-    nextVersion.prerelease += `.${shortSha(headSha)}`;
+    nextVersion.prerelease += `.g${shortSha(headSha)}`;
   }
 
   if (nextVersion && nextBumpType) {
