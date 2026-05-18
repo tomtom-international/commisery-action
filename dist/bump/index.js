@@ -35769,7 +35769,7 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
         nextVersion.build = buildMetadata;
     }
     if (nextBumpType === "dev") {
-        nextVersion.prerelease += `.${shortSha(headSha)}`;
+        nextVersion.prerelease += `.g${shortSha(headSha)}`;
     }
     if (nextVersion && nextBumpType) {
         return {
