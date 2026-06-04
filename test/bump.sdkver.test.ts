@@ -254,14 +254,14 @@ const testSuiteDefinitions = [
     suite: "Dev bumps on main branch",
     tests: [
      // [ test description     , version      ,  bump  , latest draft       , branch         , breaking?, expected version                        , expected bump  , initial development?, max major version ]
-        ["from dev-draft-nopad", "1.1.0"      , "dev"  , "1.2.0-dev1+abc12" , "master"       , false    , `1.2.0-dev002.g${U.HEAD_SHA_ABBREV_8}`   , "dev"          , false               , 0                 ],
-        ["from long-pad-dev"   , "1.1.0"      , "dev"  , "1.2.0-dev00001+ab", "master"       , false    , `1.2.0-dev00002.g${U.HEAD_SHA_ABBREV_8}` , "dev"          , false               , 0                 ],
-        ["from dev-draft-init" , "0.1.0"      , "dev"  , "0.2.0-dev001.123" , "master"       , false    , `0.2.0-dev002.g${U.HEAD_SHA_ABBREV_8}`   , "dev"          , true                , 0                 ],
-        ["from dev-draft"      , "1.1.0"      , "dev"  , "1.2.0-dev001.123" , "master"       , false    , `1.2.0-dev002.g${U.HEAD_SHA_ABBREV_8}`   , "dev"          , false               , 0                 ],
-        ["from dev-init"       , "0.1.0"      , "dev"  , undefined          , "master"       , false    , `0.2.0-dev001.g${U.HEAD_SHA_ABBREV_8}`   , "dev"          , true                , 0                 ],
-        ["from dev"            , "1.1.0"      , "dev"  , undefined          , "master"       , false    , `1.2.0-dev001.g${U.HEAD_SHA_ABBREV_8}`   , "dev"          , false               , 0                 ],
-        ["from rc"             , "1.2.0-rc01" , "dev"  , undefined          , "master"       , false    , `1.3.0-dev001.g${U.HEAD_SHA_ABBREV_8}`   , "dev"          , false               , 0                 ],
-        ["from release"        , "1.2.0"      , "dev"  , undefined          , "master"       , false    , `1.3.0-dev001.g${U.HEAD_SHA_ABBREV_8}`   , "dev"          , false               , 0                 ],
+        ["from dev-draft-nopad", "1.1.0"      , "dev"  , "1.2.0-dev1+abc12" , "master"       , false    , `1.2.0-dev002.g${U.HEAD_SHA_ABBREV_12}`   , "dev"          , false               , 0                 ],
+        ["from long-pad-dev"   , "1.1.0"      , "dev"  , "1.2.0-dev00001+ab", "master"       , false    , `1.2.0-dev00002.g${U.HEAD_SHA_ABBREV_12}` , "dev"          , false               , 0                 ],
+        ["from dev-draft-init" , "0.1.0"      , "dev"  , "0.2.0-dev001.123" , "master"       , false    , `0.2.0-dev002.g${U.HEAD_SHA_ABBREV_12}`   , "dev"          , true                , 0                 ],
+        ["from dev-draft"      , "1.1.0"      , "dev"  , "1.2.0-dev001.123" , "master"       , false    , `1.2.0-dev002.g${U.HEAD_SHA_ABBREV_12}`   , "dev"          , false               , 0                 ],
+        ["from dev-init"       , "0.1.0"      , "dev"  , undefined          , "master"       , false    , `0.2.0-dev001.g${U.HEAD_SHA_ABBREV_12}`   , "dev"          , true                , 0                 ],
+        ["from dev"            , "1.1.0"      , "dev"  , undefined          , "master"       , false    , `1.2.0-dev001.g${U.HEAD_SHA_ABBREV_12}`   , "dev"          , false               , 0                 ],
+        ["from rc"             , "1.2.0-rc01" , "dev"  , undefined          , "master"       , false    , `1.3.0-dev001.g${U.HEAD_SHA_ABBREV_12}`   , "dev"          , false               , 0                 ],
+        ["from release"        , "1.2.0"      , "dev"  , undefined          , "master"       , false    , `1.3.0-dev001.g${U.HEAD_SHA_ABBREV_12}`   , "dev"          , false               , 0                 ],
     ],
   },
   {
@@ -320,14 +320,14 @@ const testSuiteDefinitions = [
     suite: "Dev bumps with breaking changes",
     tests: [
      // [ test description        , version      ,  bump  , latest draft     , branch         , breaking?, expected version                     , expected bump , initial development?, max major version ]
-        ["main branch, init"      , "0.2.0"      , "dev"  , undefined        , "master"       , true     , `0.3.0-dev001.g${U.HEAD_SHA_ABBREV_8}`, "dev"         , true                , 0                 ],
-        ["main branch, no init"   , "0.2.0"      , "dev"  , undefined        , "master"       , true     , `1.0.0-dev001.g${U.HEAD_SHA_ABBREV_8}`, "dev"         , false               , 0                 ],
-        ["main branch, max"       , "1.2.0"      , "dev"  , undefined        , "master"       , true     , `1.3.0-dev001.g${U.HEAD_SHA_ABBREV_8}`, "dev"         , false               , 1                 ],
-        ["main branch, max2"      , "1.2.0"      , "dev"  , undefined        , "master"       , true     , `2.0.0-dev001.g${U.HEAD_SHA_ABBREV_8}`, "dev"         , false               , 2                 ],
-        ["main branch"            , "1.2.0"      , "dev"  , undefined        , "master"       , true     , `2.0.0-dev001.g${U.HEAD_SHA_ABBREV_8}`, "dev"         , false               , 0                 ],
-        ["main branch, draft init", "0.2.0"      , "dev"  , "0.3.0-dev001.2" , "master"       , true     , `0.3.0-dev002.g${U.HEAD_SHA_ABBREV_8}`, "dev"         , true                , 0                 ],
-        ["main branch, draft max" , "1.2.0"      , "dev"  , "1.3.0-dev001.2" , "master"       , true     , `1.3.0-dev002.g${U.HEAD_SHA_ABBREV_8}`, "dev"         , false               , 1                 ],
-        ["main branch, draft"     , "1.2.0"      , "dev"  , "1.3.0-dev001.2" , "master"       , true     , `1.3.0-dev002.g${U.HEAD_SHA_ABBREV_8}`, "dev"         , false               , 0                 ],
+        ["main branch, init"      , "0.2.0"      , "dev"  , undefined        , "master"       , true     , `0.3.0-dev001.g${U.HEAD_SHA_ABBREV_12}`, "dev"         , true                , 0                 ],
+        ["main branch, no init"   , "0.2.0"      , "dev"  , undefined        , "master"       , true     , `1.0.0-dev001.g${U.HEAD_SHA_ABBREV_12}`, "dev"         , false               , 0                 ],
+        ["main branch, max"       , "1.2.0"      , "dev"  , undefined        , "master"       , true     , `1.3.0-dev001.g${U.HEAD_SHA_ABBREV_12}`, "dev"         , false               , 1                 ],
+        ["main branch, max2"      , "1.2.0"      , "dev"  , undefined        , "master"       , true     , `2.0.0-dev001.g${U.HEAD_SHA_ABBREV_12}`, "dev"         , false               , 2                 ],
+        ["main branch"            , "1.2.0"      , "dev"  , undefined        , "master"       , true     , `2.0.0-dev001.g${U.HEAD_SHA_ABBREV_12}`, "dev"         , false               , 0                 ],
+        ["main branch, draft init", "0.2.0"      , "dev"  , "0.3.0-dev001.2" , "master"       , true     , `0.3.0-dev002.g${U.HEAD_SHA_ABBREV_12}`, "dev"         , true                , 0                 ],
+        ["main branch, draft max" , "1.2.0"      , "dev"  , "1.3.0-dev001.2" , "master"       , true     , `1.3.0-dev002.g${U.HEAD_SHA_ABBREV_12}`, "dev"         , false               , 1                 ],
+        ["main branch, draft"     , "1.2.0"      , "dev"  , "1.3.0-dev001.2" , "master"       , true     , `1.3.0-dev002.g${U.HEAD_SHA_ABBREV_12}`, "dev"         , false               , 0                 ],
         ["release branch"         , "1.2.0"      , "dev"  , undefined        , "release/1.2.0", true     , undefined                            , ""            , false               , 0                 ],
         ["release branch, draft"  , "1.2.0"      , "dev"  , "1.3.0-dev001.3" , "release/1.2.0", true     , undefined                            , ""            , false               , 0                 ],
         ["release branch+RC"      , "1.2.0-rc01" , "dev"  , undefined        , "release/1.2.0", true     , undefined                            , ""            , false               , 0                 ],
@@ -367,11 +367,11 @@ const testSuiteDefinitions = [
     suite: "Dev bumps considers draft releases",
     tests: [
      // [ test description      , version     ,  bump  , latest draft , branch          , breaking?, expected version                      , expected bump , initial development?, max major version ]
-        ["no draft"             , "1.2.0"     , "dev"  , undefined    , "master"        , false    , `1.3.0-dev001.g${U.HEAD_SHA_ABBREV_8}` , "dev"         , false               , 0                 ],
-        ["previous version"     , "1.2.0"     , "dev"  , "1.1.0-dev034", "master"       , false    , `1.3.0-dev001.g${U.HEAD_SHA_ABBREV_8}` , "dev"         , false               , 0                 ],
-        ["current version"      , "1.2.0"     , "dev"  , "1.2.0-dev023", "master"       , false    , `1.3.0-dev001.g${U.HEAD_SHA_ABBREV_8}` , "dev"         , false               , 0                 ],
-        ["next version"         , "1.2.0"     , "dev"  , "1.3.0-dev019", "master"       , false    , `1.3.0-dev020.g${U.HEAD_SHA_ABBREV_8}` , "dev"         , false               , 0                 ],
-        ["next major"           , "1.2.0"     , "dev"  , "2.0.0-dev011", "master"       , false    , `2.0.0-dev012.g${U.HEAD_SHA_ABBREV_8}` , "dev"         , false               , 0                 ],
+        ["no draft"             , "1.2.0"     , "dev"  , undefined    , "master"        , false    , `1.3.0-dev001.g${U.HEAD_SHA_ABBREV_12}` , "dev"         , false               , 0                 ],
+        ["previous version"     , "1.2.0"     , "dev"  , "1.1.0-dev034", "master"       , false    , `1.3.0-dev001.g${U.HEAD_SHA_ABBREV_12}` , "dev"         , false               , 0                 ],
+        ["current version"      , "1.2.0"     , "dev"  , "1.2.0-dev023", "master"       , false    , `1.3.0-dev001.g${U.HEAD_SHA_ABBREV_12}` , "dev"         , false               , 0                 ],
+        ["next version"         , "1.2.0"     , "dev"  , "1.3.0-dev019", "master"       , false    , `1.3.0-dev020.g${U.HEAD_SHA_ABBREV_12}` , "dev"         , false               , 0                 ],
+        ["next major"           , "1.2.0"     , "dev"  , "2.0.0-dev011", "master"       , false    , `2.0.0-dev012.g${U.HEAD_SHA_ABBREV_12}` , "dev"         , false               , 0                 ],
     ],
   },
   {
@@ -395,9 +395,9 @@ const testSuiteDefinitions = [
      // [ test description      , version         ,  bump  , latest draft     , branch         , breaking?, expected version                      , expected bump , initial development?, max major version ]
         ["rel branch major bump", "1.2.0"         , "dev"  , undefined        , "release/1.2.0", true     , undefined                             , ""            , false               , 0                 ],
         ["rel branch cur dev"   , `1.1.0-dev008.1`, "dev"  , "1.2.0-dev001+1" , "release/1.2.0", false    , undefined                             , ""            , false               , 0                 ],
-        ["incorrect prerelease" , `1.1.0-devs`    , "dev"  , undefined        , "master"       , false    , `1.2.0-dev001.g${U.HEAD_SHA_ABBREV_8}` , "dev"         , false               , 0                 ],
+        ["incorrect prerelease" , `1.1.0-devs`    , "dev"  , undefined        , "master"       , false    , `1.2.0-dev001.g${U.HEAD_SHA_ABBREV_12}` , "dev"         , false               , 0                 ],
         ["wrong bump input"     , `1.1.0-dev001.3`, "beep" , undefined        , "master"       , false    , undefined                             , ""            , false               , 0                 ],
-        ["unauth'd branch dev"  , `1.1.0-dev001.4`, "dev"  , undefined        , "mister"       , false    , `1.1.0-dev002.g${U.HEAD_SHA_ABBREV_8}` , "dev"         , false               , 0                 ], // <-- TODO: make fail; not
+        ["unauth'd branch dev"  , `1.1.0-dev001.4`, "dev"  , undefined        , "mister"       , false    , `1.1.0-dev002.g${U.HEAD_SHA_ABBREV_12}` , "dev"         , false               , 0                 ], // <-- TODO: make fail; not
         ["unauth'd branch rc"   , `1.1.0-dev001.5`, "rc"   , undefined        , "mister"       , false    , "1.1.0-rc01"                          , "rc"          , false               , 0                 ], // <--       implemented yet
     ],
   },
@@ -485,7 +485,7 @@ describe("Create release branch", () => {
     await bumpaction.run();
     expect(github.createBranch).toHaveBeenCalledWith(
       "refs/heads/release/1.3",
-      "baaaadb0b"
+      U.HEAD_SHA
     );
   });
 
@@ -508,7 +508,7 @@ describe("Create release branch", () => {
     await bumpaction.run();
     expect(github.createBranch).toHaveBeenCalledWith(
       "refs/heads/rel-1.3",
-      "baaaadb0b"
+      U.HEAD_SHA
     );
   });
 });
