@@ -58,7 +58,7 @@ const RC_PREFIX = "rc";
  * To be used as a shortened version of the 40-character SHA1 version.
  */
 function shortSha(sha: string): string {
-  return sha.substring(0, 8);
+  return sha.substring(0, 12);
 }
 
 /**
