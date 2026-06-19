@@ -538,7 +538,7 @@ export async function bumpSemVer(
       bumpMetadata = {
         from: bumpInfo.foundVersion,
         to: bumpResult.version,
-        type: SemVerType[bumpResult.increment].toLowerCase() as ReleaseType,
+        type: SemVerType[bumpResult.increment].toLowerCase(),
       };
     }
   }
@@ -806,8 +806,10 @@ function getNextSdkVer(
   if (!nextVersion && !headMatchesTag) {
     fatal(`Unable to bump version for: ${currentVersion.toString()}`);
   }
+  if (!nextVersion) {
+    return;
+  }
   const buildMetadata = core.getInput("build-metadata");
-  nextVersion = nextVersion as SemVer;
   if (buildMetadata) {
     nextVersion.build = buildMetadata;
   }
