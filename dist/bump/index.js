@@ -37222,6 +37222,7 @@ exports.isPullRequestEvent = isPullRequestEvent;
 exports.getPullRequestId = getPullRequestId;
 exports.getRunNumber = getRunNumber;
 exports.getPullRequestTitle = getPullRequestTitle;
+exports.getPullRequestBaseRef = getPullRequestBaseRef;
 exports.getCommitsInPR = getCommitsInPR;
 exports.getPullRequest = getPullRequest;
 exports.createRelease = createRelease;
@@ -37324,6 +37325,12 @@ function getRunNumber() {
  */
 async function getPullRequestTitle() {
     return (await getPullRequest(getPullRequestId())).title;
+}
+/**
+ * The target (base) branch of the current pull request
+ */
+async function getPullRequestBaseRef() {
+    return (await getPullRequest(getPullRequestId())).base.ref;
 }
 /**
  * Retrieves a list of commits associated with the specified pull request
@@ -38985,6 +38992,7 @@ exports.outputCommitListErrors = outputCommitListErrors;
 exports.processCommits = processCommits;
 exports.validateCommitsInCurrentPR = validateCommitsInCurrentPR;
 exports.validatePrTitle = validatePrTitle;
+exports.validateReleaseBranchBump = validateReleaseBranchBump;
 exports.validatePrTitleBump = validatePrTitleBump;
 const core = __importStar(__nccwpck_require__(7484));
 const commit_1 = __nccwpck_require__(6390);
@@ -39146,6 +39154,32 @@ async function validatePrTitle(_) {
         core.endGroup();
     }
     return conventionalCommitMessage;
+}
+/**
+ * Validates that the bump level implied by the PR's commits and title is compatible with
+ * the PR's target branch. Fails if a MAJOR or MINOR bump is requested while
+ * targeting a release branch (which only allows PATCH bumps).
+ */
+async function validateReleaseBranchBump(config, messages) {
+    const targetBranch = await (0, github_1.getPullRequestBaseRef)();
+    if (!config.releaseBranches.test(targetBranch)) {
+        return true;
+    }
+    const allMessages = [...messages];
+    try {
+        allMessages.push(new commit_1.ConventionalCommitMessage(await (0, github_1.getPullRequestTitle)(), undefined, config));
+    }
+    catch {
+        // invalid title is reported by validatePrTitle / validatePrTitleBump
+    }
+    const highestBump = allMessages.reduce((acc, msg) => (msg.bump > acc ? msg.bump : acc), semver_1.SemVerType.NONE);
+    if ([semver_1.SemVerType.MAJOR, semver_1.SemVerType.MINOR].includes(highestBump)) {
+        core.setFailed(`A ${semver_1.SemVerType[highestBump]} bump is requested, but we can only ` +
+            `create PATCH bumps on a release branch (targeting "${targetBranch}").`);
+        return false;
+    }
+    core.info(`✅ Bump level is compatible with the target release branch "${targetBranch}"`);
+    return true;
 }
 /**
  * Validates bump level consistency between the PR title and its commits.

@@ -133,6 +133,13 @@ export async function getPullRequestTitle(): Promise<string> {
 }
 
 /**
+ * The target (base) branch of the current pull request
+ */
+export async function getPullRequestBaseRef(): Promise<string> {
+  return (await getPullRequest(getPullRequestId())).base.ref;
+}
+
+/**
  * Retrieves a list of commits associated with the specified pull request
  * @param pullRequestId GitHub pull request ID
  * @returns ICommit[] List of ICommit objects

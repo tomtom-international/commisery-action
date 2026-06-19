@@ -20,6 +20,7 @@ import { ConventionalCommitMessage } from "./commit";
 import { Configuration } from "./config";
 import {
   getCommitsInPR,
+  getPullRequestBaseRef,
   getPullRequestId,
   getPullRequestTitle,
 } from "./github";
@@ -230,6 +231,53 @@ export async function validatePrTitle(
     core.endGroup();
   }
   return conventionalCommitMessage;
+}
+
+/**
+ * Validates that the bump level implied by the PR's commits and title is compatible with
+ * the PR's target branch. Fails if a MAJOR or MINOR bump is requested while
+ * targeting a release branch (which only allows PATCH bumps).
+ */
+export async function validateReleaseBranchBump(
+  config: Configuration,
+  messages: ConventionalCommitMessage[]
+): Promise<boolean> {
+  const targetBranch = await getPullRequestBaseRef();
+
+  if (!config.releaseBranches.test(targetBranch)) {
+    return true;
+  }
+
+  const allMessages = [...messages];
+  try {
+    allMessages.push(
+      new ConventionalCommitMessage(
+        await getPullRequestTitle(),
+        undefined,
+        config
+      )
+    );
+  } catch {
+    // invalid title is reported by validatePrTitle / validatePrTitleBump
+  }
+
+  const highestBump = allMessages.reduce(
+    (acc, msg) => (msg.bump > acc ? msg.bump : acc),
+    SemVerType.NONE
+  );
+
+  if ([SemVerType.MAJOR, SemVerType.MINOR].includes(highestBump)) {
+    core.setFailed(
+      `A ${SemVerType[highestBump]} bump is requested, but we can only ` +
+        `create PATCH bumps on a release branch (targeting "${targetBranch}").`
+    );
+    return false;
+  }
+
+  core.info(
+    `✅ Bump level is compatible with the target release branch "${targetBranch}"`
+  );
+  return true;
 }
 
 /**
