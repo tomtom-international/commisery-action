@@ -120,7 +120,14 @@ export async function run(): Promise<void> {
     }
 
     const createChangelog = core.getBooleanInput("create-changelog");
+    const dryRun = core.getBooleanInput("dry-run");
     const releaseTypeInput = core.getInput("release-type");
+
+    if (dryRun) {
+      core.info(
+        "ℹ️ Dry run mode enabled: version bump will be computed but no tags or releases will be created."
+      );
+    }
 
     // Variable to store the version info from either semver or sdkver bump
     let versionInfo: IVersionOutput | undefined;
@@ -142,7 +149,8 @@ export async function run(): Promise<void> {
         branchName,
         context.sha,
         isBranchAllowedToPublish,
-        createChangelog
+        createChangelog,
+        dryRun
       );
     } else if (config.versionScheme === "sdkver") {
       if (!["rel", "rc", "dev", ""].includes(releaseTypeInput)) {
@@ -164,7 +172,8 @@ export async function run(): Promise<void> {
         context.sha,
         branchName,
         isBranchAllowedToPublish,
-        createChangelog
+        createChangelog,
+        dryRun
       );
     } else {
       throw new Error(

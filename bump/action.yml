@@ -54,6 +54,10 @@ inputs:
       One of ["rel", "rc", "dev"] [EXPERIMENTAL]
     default: ""
     required: false
+  dry-run:
+    description: 'Compute the version bump without creating any tags or releases'
+    required: false
+    default: false
   create-changelog:
     description: 'Adds changelog to the release'
     required: false

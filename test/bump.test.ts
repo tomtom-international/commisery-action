@@ -875,6 +875,119 @@ describe("version-scheme input", () => {
   );
 });
 
+describe("Dry run", () => {
+  beforeEach(() => {
+    jest.spyOn(core, "getBooleanInput").mockImplementation(setting => {
+      switch (setting) {
+        case "create-release":
+          return true;
+        case "create-tag":
+          return false;
+        case "create-changelog":
+          return true;
+        case "dry-run":
+          return true;
+      }
+      return false;
+    });
+    jest
+      .spyOn(github, "matchTagsToCommits")
+      .mockResolvedValue([
+        SemVer.fromString(U.INITIAL_VERSION),
+        [U.PATCH_MSG].concat(U.DEFAULT_COMMIT_LIST),
+      ]);
+  });
+
+  test("does not create release when create-release is true", async () => {
+    await bumpaction.run();
+
+    expect(github.createRelease).not.toHaveBeenCalled();
+    expect(github.createTag).not.toHaveBeenCalled();
+    expect(core.startGroup).toHaveBeenCalledWith(
+      expect.stringContaining(
+        `Dry run: would create release ${U.PATCH_BUMPED_VERSION}`
+      )
+    );
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "current-version",
+      U.INITIAL_VERSION
+    );
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "next-version",
+      U.PATCH_BUMPED_VERSION
+    );
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "bump-metadata",
+      JSON.stringify({
+        bump: {
+          from: U.INITIAL_VERSION,
+          to: U.PATCH_BUMPED_VERSION,
+          type: "patch",
+        },
+      })
+    );
+    expect(core.setFailed).not.toHaveBeenCalled();
+  });
+
+  test("does not create tag when create-tag is true", async () => {
+    jest.spyOn(core, "getBooleanInput").mockImplementation(setting => {
+      switch (setting) {
+        case "create-release":
+          return false;
+        case "create-tag":
+          return true;
+        case "create-changelog":
+          return true;
+        case "dry-run":
+          return true;
+      }
+      return false;
+    });
+
+    await bumpaction.run();
+
+    expect(github.createRelease).not.toHaveBeenCalled();
+    expect(github.createTag).not.toHaveBeenCalled();
+    expect(core.startGroup).toHaveBeenCalledWith(
+      expect.stringContaining(
+        `Dry run: would create tag ${U.PATCH_BUMPED_VERSION}`
+      )
+    );
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "next-version",
+      U.PATCH_BUMPED_VERSION
+    );
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "bump-metadata",
+      JSON.stringify({
+        bump: {
+          from: U.INITIAL_VERSION,
+          to: U.PATCH_BUMPED_VERSION,
+          type: "patch",
+        },
+      })
+    );
+    expect(core.setFailed).not.toHaveBeenCalled();
+  });
+
+  test("reports empty outputs when no bump is needed", async () => {
+    jest
+      .spyOn(github, "matchTagsToCommits")
+      .mockResolvedValue([
+        SemVer.fromString(U.INITIAL_VERSION),
+        [U.NONE_MSG1, U.NONE_MSG2].concat(U.DEFAULT_COMMIT_LIST),
+      ]);
+
+    await bumpaction.run();
+
+    expect(github.createRelease).not.toHaveBeenCalled();
+    expect(github.createTag).not.toHaveBeenCalled();
+    expect(core.setOutput).toHaveBeenCalledWith("next-version", "");
+    expect(core.setOutput).toHaveBeenCalledWith("bump-metadata", "");
+    expect(core.setFailed).not.toHaveBeenCalled();
+  });
+});
+
 describe("Process Commits Configuration", () => {
   beforeEach(() => {
     jest.spyOn(github, "getAllTags").mockResolvedValue([

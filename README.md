@@ -69,6 +69,7 @@ jobs:
           token: ${{ github.token }}
           create-release: true              # OPTIONAL, default: `false`
           create-tag: false                 # OPTIONAL, default: `false`
+          dry-run: false                    # OPTIONAL, default: `false`
       - run: echo "Current version is ${{steps.release-version.outputs.current-version}}"
       - if: steps.release-version.outputs.next-version != ''
         run: echo "Version bumped to ${{steps.release-version.outputs.next-version}} (${{fromJSON(steps.release-version.outputs.bump-metadata).bump.type}})"

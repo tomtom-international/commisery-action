@@ -174,6 +174,7 @@ jobs:
           create-tag: false                 # OPTIONAL
           build-metadata: upstream-10.0.10  # OPTIONAL
           version-prefix: v                 # OPTIONAL
+          dry-run: false                    # OPTIONAL, default: `false`
           config: .commisery.yml            # OPTIONAL
 
       - run: echo "Current version is ${{steps.release-version.outputs.current-version}}"
@@ -191,6 +192,7 @@ jobs:
 | `create-tag` | NO | Can optionally be set to `true` to create a lightweight Git tag on version bump.|
 | `build-metadata` | NO | Build metadata to add to the SemVer version on version bump.|
 | `version-prefix` | NO | An optional prefix specifying the tags to consider, eg. `v`, `componentX-`, `""`.|
+| `dry-run` | NO | Compute the version bump without creating any tags or releases (DEFAULT: `false`).|
 | `config` | NO | Location of the Commisery configuration file (default: `.commisery.yml`)|
 
 > :bulb: Note that setting both `create-release` and `create-tag` to `true` is never needed, since a GitHub

@@ -602,6 +602,78 @@ describe("Create changelog", () => {
   });
 });
 
+describe("Dry run", () => {
+  beforeEach(() => {
+    jest.spyOn(core, "getBooleanInput").mockImplementation(setting => {
+      switch (setting) {
+        case "create-release":
+          return true;
+        case "create-tag":
+          return false;
+        case "create-changelog":
+          return true;
+        case "dry-run":
+          return true;
+      }
+      return false;
+    });
+    gh.context.ref = "refs/heads/main";
+    jest.spyOn(github, "currentHeadMatchesTag").mockResolvedValue(false);
+  });
+
+  test("does not create release", async () => {
+    setInputSpyWith({ "release-type": "dev" });
+    jest.spyOn(github, "getRelease").mockResolvedValue(undefined);
+
+    const expectedVersion = `1.3.0-dev001.g${U.HEAD_SHA_ABBREV_12}`;
+    await bumpaction.run();
+
+    expect(github.createRelease).not.toHaveBeenCalled();
+    expect(github.createTag).not.toHaveBeenCalled();
+    expect(core.startGroup).toHaveBeenCalledWith(
+      expect.stringContaining(
+        `Dry run: would create release ${expectedVersion}`
+      )
+    );
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "current-version",
+      U.INITIAL_VERSION
+    );
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "next-version",
+      expectedVersion
+    );
+    expect(core.setOutput).toHaveBeenCalledWith(
+      "bump-metadata",
+      JSON.stringify({
+        bump: {
+          from: U.INITIAL_VERSION,
+          to: expectedVersion,
+          type: "dev",
+        },
+      })
+    );
+    expect(core.setFailed).not.toHaveBeenCalled();
+  });
+
+  test("does not create release branch when sdkver-create-release-branches is configured", async () => {
+    jest
+      .spyOn(fs, "readFileSync")
+      .mockReturnValue(
+        `version-scheme: "sdkver"\nsdkver-create-release-branches: true`
+      );
+    setInputSpyWith({ "release-type": "rc" });
+    jest.spyOn(github, "getRelease").mockResolvedValue(undefined);
+
+    await bumpaction.run();
+
+    expect(github.createRelease).not.toHaveBeenCalled();
+    expect(github.createBranch).not.toHaveBeenCalled();
+    expect(core.setOutput).toHaveBeenCalledWith("next-version", "1.3.0-rc01");
+    expect(core.setFailed).not.toHaveBeenCalled();
+  });
+});
+
 afterAll(() => {
   jest.restoreAllMocks();
 });
