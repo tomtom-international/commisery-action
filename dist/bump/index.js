@@ -35244,7 +35244,11 @@ async function run() {
             }
         }
         const createChangelog = core.getBooleanInput("create-changelog");
+        const dryRun = core.getBooleanInput("dry-run");
         const releaseTypeInput = core.getInput("release-type");
+        if (dryRun) {
+            core.info("ℹ️ Dry run mode enabled: version bump will be computed but no tags or releases will be created.");
+        }
         // Variable to store the version info from either semver or sdkver bump
         let versionInfo;
         if (config.versionScheme === "semver") {
@@ -35254,7 +35258,7 @@ async function run() {
             (0, bump_1.printNonCompliance)(bumpInfo.processedCommits);
             core.info("");
             core.startGroup("🔍 Determining SemVer bump");
-            versionInfo = await (0, bump_1.bumpSemVer)(config, bumpInfo, releaseMode, branchName, github_1.context.sha, isBranchAllowedToPublish, createChangelog);
+            versionInfo = await (0, bump_1.bumpSemVer)(config, bumpInfo, releaseMode, branchName, github_1.context.sha, isBranchAllowedToPublish, createChangelog, dryRun);
         }
         else if (config.versionScheme === "sdkver") {
             if (!["rel", "rc", "dev", ""].includes(releaseTypeInput)) {
@@ -35264,7 +35268,7 @@ async function run() {
             core.startGroup("🔍 Determining SdkVer bump");
             // For non-release branches, a flow similar to SemVer can be followed,
             // but release branches get linear increments.
-            versionInfo = await (0, bump_1.bumpSdkVer)(config, bumpInfo, releaseMode, releaseType, github_1.context.sha, branchName, isBranchAllowedToPublish, createChangelog);
+            versionInfo = await (0, bump_1.bumpSdkVer)(config, bumpInfo, releaseMode, releaseType, github_1.context.sha, branchName, isBranchAllowedToPublish, createChangelog, dryRun);
         }
         else {
             throw new Error(`Unimplemented 'version-scheme': ${config.versionScheme}`);
@@ -35618,7 +35622,7 @@ function printNonCompliance(commits) {
         (0, validate_1.outputCommitListErrors)(nonCompliantCommits, false);
     }
 }
-async function publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish, discussionCategoryName, updateDraftId) {
+async function publishBump(nextVersion, releaseMode, headSha, changelog, isBranchAllowedToPublish, discussionCategoryName, updateDraftId, dryRun = false) {
     let releaseMetadata;
     let tagMetadata;
     const nv = nextVersion.toString();
@@ -35632,6 +35636,12 @@ async function publishBump(nextVersion, releaseMode, headSha, changelog, isBranc
             core.startGroup(`ℹ️ Not creating ${releaseMode} on a pull request event.`);
             core.info("We cannot create a release or tag in a pull request context, due to " +
                 "potential parallelism (i.e. races) in pull request builds.");
+            return {};
+        }
+        if (dryRun) {
+            core.startGroup(`ℹ️ Dry run: would create ${releaseMode} ${nv}..`);
+            core.info("Dry run mode is enabled; no tag or release will be created.");
+            core.endGroup();
             return {};
         }
         core.startGroup(`ℹ️ Creating ${releaseMode} ${nv}..`);
@@ -35706,7 +35716,7 @@ async function publishBump(nextVersion, releaseMode, headSha, changelog, isBranc
         tag: tagMetadata,
     };
 }
-async function bumpSemVer(config, bumpInfo, releaseMode, branchName, headSha, isBranchAllowedToPublish, createChangelog) {
+async function bumpSemVer(config, bumpInfo, releaseMode, branchName, headSha, isBranchAllowedToPublish, createChangelog, dryRun = false) {
     const compliantCommits = bumpInfo.processedCommits
         .filter(c => c.message !== undefined)
         .map(c => ({
@@ -35746,7 +35756,7 @@ async function bumpSemVer(config, bumpInfo, releaseMode, branchName, headSha, is
         if (buildMetadata) {
             bumpMetadata.to.build = buildMetadata;
         }
-        const { release, tag } = await publishBump(bumpMetadata.to, releaseMode, headSha, changelog, isBranchAllowedToPublish, config.releaseDiscussionCategory);
+        const { release, tag } = await publishBump(bumpMetadata.to, releaseMode, headSha, changelog, isBranchAllowedToPublish, config.releaseDiscussionCategory, undefined, dryRun);
         versionMetadata = {
             bump: {
                 from: bumpMetadata.from.toString(),
@@ -35763,7 +35773,7 @@ async function bumpSemVer(config, bumpInfo, releaseMode, branchName, headSha, is
         core.info("ℹ️ No bump necessary");
     }
     core.endGroup();
-    if (!bumped && config.prereleasePrefix !== undefined) {
+    if (!bumped && !dryRun && config.prereleasePrefix !== undefined) {
         // When configured to create GitHub releases, and the `bump-prereleases` config item
         // evaluates to `true`.
         if (isBranchAllowedToPublish &&
@@ -35797,7 +35807,9 @@ async function bumpSemVer(config, bumpInfo, releaseMode, branchName, headSha, is
             core.info(`ℹ️ While configured to bump prereleases, ${reason}.`);
         }
     }
-    return bumped || releaseMode === "none" ? versionMetadata : undefined;
+    return bumped || releaseMode === "none" || dryRun
+        ? versionMetadata
+        : undefined;
 }
 function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatchesTag, hasBreakingChange, devPrereleaseText, headSha, isInitialDevelopment) {
     const currentIsRc = currentVersion.prerelease.startsWith(RC_PREFIX);
@@ -35979,7 +35991,7 @@ function getNextSdkVer(currentVersion, sdkVerBumpType, isReleaseBranch, headMatc
 /**
  * Bump and release/tag SDK versions
  */
-async function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, branchName, isBranchAllowedToPublish, createChangelog) {
+async function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha, branchName, isBranchAllowedToPublish, createChangelog, dryRun = false) {
     const isReleaseBranch = new RegExp(config.releaseBranches).test(branchName);
     let hasBreakingChange = bumpInfo.processedCommits.some(c => c.message?.breakingChange);
     if (!bumpInfo.foundVersion)
@@ -36054,7 +36066,7 @@ async function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha
         const { release, tag } = await publishBump(bump.to, releaseMode, headSha, changelog, isBranchAllowedToPublish, config.releaseDiscussionCategory, 
         // Re-use the latest draft release only when not running on a release branch,
         // otherwise we might randomly reset a `dev-N` number chain.
-        !isReleaseBranch ? latestDraft?.id : undefined);
+        !isReleaseBranch ? latestDraft?.id : undefined, dryRun);
         versionOutput = {
             bump: {
                 from: bumpInfo.foundVersion.toString(),
@@ -36102,7 +36114,7 @@ async function bumpSdkVer(config, bumpInfo, releaseMode, sdkVerBumpType, headSha
         }
     }
     core.endGroup();
-    return bumped || releaseMode === "none" ? versionOutput : undefined;
+    return bumped || releaseMode === "none" || dryRun ? versionOutput : undefined;
 }
 /**
  * For SdkVer, the latest tag (i.e. "current version") may not be the starting
