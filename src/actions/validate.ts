@@ -26,6 +26,7 @@ import {
   validateCommitsInCurrentPR,
   validatePrTitle,
   validatePrTitleBump,
+  validateReleaseBranchBump,
 } from "../validate";
 
 /**
@@ -68,22 +69,31 @@ export async function run(): Promise<void> {
     await getConfig(core.getInput("config"));
     const config = new Configuration(".commisery.yml");
     let compliant = true;
+    let commitMessages: ConventionalCommitMessage[] = [];
 
     if (core.getBooleanInput("validate-commits")) {
       // Validate the current PR's commit messages
       const result = await validateCommitsInCurrentPR(config);
       compliant &&= result.compliant;
-      await updateLabels(await determineLabels(result.messages, config));
+      commitMessages = result.messages;
+      await updateLabels(await determineLabels(commitMessages, config));
     }
 
     if (core.getBooleanInput("validate-pull-request-title-bump")) {
       const ok = await validatePrTitleBump(config);
       compliant &&= ok;
-
       // Validating the PR title bump level implies validating the title itself
     } else if (core.getBooleanInput("validate-pull-request")) {
       const ok = (await validatePrTitle(config)) !== undefined;
       compliant &&= ok;
+    }
+
+    if (
+      core.getBooleanInput("validate-commits") ||
+      core.getBooleanInput("validate-pull-request-title-bump") ||
+      core.getBooleanInput("validate-pull-request")
+    ) {
+      compliant &&= await validateReleaseBranchBump(config, commitMessages);
     }
 
     core.info(""); // add vertical whitespace

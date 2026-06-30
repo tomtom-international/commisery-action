@@ -27,6 +27,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   jest.spyOn(core, "getBooleanInput").mockReturnValue(true);
   jest.spyOn(github, "isPullRequestEvent").mockReturnValue(true);
+  jest.spyOn(github, "getPullRequestBaseRef").mockResolvedValue("main");
 });
 
 const toICommit = (msg: string) => ({ message: msg, sha: "f00dface" });
@@ -183,6 +184,139 @@ describe("Error cases", () => {
       });
     }
   );
+});
+
+describe("Release branch bump validation", () => {
+  const PATCH_COMMIT = toICommit("fix: a patch fix");
+  const MINOR_COMMIT = toICommit("feat: a new feature");
+  const MAJOR_COMMIT = toICommit("chore!: breaking change");
+
+  const releaseBranchCases = [
+    {
+      testDescription: "feat commit targeting release branch fails",
+      messages: [PATCH_COMMIT, MINOR_COMMIT],
+      prTitle: "feat: a new feature",
+      targetBranch: "release/1.0",
+      shouldFail: true,
+      failMessage: "MINOR bump is requested",
+    },
+    {
+      testDescription: "breaking commit targeting release branch fails",
+      messages: [MAJOR_COMMIT],
+      prTitle: "chore!: breaking change",
+      targetBranch: "release/1.0",
+      shouldFail: true,
+      failMessage: "MAJOR bump is requested",
+    },
+    {
+      testDescription: "fix commit targeting release branch passes",
+      messages: [PATCH_COMMIT],
+      prTitle: "fix: a patch fix",
+      targetBranch: "release/1.0",
+      shouldFail: false,
+    },
+    {
+      testDescription: "feat commit targeting non-release branch passes",
+      messages: [MINOR_COMMIT],
+      prTitle: "feat: a new feature",
+      targetBranch: "main",
+      shouldFail: false,
+    },
+  ];
+
+  test.each(releaseBranchCases)(
+    "$testDescription",
+    async ({ messages, prTitle, targetBranch, shouldFail, failMessage }) => {
+      jest.spyOn(github, "getCommitsInPR").mockResolvedValue(messages);
+      jest.spyOn(github, "getPullRequestTitle").mockResolvedValue(prTitle);
+      jest
+        .spyOn(github, "getPullRequestBaseRef")
+        .mockResolvedValue(targetBranch);
+
+      await validate.run();
+
+      if (shouldFail) {
+        expect(core.setFailed).toHaveBeenCalledWith(
+          expect.stringContaining(failMessage!)
+        );
+      } else {
+        expect(core.setFailed).not.toHaveBeenCalled();
+      }
+    }
+  );
+
+  test("commits bump check runs independently when only validate-commits is enabled", async () => {
+    jest
+      .spyOn(core, "getBooleanInput")
+      .mockImplementation(name => name === "validate-commits");
+    jest.spyOn(github, "getCommitsInPR").mockResolvedValue([MINOR_COMMIT]);
+    jest
+      .spyOn(github, "getPullRequestTitle")
+      .mockResolvedValue("feat: a new feature");
+    jest
+      .spyOn(github, "getPullRequestBaseRef")
+      .mockResolvedValue("release/1.0");
+
+    await validate.run();
+
+    expect(core.setFailed).toHaveBeenCalledWith(
+      expect.stringContaining("MINOR bump is requested")
+    );
+  });
+
+  test("PR title bump check runs independently when only validate-pull-request-title-bump is enabled", async () => {
+    jest
+      .spyOn(core, "getBooleanInput")
+      .mockImplementation(name => name === "validate-pull-request-title-bump");
+    jest.spyOn(github, "getCommitsInPR").mockResolvedValue([MINOR_COMMIT]);
+    jest
+      .spyOn(github, "getPullRequestTitle")
+      .mockResolvedValue("feat: a new feature");
+    jest
+      .spyOn(github, "getPullRequestBaseRef")
+      .mockResolvedValue("release/1.0");
+
+    await validate.run();
+
+    expect(core.setFailed).toHaveBeenCalledWith(
+      expect.stringContaining("MINOR bump is requested")
+    );
+  });
+
+  test("PR title bump check runs when only validate-pull-request is enabled", async () => {
+    jest
+      .spyOn(core, "getBooleanInput")
+      .mockImplementation(name => name === "validate-pull-request");
+    jest.spyOn(github, "getCommitsInPR").mockResolvedValue([MINOR_COMMIT]);
+    jest
+      .spyOn(github, "getPullRequestTitle")
+      .mockResolvedValue("feat: a new feature");
+    jest
+      .spyOn(github, "getPullRequestBaseRef")
+      .mockResolvedValue("release/1.0");
+
+    await validate.run();
+
+    expect(core.setFailed).toHaveBeenCalledWith(
+      expect.stringContaining("MINOR bump is requested")
+    );
+  });
+
+  test("no bump check runs when both gates are disabled", async () => {
+    jest.spyOn(core, "getBooleanInput").mockReturnValue(false);
+    jest.spyOn(github, "getCommitsInPR").mockResolvedValue([MINOR_COMMIT]);
+    jest
+      .spyOn(github, "getPullRequestTitle")
+      .mockResolvedValue("feat: a new feature");
+    jest
+      .spyOn(github, "getPullRequestBaseRef")
+      .mockResolvedValue("release/1.0");
+
+    await validate.run();
+
+    expect(github.getPullRequestBaseRef).not.toHaveBeenCalled();
+    expect(core.setFailed).not.toHaveBeenCalled();
+  });
 });
 
 describe("Update labels", () => {
