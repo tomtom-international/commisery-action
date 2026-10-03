@@ -74,6 +74,7 @@ program
       messages = await getCommitMessages(target);
     }
 
+    let hasErrors = false;
     for (const message of messages) {
       try {
         const commitmessage = new ConventionalCommitMessage(
@@ -90,6 +91,7 @@ program
           for (const err of error.errors) {
             core.info(err.report());
           }
+          hasErrors = true;
           continue;
         } else if (
           error instanceof MergeCommitError ||
@@ -101,6 +103,10 @@ program
 
         throw error;
       }
+    }
+
+    if (hasErrors) {
+      process.exitCode = 1;
     }
   });
 

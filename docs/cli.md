@@ -27,7 +27,8 @@ Options:
 > This can be valuable to investigate scenarios in which you expected a different version bump than
 > the actual output of the `bump`-action.
 
-The command skips merge, fixup and revert commits.
+The command skips merge, fixup and revert commits. It exits with status 1 when any of the other
+checked messages is not compliant.
 
 ### (Pre-) Commit hook
 

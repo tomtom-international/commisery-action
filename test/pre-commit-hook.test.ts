@@ -61,6 +61,13 @@ describe("pre-commit hook", () => {
     expect(result.status).toBe(0);
   });
 
+  test("Rejects a non-compliant commit message", () => {
+    const result = runHook("update stuff\n");
+
+    expect(result.stdout).toContain("[C004]");
+    expect(result.status).toBe(1);
+  });
+
   test.each([
     ["merge", "Merge branch 'main' into feature\n"],
     ["fixup", "fixup! feat: add a thing\n"],
