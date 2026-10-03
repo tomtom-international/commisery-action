@@ -39656,6 +39656,11 @@ program
                 }
                 continue;
             }
+            else if (error instanceof errors_1.MergeCommitError ||
+                error instanceof errors_1.FixupCommitError ||
+                error instanceof errors_1.RevertCommitError) {
+                continue;
+            }
             throw error;
         }
     }

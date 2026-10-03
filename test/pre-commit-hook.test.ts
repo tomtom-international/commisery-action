@@ -60,4 +60,16 @@ describe("pre-commit hook", () => {
     expect(result.stderr).not.toContain("unknown command");
     expect(result.status).toBe(0);
   });
+
+  test.each([
+    ["merge", "Merge branch 'main' into feature\n"],
+    ["fixup", "fixup! feat: add a thing\n"],
+    ["revert", 'Revert "feat: add a thing"\n\nThis reverts commit 0123456.\n'],
+  ])("Skips a %s commit message", (_, message) => {
+    const result = runHook(message);
+
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe("");
+    expect(result.status).toBe(0);
+  });
 });
