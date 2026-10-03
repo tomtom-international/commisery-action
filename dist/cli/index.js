@@ -39656,6 +39656,11 @@ program
                 }
                 continue;
             }
+            else if (error instanceof errors_1.MergeCommitError ||
+                error instanceof errors_1.FixupCommitError ||
+                error instanceof errors_1.RevertCommitError) {
+                continue;
+            }
             throw error;
         }
     }
@@ -40123,7 +40128,7 @@ function isRevert(subject) {
 function stripMessage(message) {
     const cutLine = message.indexOf("# ------------------------ >8 ------------------------\n");
     if (cutLine >= 0 && (cutLine === 0 || message[cutLine - 1] === "\n")) {
-        message = message.substring(cutLine);
+        message = message.substring(0, cutLine);
     }
     // Strip comments
     message = message.replace(/^#[^\n]*\n?/, "");

@@ -25,7 +25,12 @@ import * as Color from "./colors";
 
 import { ConventionalCommitMessage } from "../commit";
 import { Configuration } from "../config";
-import { ConventionalCommitError } from "../errors";
+import {
+  ConventionalCommitError,
+  FixupCommitError,
+  MergeCommitError,
+  RevertCommitError,
+} from "../errors";
 import { Command } from "commander";
 import { getCommitMessages, prettyPrintCommitMessage } from "./utils";
 
@@ -85,6 +90,12 @@ program
           for (const err of error.errors) {
             core.info(err.report());
           }
+          continue;
+        } else if (
+          error instanceof MergeCommitError ||
+          error instanceof FixupCommitError ||
+          error instanceof RevertCommitError
+        ) {
           continue;
         }
 
