@@ -91,6 +91,7 @@ function getOctokit(): InstanceType<typeof GitHub> {
 
 /**
  * @param commits[] List of commits as returned by GitHub API `/repos/listCommits`
+ *                  or `/repos/compareCommitsWithBasehead`
  * @return List of ICommit objects representing the input list
  */
 function githubCommitsAsICommits(
@@ -404,7 +405,9 @@ export async function getReleaseConfiguration(): Promise<string> {
  * Takes a `matcher` function, and executes it on each commit in the repository.
  *
  * When (if) the matcher function returns a SemVer object, this function shall
- * return that object along with the list of commits encountered up until now.
+ * return the highest matching version reachable from `sha` along with the list
+ * of commits reachable from `sha`, but not from the matching commit (i.e.
+ * `<match>..<sha>`), ordered newest first by date.
  *
  * Alternatively, if no match could be made, returns `null` along with all
  * the commits encountered.
@@ -415,24 +418,64 @@ export async function matchTagsToCommits(
 ): Promise<[SemVer | null, ICommit[]]> {
   const octo = getOctokit();
   const commitList: ICommit[] = [];
-  let match: SemVer | null = null;
   sha = sha ?? github.context.sha;
   for await (const resp of octo.paginate.iterator(octo.rest.repos.listCommits, {
     ...github.context.repo,
     sha,
+    per_page: 100,
   })) {
     for (const commit of resp.data) {
-      match = matcher(commit.sha);
+      const match = matcher(commit.sha);
       if (match) {
         core.debug(
           `Matching on (${commit.sha}):${commit.commit.message.split("\n")[0]}`
         );
-        return [match, commitList];
+        // `listCommits` is ordered by date, not by topology; commits on a merged
+        // branch that predate the matching commit are listed _after_ it, and are
+        // thus not part of `commitList`. Use the commit graph instead.
+        return await getHighestMatchSince(commit.sha, match, sha, matcher);
       }
       commitList.push({ message: commit.commit.message, sha: commit.sha });
     }
   }
-  return [match, commitList];
+  return [null, commitList];
+}
+
+/**
+ * Starting from the tagged commit `baseSha` (with version `baseVersion`), looks
+ * for commits in `<baseSha>..<sha>` that are tagged with a _higher_ version, and
+ * moves the base to that commit until no higher version can be found.
+ *
+ * Needed because the first match in date order is not necessarily the most recent
+ * version; e.g. a tag on a release branch that was merged after a higher version
+ * was tagged on the target branch.
+ *
+ * Returns the resulting version, and the commits in `<base>..<sha>`, newest first.
+ */
+async function getHighestMatchSince(
+  baseSha: string,
+  baseVersion: SemVer,
+  sha: string,
+  matcher: (hash: string) => SemVer | null
+): Promise<[SemVer, ICommit[]]> {
+  for (;;) {
+    const commits = (await getCommitsBetweenRefs(baseSha, sha)).reverse();
+    let higher: { sha: string; version: SemVer } | undefined;
+    for (const commit of commits) {
+      const version = matcher(commit.sha);
+      if (version && (higher?.version ?? baseVersion).lessThan(version)) {
+        higher = { sha: commit.sha, version };
+      }
+    }
+    if (!higher) {
+      return [baseVersion, commits];
+    }
+    core.debug(
+      `Found higher version ${higher.version} (${higher.sha}) since ${baseVersion}`
+    );
+    baseSha = higher.sha;
+    baseVersion = higher.version;
+  }
 }
 
 /**
@@ -675,21 +718,29 @@ export async function currentHeadMatchesTag(tagName: string): Promise<boolean> {
 /**
  * Returns the commits between two Git refs.
  * According to the docs, the behavior matches `baseRef...compRef`, with an additional
- * "chronological" order (unsure if commit- or author-date).
+ * "chronological" order (unsure if commit- or author-date); note that this is
+ * _not_ a topological order.
  *
- * Returns a list ICommits representing `baseRef...compRef`.
+ * Returns a list ICommits representing `baseRef...compRef`, oldest first.
  */
 export async function getCommitsBetweenRefs(
   baseRef: string,
   compRef?: string
 ): Promise<ICommit[]> {
-  const { data: resp } =
-    await getOctokit().rest.repos.compareCommitsWithBasehead({
+  const octo = getOctokit();
+  const commits: ICommit[] = [];
+  for await (const resp of octo.paginate.iterator(
+    octo.rest.repos.compareCommitsWithBasehead,
+    {
       ...github.context.repo,
       basehead: `${baseRef}...${compRef ?? github.context.sha}`,
-    });
+      per_page: 100,
+    }
+  )) {
+    commits.push(...githubCommitsAsICommits(resp.data.commits));
+  }
 
-  return githubCommitsAsICommits(resp.commits);
+  return commits;
 }
 
 /**
