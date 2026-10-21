@@ -14,16 +14,32 @@
  * limitations under the License.
  */
 
-import { getCommitsBetweenRefs, matchTagsToCommits } from "../src/github";
+import * as core from "@actions/core";
+import { RequestError } from "@octokit/request-error";
+import {
+  getAssociatedPullRequests,
+  getCommitsBetweenRefs,
+  matchTagsToCommits,
+  updateLabels,
+} from "../src/github";
 import { SemVer } from "../src/semver";
+import * as U from "./test_utils";
 
 const mockListCommits = jest.fn();
 const mockCompareCommits = jest.fn();
 const mockIterator = jest.fn();
+const mockListPullRequests = jest.fn();
+const mockListLabels = jest.fn();
+const mockAddLabels = jest.fn();
+const mockRemoveLabel = jest.fn();
 
 jest.mock("@actions/core");
 jest.mock("@actions/github", () => ({
-  context: { repo: { owner: "owner", repo: "repo" }, sha: "aaaaaaa" },
+  context: {
+    repo: { owner: "owner", repo: "repo" },
+    issue: { number: 1 },
+    sha: "aaaaaaa",
+  },
 }));
 jest.mock("@actions/github/lib/utils", () => ({
   getOctokitOptions: jest.fn(),
@@ -34,6 +50,12 @@ jest.mock("@actions/github/lib/utils", () => ({
           repos: {
             listCommits: mockListCommits,
             compareCommitsWithBasehead: mockCompareCommits,
+            listPullRequestsAssociatedWithCommit: mockListPullRequests,
+          },
+          issues: {
+            listLabelsOnIssue: mockListLabels,
+            addLabels: mockAddLabels,
+            removeLabel: mockRemoveLabel,
           },
         };
         paginate = { iterator: mockIterator };
@@ -238,5 +260,59 @@ describe("getCommitsBetweenRefs", () => {
       basehead: `${TAGGED.sha}...aaaaaaa`,
       per_page: 100,
     });
+  });
+});
+
+// Error as raised by Octokit when the token lacks the required permissions,
+// e.g. the read-only `GITHUB_TOKEN` provided to Pull Requests from forks.
+const notAccessibleError = (documentationUrl: string) =>
+  new RequestError(
+    `Resource not accessible by integration - ${documentationUrl}`,
+    403,
+    {
+      request: { method: "POST", url: "https://example.com", headers: {} },
+    }
+  );
+
+describe("getAssociatedPullRequests", () => {
+  test("returns no pull requests when the token lacks permissions", async () => {
+    mockListPullRequests.mockRejectedValue(
+      notAccessibleError(
+        "https://docs.github.com/rest/commits/commits#list-pull-requests-associated-with-a-commit"
+      )
+    );
+
+    await expect(getAssociatedPullRequests(MERGE.sha)).resolves.toEqual([]);
+  });
+
+  test("rethrows other errors", async () => {
+    mockListPullRequests.mockRejectedValue(U.getMockRequestError(500));
+
+    await expect(getAssociatedPullRequests(MERGE.sha)).rejects.toThrow(
+      "Mocked Error"
+    );
+  });
+});
+
+describe("updateLabels", () => {
+  test("warns instead of failing when the token lacks permissions", async () => {
+    mockListLabels.mockResolvedValue({ data: [] });
+    mockAddLabels.mockRejectedValue(
+      notAccessibleError(
+        "https://docs.github.com/rest/issues/labels#add-labels-to-an-issue"
+      )
+    );
+
+    await expect(updateLabels(["bump:minor"])).resolves.toBeUndefined();
+    expect(core.warning).toHaveBeenCalledWith(
+      expect.stringContaining("Unable to update Pull Request labels")
+    );
+  });
+
+  test("rethrows other errors", async () => {
+    mockListLabels.mockResolvedValue({ data: [] });
+    mockAddLabels.mockRejectedValue(U.getMockRequestError(500));
+
+    await expect(updateLabels(["bump:minor"])).rejects.toThrow("Mocked Error");
   });
 });

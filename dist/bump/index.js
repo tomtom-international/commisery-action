@@ -37291,6 +37291,18 @@ function getOctokit() {
     }));
 }
 /**
+ * Returns whether the error is caused by the token lacking the required permissions,
+ * e.g. the read-only `GITHUB_TOKEN` provided to Pull Requests from forks.
+ *
+ * NOTE: Octokit appends the documentation URL to the error message, so we cannot
+ *       compare the message verbatim.
+ */
+function isResourceNotAccessible(error) {
+    return (error instanceof request_error_1.RequestError &&
+        error.status === 403 &&
+        error.message.startsWith("Resource not accessible by integration"));
+}
+/**
  * @param commits[] List of commits as returned by GitHub API `/repos/listCommits`
  *                  or `/repos/compareCommitsWithBasehead`
  * @return List of ICommit objects representing the input list
@@ -37673,8 +37685,7 @@ async function getAssociatedPullRequests(sha) {
         return prs;
     }
     catch (error) {
-        if (error instanceof Error &&
-            error.message === "Resource not accessible by integration") {
+        if (isResourceNotAccessible(error)) {
             return [];
         }
         throw error;
@@ -37717,8 +37728,7 @@ async function updateLabels(labels) {
         }
     }
     catch (error) {
-        if (error instanceof Error &&
-            error.message === "Resource not accessible by integration") {
+        if (isResourceNotAccessible(error)) {
             core.warning("Unable to update Pull Request labels, did you provide the `write` permission for `issues` and `pull-requests`?");
             return;
         }
