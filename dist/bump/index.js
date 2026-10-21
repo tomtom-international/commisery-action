@@ -37291,7 +37291,20 @@ function getOctokit() {
     }));
 }
 /**
+ * Returns whether the error is caused by the token lacking the required permissions,
+ * e.g. the read-only `GITHUB_TOKEN` provided to Pull Requests from forks.
+ *
+ * NOTE: Octokit appends the documentation URL to the error message, so we cannot
+ *       compare the message verbatim.
+ */
+function isResourceNotAccessible(error) {
+    return (error instanceof request_error_1.RequestError &&
+        error.status === 403 &&
+        error.message.startsWith("Resource not accessible by integration"));
+}
+/**
  * @param commits[] List of commits as returned by GitHub API `/repos/listCommits`
+ *                  or `/repos/compareCommitsWithBasehead`
  * @return List of ICommit objects representing the input list
  */
 function githubCommitsAsICommits(commits) {
@@ -37522,7 +37535,9 @@ async function getReleaseConfiguration() {
  * Takes a `matcher` function, and executes it on each commit in the repository.
  *
  * When (if) the matcher function returns a SemVer object, this function shall
- * return that object along with the list of commits encountered up until now.
+ * return the highest matching version reachable from `sha` along with the list
+ * of commits reachable from `sha`, but not from the matching commit (i.e.
+ * `<match>..<sha>`), ordered newest first by date.
  *
  * Alternatively, if no match could be made, returns `null` along with all
  * the commits encountered.
@@ -37530,22 +37545,54 @@ async function getReleaseConfiguration() {
 async function matchTagsToCommits(sha, matcher) {
     const octo = getOctokit();
     const commitList = [];
-    let match = null;
     sha = sha ?? github.context.sha;
     for await (const resp of octo.paginate.iterator(octo.rest.repos.listCommits, {
         ...github.context.repo,
         sha,
+        per_page: 100,
     })) {
         for (const commit of resp.data) {
-            match = matcher(commit.sha);
+            const match = matcher(commit.sha);
             if (match) {
                 core.debug(`Matching on (${commit.sha}):${commit.commit.message.split("\n")[0]}`);
-                return [match, commitList];
+                // `listCommits` is ordered by date, not by topology; commits on a merged
+                // branch that predate the matching commit are listed _after_ it, and are
+                // thus not part of `commitList`. Use the commit graph instead.
+                return await getHighestMatchSince(commit.sha, match, sha, matcher);
             }
             commitList.push({ message: commit.commit.message, sha: commit.sha });
         }
     }
-    return [match, commitList];
+    return [null, commitList];
+}
+/**
+ * Starting from the tagged commit `baseSha` (with version `baseVersion`), looks
+ * for commits in `<baseSha>..<sha>` that are tagged with a _higher_ version, and
+ * moves the base to that commit until no higher version can be found.
+ *
+ * Needed because the first match in date order is not necessarily the most recent
+ * version; e.g. a tag on a release branch that was merged after a higher version
+ * was tagged on the target branch.
+ *
+ * Returns the resulting version, and the commits in `<base>..<sha>`, newest first.
+ */
+async function getHighestMatchSince(baseSha, baseVersion, sha, matcher) {
+    for (;;) {
+        const commits = (await getCommitsBetweenRefs(baseSha, sha)).reverse();
+        let higher;
+        for (const commit of commits) {
+            const version = matcher(commit.sha);
+            if (version && (higher?.version ?? baseVersion).lessThan(version)) {
+                higher = { sha: commit.sha, version };
+            }
+        }
+        if (!higher) {
+            return [baseVersion, commits];
+        }
+        core.debug(`Found higher version ${higher.version} (${higher.sha}) since ${baseVersion}`);
+        baseSha = higher.sha;
+        baseVersion = higher.version;
+    }
 }
 /**
  * Get the commit sha associated with the provided tag, or `undefined` if
@@ -37638,8 +37685,7 @@ async function getAssociatedPullRequests(sha) {
         return prs;
     }
     catch (error) {
-        if (error instanceof Error &&
-            error.message === "Resource not accessible by integration") {
+        if (isResourceNotAccessible(error)) {
             return [];
         }
         throw error;
@@ -37682,8 +37728,7 @@ async function updateLabels(labels) {
         }
     }
     catch (error) {
-        if (error instanceof Error &&
-            error.message === "Resource not accessible by integration") {
+        if (isResourceNotAccessible(error)) {
             core.warning("Unable to update Pull Request labels, did you provide the `write` permission for `issues` and `pull-requests`?");
             return;
         }
@@ -37723,16 +37768,22 @@ async function currentHeadMatchesTag(tagName) {
 /**
  * Returns the commits between two Git refs.
  * According to the docs, the behavior matches `baseRef...compRef`, with an additional
- * "chronological" order (unsure if commit- or author-date).
+ * "chronological" order (unsure if commit- or author-date); note that this is
+ * _not_ a topological order.
  *
- * Returns a list ICommits representing `baseRef...compRef`.
+ * Returns a list ICommits representing `baseRef...compRef`, oldest first.
  */
 async function getCommitsBetweenRefs(baseRef, compRef) {
-    const { data: resp } = await getOctokit().rest.repos.compareCommitsWithBasehead({
+    const octo = getOctokit();
+    const commits = [];
+    for await (const resp of octo.paginate.iterator(octo.rest.repos.compareCommitsWithBasehead, {
         ...github.context.repo,
         basehead: `${baseRef}...${compRef ?? github.context.sha}`,
-    });
-    return githubCommitsAsICommits(resp.commits);
+        per_page: 100,
+    })) {
+        commits.push(...githubCommitsAsICommits(resp.data.commits));
+    }
+    return commits;
 }
 /**
  * Creates a new branch named `branchName` on the provided sha
