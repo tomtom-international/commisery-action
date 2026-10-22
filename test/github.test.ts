@@ -22,6 +22,7 @@ import {
   matchTagsToCommits,
   updateLabels,
 } from "../src/github";
+import { createTagMatcher } from "../src/bump";
 import { SemVer } from "../src/semver";
 import * as U from "./test_utils";
 
@@ -239,6 +240,63 @@ describe("matchTagsToCommits on merged release branch", () => {
         basehead: `${TAGGED_1_1_0.sha}...${MERGE_RELEASE.sha}`,
       })
     );
+  });
+});
+
+describe("matchTagsToCommits at scale", () => {
+  // Mirrors a repository with thousands of tags, none of which are on the target
+  // branch apart from the one it was branched from, and hundreds of commits since:
+  // the matcher is invoked for every commit since that tag.
+  const TAG_COUNT = 5000;
+  const COMMIT_COUNT = 700;
+  const sha = (i: number) => i.toString(16).padStart(40, "0");
+  const commits = Array.from({ length: COMMIT_COUNT }, (_, i) =>
+    ghCommit(sha(i + 1), `feat: change ${i + 1}`)
+  );
+  const TAGGED_INDEX = COMMIT_COUNT - 1;
+  const tags = Array.from({ length: TAG_COUNT }, (_, i) => ({
+    name: `1.0.0-rc${i}`,
+    ref: `refs/tags/1.0.0-rc${i}`,
+    sha: `f${i.toString(16).padStart(39, "0")}`,
+  }));
+  tags.push({
+    name: "2.0.0-rc01",
+    ref: "refs/tags/2.0.0-rc01",
+    sha: commits[TAGGED_INDEX].sha,
+  });
+
+  test("finds the tag with bounded log output", async () => {
+    const debugOutput: string[] = [];
+    (core.debug as jest.Mock).mockImplementation((msg: string) =>
+      debugOutput.push(msg)
+    );
+    const sinceTag = commits.slice(0, TAGGED_INDEX).reverse(); // oldest first
+    mockIterator.mockImplementation(endpoint =>
+      endpoint === mockListCommits
+        ? asPages(commits.slice(0, 350), commits.slice(350))
+        : asPages(
+            { commits: sinceTag.slice(0, 100) },
+            { commits: sinceTag.slice(100) }
+          )
+    );
+
+    const [version, result] = await matchTagsToCommits(
+      commits[0].sha,
+      createTagMatcher(tags, "*")
+    );
+
+    expect(version?.toString()).toBe("2.0.0-rc01");
+    expect(result).toHaveLength(TAGGED_INDEX);
+    expect(mockIterator).toHaveBeenLastCalledWith(
+      mockCompareCommits,
+      expect.objectContaining({
+        basehead: `${commits[TAGGED_INDEX].sha}...${commits[0].sha}`,
+      })
+    );
+    // Before indexing the tags, this logged one line per (commit, tag) pair:
+    // ~3.5M lines and ~400 MB here, which crashes Node.js when written to stdout.
+    const bytes = debugOutput.reduce((total, msg) => total + msg.length, 0);
+    expect(bytes).toBeLessThan(200 * 1024);
   });
 });
 

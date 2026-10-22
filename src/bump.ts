@@ -146,13 +146,64 @@ export function getVersionBumpType(
 }
 
 /**
- * Within the current context, examine all commits reachable from from `context.sha`
- * and match them to _all_ the tags found in the repo.
- * Each commit shall be tried to be matched to any of the tags found in chronological
- * order (i.e. the time the tag was pushed).
- * The closest tag that is SemVer-compatible and matches the `prefix` value as
- * configured in the `config` object shall be returned as a SemVer object, and
- * the highest bump type encountered in the commits _since_ that tag shall be returned.
+ * Creates a function that returns the highest SemVer-compatible version that
+ * the given commit is tagged with, considering only tags matching `prefix`
+ * (or any prefix if `prefix` is `*`), or `null` if there is no such tag.
+ * When multiple tags represent equal versions (e.g. `a-1.0.0` and `b-1.0.0`),
+ * the tag with the highest name wins, independent of the order of `tags`.
+ *
+ * NOTE: The matcher is invoked for every commit in the (potentially long) commit
+ *       history, and repositories can have thousands of tags. Hence, the tags are
+ *       indexed by commit sha up front, and nothing is logged per tag (likewise,
+ *       `SemVer.sortSemVer()`, which logs on every comparison, is only called
+ *       for commits with multiple matching tags). Logging
+ *       for every (commit, tag) pair queues stdout writes without bound, until
+ *       the eventual `writev` fails and crashes the action (`write EINVAL`).
+ */
+export function createTagMatcher(
+  tags: IGitTag[],
+  prefix: string
+): (commitSha: string) => SemVer | null {
+  const tagsBySha = new Map<string, IGitTag[]>();
+  for (const tag of tags) {
+    const shaTags = tagsBySha.get(tag.sha);
+    if (shaTags) {
+      shaTags.push(tag);
+    } else {
+      tagsBySha.set(tag.sha, [tag]);
+    }
+  }
+
+  return (commitSha: string): SemVer | null => {
+    let highest: { name: string; version: SemVer } | null = null;
+    for (const tag of tagsBySha.get(commitSha) ?? []) {
+      const version = getSemVerIfMatches(prefix, tag.name, tag.sha, commitSha);
+      if (!version) {
+        continue;
+      }
+      const order = highest ? SemVer.sortSemVer(version, highest.version) : 1;
+      if (order > 0 || (order === 0 && highest && tag.name > highest.name)) {
+        highest = { name: tag.name, version };
+      }
+    }
+    if (!highest) {
+      core.debug(
+        `Commit ${commitSha.slice(0, 6)} is not associated with a tag`
+      );
+      return null;
+    }
+    core.debug(`Commit ${commitSha.slice(0, 6)} matches tag ${highest.name}`);
+    return highest.version;
+  };
+}
+
+/**
+ * Within the current context, examine all commits reachable from `targetSha`
+ * and match them to _all_ the tags found in the repo (see `createTagMatcher()`).
+ * The highest reachable tag that is SemVer-compatible and matches the `prefix`
+ * value as configured in the `config` object shall be returned as a SemVer object
+ * (see `matchTagsToCommits()`), and the highest bump type encountered in the
+ * commits _since_ that tag shall be returned.
  *  - MAJOR: breaking changes,
  *  - MINOR: feat commits,
  *  - PATCH: fix commits, plus any tag matching one of `extra_patch_tags`, if configured
@@ -177,49 +228,7 @@ export async function getVersionBumpTypeAndMessages(
   core.debug("Fetching repository tags..");
   const tags = await getAllTags();
   core.debug(`Fetch complete; found ${tags.length} tags`);
-  const tagMatcher = (commitSha: string): SemVer | null => {
-    // Try and match this commit's hash to one of the tags in `tags`
-    for (const tag of tags) {
-      let semVer: SemVer | null = null;
-      core.debug(`Considering tag ${tag.name} (${tag.sha}) on ${commitSha}`);
-      semVer = getSemVerIfMatches(
-        config.versionPrefix,
-        tag.name,
-        tag.sha,
-        commitSha
-      );
-      if (semVer) {
-        // We've found a tag that matches to this commit. Now, we need to make sure that
-        // we return the _highest_ version tag associated with this commit.
-        core.debug(
-          `Matching tag found (${tag.name}), checking other tags for commit ${commitSha}..`
-        );
-        const matchTags = tags.filter(t => t.sha === commitSha);
-        if (matchTags.length > 1) {
-          core.debug(`${matchTags.length} other tags found`);
-          matchTags.sort((lhs, rhs) => SemVer.sortSemVer(lhs.name, rhs.name));
-          semVer = null;
-          while (semVer === null && matchTags.length !== 0) {
-            const t = matchTags.pop();
-            if (!t) break;
-            semVer = getSemVerIfMatches(
-              config.versionPrefix,
-              t.name,
-              t.sha,
-              commitSha
-            );
-          }
-        } else {
-          core.debug(`No other tags found`);
-          // Just the one tag; carry on.
-        }
-
-        return semVer;
-      }
-    }
-    core.debug(`Commit ${commitSha.slice(0, 6)} is not associated with a tag`);
-    return null;
-  };
+  const tagMatcher = createTagMatcher(tags, config.versionPrefix);
   const [version, commitList] = await matchTagsToCommits(targetSha, tagMatcher);
 
   const results = processCommitsForBump(commitList, config);
