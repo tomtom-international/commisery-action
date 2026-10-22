@@ -21,7 +21,7 @@ import * as bumpaction from "../src/actions/bump";
 import * as changelog from "../src/changelog";
 import * as validate from "../src/validate";
 
-import { getVersionBumpTypeAndMessages } from "../src/bump";
+import { createTagMatcher, getVersionBumpTypeAndMessages } from "../src/bump";
 import * as fs from "fs";
 import { SemVer } from "../src/semver";
 import * as U from "./test_utils";
@@ -985,6 +985,73 @@ describe("Dry run", () => {
     expect(core.setOutput).toHaveBeenCalledWith("next-version", "");
     expect(core.setOutput).toHaveBeenCalledWith("bump-metadata", "");
     expect(core.setFailed).not.toHaveBeenCalled();
+  });
+});
+
+describe("Tag matcher", () => {
+  const tag = (name: string, sha: string): IGitTag => ({
+    name,
+    ref: `refs/tags/${name}`,
+    sha,
+  });
+
+  test("Returns the highest version tag on a commit", () => {
+    const matcher = createTagMatcher(
+      [
+        tag("1.0.0", "aaa"),
+        tag("not-a-version", "bbb"),
+        tag("1.2.0", "bbb"),
+        tag("1.10.0", "bbb"),
+        tag("1.3.0", "bbb"),
+      ],
+      "*"
+    );
+    expect(matcher("aaa")).toEqual(SemVer.fromString("1.0.0"));
+    expect(matcher("bbb")).toEqual(SemVer.fromString("1.10.0"));
+    expect(matcher("ccc")).toBeNull();
+  });
+
+  test("Ignores non-SemVer tags", () => {
+    const matcher = createTagMatcher([tag("not-a-version", "aaa")], "*");
+    expect(matcher("aaa")).toBeNull();
+  });
+
+  test("Ignores higher versions with a non-matching prefix", () => {
+    const matcher = createTagMatcher(
+      [
+        tag("v1.0.0", "aaa"),
+        tag("other-2.0.0", "aaa"),
+        tag("other-3.0.0", "bbb"),
+      ],
+      "v"
+    );
+    expect(matcher("aaa")).toEqual(SemVer.fromString("v1.0.0"));
+    expect(matcher("bbb")).toBeNull();
+  });
+
+  test("Picks the highest tag name on equal versions, in any order", () => {
+    const tags = [tag("a-1.0.0", "aaa"), tag("b-1.0.0", "aaa")];
+    const expected = SemVer.fromString("b-1.0.0");
+    expect(createTagMatcher(tags, "*")("aaa")).toEqual(expected);
+    expect(createTagMatcher([...tags].reverse(), "*")("aaa")).toEqual(expected);
+  });
+
+  test("Logging does not scale with the number of tags", () => {
+    // Regression test: logging a debug line per (commit, tag) pair produced
+    // ~300 MB of output on a repository with ~4000 tags, crashing the action
+    // with `write EINVAL` on stdout. Allow one debug line per untagged commit.
+    const tags = Array.from({ length: 5000 }, (_, i) =>
+      tag(`1.0.0-rc${i}`, `tagged${i}`)
+    );
+    const matcher = createTagMatcher(tags, "*");
+    const debug = core.debug as jest.Mock;
+    debug.mockClear();
+
+    for (let i = 0; i < 1000; i++) {
+      expect(matcher(`untagged${i}`)).toBeNull();
+    }
+    expect(debug.mock.calls.length).toBeLessThanOrEqual(1000);
+    expect(matcher("tagged42")).toEqual(SemVer.fromString("1.0.0-rc42"));
   });
 });
 
