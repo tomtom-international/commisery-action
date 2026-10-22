@@ -176,6 +176,28 @@ describe("Body", () => {
   });
 });
 
+// Removal of git's editor-only content from a Commit Message
+//
+describe("Stripping", () => {
+  test("Ignore everything from the scissors line onward", () => {
+    const msg = new ConventionalCommitMessage(
+      "docs: fix a typo\n" +
+        "\n" +
+        "Correct the spelling in the README.\n" +
+        "# ------------------------ >8 ------------------------\n" +
+        "# Do not modify or remove the line above.\n" +
+        "# Everything below it will be ignored.\n" +
+        "diff --git a/README.md b/README.md\n" +
+        "-teh\n" +
+        "+the\n"
+    );
+
+    expect(msg.type).toBe("docs");
+    expect(msg.description).toBe("fix a typo");
+    expect(msg.body).toBe("Correct the spelling in the README.");
+  });
+});
+
 // Validation of Bump-type
 //
 describe("Bump", () => {
