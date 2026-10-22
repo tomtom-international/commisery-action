@@ -39642,6 +39642,7 @@ program
     else {
         messages = await (0, utils_1.getCommitMessages)(target);
     }
+    let hasErrors = false;
     for (const message of messages) {
         try {
             const commitmessage = new commit_1.ConventionalCommitMessage(message.body, message.sha, config);
@@ -39654,10 +39655,19 @@ program
                 for (const err of error.errors) {
                     core.info(err.report());
                 }
+                hasErrors = true;
+                continue;
+            }
+            else if (error instanceof errors_1.MergeCommitError ||
+                error instanceof errors_1.FixupCommitError ||
+                error instanceof errors_1.RevertCommitError) {
                 continue;
             }
             throw error;
         }
+    }
+    if (hasErrors) {
+        process.exitCode = 1;
     }
 });
 program
@@ -40123,7 +40133,7 @@ function isRevert(subject) {
 function stripMessage(message) {
     const cutLine = message.indexOf("# ------------------------ >8 ------------------------\n");
     if (cutLine >= 0 && (cutLine === 0 || message[cutLine - 1] === "\n")) {
-        message = message.substring(cutLine);
+        message = message.substring(0, cutLine);
     }
     // Strip comments
     message = message.replace(/^#[^\n]*\n?/, "");

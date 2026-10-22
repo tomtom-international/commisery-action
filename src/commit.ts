@@ -279,7 +279,7 @@ function stripMessage(message: string): string {
   );
 
   if (cutLine >= 0 && (cutLine === 0 || message[cutLine - 1] === "\n")) {
-    message = message.substring(cutLine);
+    message = message.substring(0, cutLine);
   }
 
   // Strip comments

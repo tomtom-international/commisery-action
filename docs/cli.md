@@ -27,6 +27,9 @@ Options:
 > This can be valuable to investigate scenarios in which you expected a different version bump than
 > the actual output of the `bump`-action.
 
+The command skips merge, fixup and revert commits. It exits with status 1 when any of the other
+checked messages is not compliant.
+
 ### (Pre-) Commit hook
 
 You can use the CLI as a hook in Git to check messages you wrote by creating a `.git/hooks/commit-msg` file with these contents:
