@@ -37361,17 +37361,31 @@ async function getPullRequestBaseRef() {
     return (await getPullRequest(getPullRequestId())).base.ref;
 }
 /**
+ * Maximum number of commits returned by the GitHub API for a pull request,
+ * regardless of pagination.
+ */
+const MAX_PULL_REQUEST_COMMITS = 250;
+/**
  * Retrieves a list of commits associated with the specified pull request
  * @param pullRequestId GitHub pull request ID
  * @returns ICommit[] List of ICommit objects
  */
 async function getCommitsInPR(pullRequestId) {
     // Retrieve commits from provided pull request
-    const { data: commits } = await getOctokit().rest.pulls.listCommits({
+    const octo = getOctokit();
+    const commits = [];
+    for await (const resp of octo.paginate.iterator(octo.rest.pulls.listCommits, {
         ...github.context.repo,
         pull_number: pullRequestId,
-    });
-    return githubCommitsAsICommits(commits);
+        per_page: 100,
+    })) {
+        commits.push(...githubCommitsAsICommits(resp.data));
+    }
+    if (commits.length >= MAX_PULL_REQUEST_COMMITS) {
+        core.warning(`The GitHub API lists at most ${MAX_PULL_REQUEST_COMMITS} commits of a pull request; ` +
+            `commits beyond the first ${MAX_PULL_REQUEST_COMMITS} are not taken into account.`);
+    }
+    return commits;
 }
 /**
  * Retrieves the Pull Request associated with the specified Pull Request ID
