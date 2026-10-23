@@ -19,6 +19,7 @@ import { RequestError } from "@octokit/request-error";
 import {
   getAssociatedPullRequests,
   getCommitsBetweenRefs,
+  getCommitsInPR,
   matchTagsToCommits,
   updateLabels,
 } from "../src/github";
@@ -27,6 +28,7 @@ import { SemVer } from "../src/semver";
 import * as U from "./test_utils";
 
 const mockListCommits = jest.fn();
+const mockListPullRequestCommits = jest.fn();
 const mockCompareCommits = jest.fn();
 const mockIterator = jest.fn();
 const mockListPullRequests = jest.fn();
@@ -52,6 +54,9 @@ jest.mock("@actions/github/lib/utils", () => ({
             listCommits: mockListCommits,
             compareCommitsWithBasehead: mockCompareCommits,
             listPullRequestsAssociatedWithCommit: mockListPullRequests,
+          },
+          pulls: {
+            listCommits: mockListPullRequestCommits,
           },
           issues: {
             listLabelsOnIssue: mockListLabels,
@@ -318,6 +323,48 @@ describe("getCommitsBetweenRefs", () => {
       basehead: `${TAGGED.sha}...aaaaaaa`,
       per_page: 100,
     });
+  });
+});
+
+describe("getCommitsInPR", () => {
+  const prCommits = (count: number) =>
+    Array.from({ length: count }, (_, i) =>
+      ghCommit(
+        `${i}`.padStart(7, "0"),
+        i === count - 1 ? "feat: last" : "docs: x"
+      )
+    );
+
+  test("collects commits from all pages", async () => {
+    const commits = prCommits(130);
+    mockIterator.mockImplementation(() =>
+      asPages(commits.slice(0, 100), commits.slice(100))
+    );
+
+    await expect(getCommitsInPR(1)).resolves.toEqual(commits.map(toICommit));
+    expect(mockIterator).toHaveBeenCalledWith(mockListPullRequestCommits, {
+      owner: "owner",
+      repo: "repo",
+      pull_number: 1,
+      per_page: 100,
+    });
+    expect(core.warning).not.toHaveBeenCalled();
+  });
+
+  test("warns when the GitHub API limit of 250 commits is reached", async () => {
+    const commits = prCommits(250);
+    mockIterator.mockImplementation(() =>
+      asPages(
+        commits.slice(0, 100),
+        commits.slice(100, 200),
+        commits.slice(200)
+      )
+    );
+
+    await expect(getCommitsInPR(1)).resolves.toHaveLength(250);
+    expect(core.warning).toHaveBeenCalledWith(
+      expect.stringContaining("at most 250 commits")
+    );
   });
 });
 
